@@ -59,7 +59,7 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
               
               console.log(`Found ${similarObjects.objects.length} similar objects`);
               if (similarObjects.objects.length > 0) {
-                console.log(`Similar objects: ${similarObjects.objects.map(o => o.key).join(', ')}`);
+                // console.log(`Similar objects: ${similarObjects.objects.map(o => o.key).join(', ')}`);
                 
                 // Try an exact match from the list of similar objects
                 const exactMatch = similarObjects.objects.find(o => 
@@ -67,7 +67,7 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
                 );
                 
                 if (exactMatch) {
-                  console.log(`Found exact match: ${exactMatch.key}`);
+                  // console.log(`Found exact match: ${exactMatch.key}`);
                   object = await env.PLAUSIBLEAI.get(exactMatch.key);
                 }
               }
@@ -134,13 +134,8 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
         });
         
         console.log(`Found ${objects.objects.length} objects and ${objects.delimitedPrefixes.length} prefixes`);
-        // Log the first few objects for debugging
-        if (objects.objects.length > 0) {
-          console.log(`First object key: ${objects.objects[0].key}`);
-        }
-        if (objects.delimitedPrefixes.length > 0) {
-          console.log(`First prefix: ${objects.delimitedPrefixes[0]}`);
-        }
+    
+       
         
         // Format the results
         const results = {
