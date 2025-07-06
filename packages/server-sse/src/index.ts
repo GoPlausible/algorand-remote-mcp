@@ -166,7 +166,7 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 		await registerWalletTools(this.server, this.env, this.props);
 	}
 	onStateUpdate(state: State) {
-		console.log({ stateUpdate: state });
+		// console.log({ stateUpdate: state });
 	}
 }
 // export default AlgorandRemoteMCP.mount("/sse", {
