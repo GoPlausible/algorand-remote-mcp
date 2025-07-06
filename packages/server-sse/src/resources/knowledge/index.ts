@@ -5,7 +5,7 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Env, Props } from '../../types';
-import { guide } from '../../utils/Guide.js';
+// import { guide } from '../../utils/Guide.js';
 
 // These categories will be dynamically fetched from R2
 const categoryNames = [

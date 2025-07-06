@@ -5,7 +5,7 @@ import { Env, State, Props } from './types';
 import { ResponseProcessor } from './utils';
 import OAuthProvider from "@cloudflare/workers-oauth-provider";
 import { OauthHandler } from "./oauth-handler";
-import algosdk from 'algosdk';
+// import algosdk from 'algosdk';
 import {
 	registerAccountTools,
 	registerGeneralTransactionTools,

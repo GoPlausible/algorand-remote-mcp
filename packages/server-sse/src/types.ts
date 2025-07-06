@@ -86,6 +86,9 @@ PLAUSIBLEAI?: R2Bucket;
 
   OAUTH_KV?: KVNamespace;
   OAUTH_KV_ACCOUNTS?: KVNamespace;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  COOKIE_ENCRYPTION_KEY?: string;
 }
 export interface Props {
   

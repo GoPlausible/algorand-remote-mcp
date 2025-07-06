@@ -17,7 +17,9 @@
 		"agents": "^0.0.95",
 		"hono": "^4.8.0",
 		"just-pick": "^4.2.0",
-		"zod": "^3.25.61"
+		"zod": "^3.25.61",
+		"algosdk": "2.9.0",
+		"qrcode": "^1.5.4"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
