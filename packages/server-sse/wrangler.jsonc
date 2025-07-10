@@ -6,8 +6,10 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "algorand-remote-mcp",
   "main": "src/index.ts",
+  "workers_dev": true,
   "compatibility_date": "2025-03-10",
   "compatibility_flags": ["nodejs_compat"],
+  "route": { "pattern": "algorandmcp.goplausible.xyz/*", "zone_id": "592cbc5d1b3eec4db482306cbc966e1d" },
   "migrations": [
     {
       "new_sqlite_classes": ["AlgorandRemoteMCP"],
