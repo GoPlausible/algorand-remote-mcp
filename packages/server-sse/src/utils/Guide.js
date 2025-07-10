@@ -174,7 +174,7 @@ As an LLM agent, here's how to quickly perform basic Algorand operations using d
    }
    \`\`\`
 
-## Common Algorand Mainnet Assets (⚠️ Always present to user as "Common used assets" at each session start)
+## Common Algorand Mainnet Assets (⚠️ Always present to user as "Common used assets" table at each session start)
 
 Here are frequently used assets on Algorand Mainnet for reference:
 
@@ -185,7 +185,6 @@ Here are frequently used assets on Algorand Mainnet for reference:
 | ALGO | N/A | 6 | Native Algorand token (no ASA ID needed) |
 | goETH | 386192725 | 8 | Wrapped Ethereum |
 | goBTC | 386195940 | 8 | Wrapped Bitcoin |
-| PLANET | 27165954 | 6 | Planetwatch token |
 
 > **Note**: Always verify asset IDs before transactions, as scam tokens may use similar names.
 
