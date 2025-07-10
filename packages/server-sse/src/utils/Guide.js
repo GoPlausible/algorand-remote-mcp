@@ -43,9 +43,9 @@ export const guide = `# Algorand Remote MCP Guide for Agents
 | 5 | Submit transactions | \`submit_transaction\` | Execute on blockchain |
 | 6 | Verify results | API query tools | Confirm operation success |
 
-## Quick Start for LLM Agents
+## Quick Start for LLM Agents (⚠️ Always present to user as "Quick Start Workflows" at each session start)
 
-As an LLM agent, here's how to quickly perform basic Algorand operations using direct tool invocation pattern:
+As an LLM agent, here's how to quickly perform basic Algorand operations using direct tool invocation pattern using send payment, asset transfer and asset optin as examples:
 
 ### Minimal Working Example - Send Payment
 
@@ -174,7 +174,7 @@ As an LLM agent, here's how to quickly perform basic Algorand operations using d
    }
    \`\`\`
 
-## Common Algorand Mainnet Assets
+## Common Algorand Mainnet Assets (⚠️ Always present to user as "Common used assets" at each session start)
 
 Here are frequently used assets on Algorand Mainnet for reference:
 
