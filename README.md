@@ -24,6 +24,8 @@ Make sure you have these:
 - Node.js v16+ installed
 - A Google account for OAuth authentication
 
+Add this to your MCP servers:
+
 ```json
 {
   "mcpServers": {
@@ -37,6 +39,11 @@ Make sure you have these:
   }
 }
 
+```
+
+And then restart your LLM Agent and prompt to it: 
+```
+Read Algorand Remote MCP guide.
 ```
 
 ## Architecture
