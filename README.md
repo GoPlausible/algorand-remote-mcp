@@ -136,61 +136,16 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 
 ## Usage
 
-### Authentication Flow
+### Authentication Flow for users
 1. User authenticates through Google OAuth
 2. Server creates or retrieves wallet credentials for the user
 3. User can now access tools and resources through the MCP interface
 
-### Transaction Flow
+### Transaction Flow for Agents
 1. Create transaction using appropriate tool
 2. Sign transaction with wallet credentials
 3. Submit transaction to network
 4. Verify transaction success
-
-### Example: Send Payment
-```typescript
-// 1. Get wallet information
-const walletInfo = await agent.useToolWithRetry("get_wallet_account", {});
-
-// 2. Create payment transaction
-const txnResult = await agent.useToolWithRetry("create_payment_transaction", {
-  from: walletInfo.data.accounts[0].address,
-  to: "RECEIVER_ADDRESS",
-  amount: 1000000 // 1 ALGO
-});
-
-// 3. Sign transaction
-const signedTxn = await agent.useToolWithRetry("sign_transaction", {
-  encodedTxn: txnResult.data.encodedTxn
-});
-
-// 4. Submit transaction
-const result = await agent.useToolWithRetry("submit_transaction", {
-  signedTxn: signedTxn.data.signedTxn
-});
-```
-
-### Example: Asset Opt-In
-```typescript
-// 1. Get wallet information
-const walletInfo = await agent.useToolWithRetry("get_wallet_account", {});
-
-// 2. Create asset opt-in transaction
-const txnResult = await agent.useToolWithRetry("asset_optin", {
-  address: walletInfo.data.accounts[0].address,
-  assetID: 31566704 // USDC on Algorand Mainnet
-});
-
-// 3. Sign transaction
-const signedTxn = await agent.useToolWithRetry("sign_transaction", {
-  encodedTxn: txnResult.data.encodedTxn
-});
-
-// 4. Submit transaction
-const result = await agent.useToolWithRetry("submit_transaction", {
-  signedTxn: signedTxn.data.signedTxn
-});
-```
 
 ## Project Structure
 
