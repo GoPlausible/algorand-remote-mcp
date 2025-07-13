@@ -4,7 +4,7 @@
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "algorand-remote-mcp",
+  "name": "algorand-remote-mcp-agent",
   "main": "src/index.ts",
   "workers_dev": true,
   "compatibility_date": "2025-03-10",
