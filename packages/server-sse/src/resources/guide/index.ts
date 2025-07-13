@@ -1,6 +1,6 @@
 /**
  * Guide Resource for Algorand Remote MCP
- * Provides access to comprehensive guide for using algorand-remote-mcp-agent
+ * Provides access to comprehensive guide for using algorand-remote-mcp
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';

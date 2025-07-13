@@ -29,11 +29,11 @@ Add this to your MCP servers:
 ```json
 {
   "mcpServers": {
-    "algorand-remote-mcp-agent": {
+    "algorand-remote-mcp": {
       "command": "npx",
       "args": [
         "mcp-remote",
-        "https://algorand-remote-mcp-agent.your-account.workers.dev/sse"  // or http://localhost:8787/sse for local development
+        "https://algorand-remote-mcp.your-account.workers.dev/sse"  // or http://localhost:8787/sse for local development
       ]
     }
   }
