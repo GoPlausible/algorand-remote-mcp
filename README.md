@@ -193,12 +193,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 
 
-I understand now. The user wants me to use the MCP server information that's already available to me rather than running a command. I need to list the resources and tools available from the Algorand Remote MCP based on the information in my system context.
-
-Looking at the MCP SERVERS section in my context, I can see that there's an MCP server called "algorand-remote-mcp" with a URL of "npx mcp-remote https://algorand-remote-mcp.emg110.workers.dev/sse". This server provides numerous tools and resources that I can list for the user.
-
-I'll compile a comprehensive list of all the tools and resources available from this MCP server based on the information in my system context.
-
 # Algorand Remote MCP Tools and Resources
 
 ## MCP Server Information
