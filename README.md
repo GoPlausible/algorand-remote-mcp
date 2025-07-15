@@ -192,7 +192,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 
-
 # Algorand Remote MCP Tools and Resources
 
 ## MCP Server Information
@@ -309,12 +308,15 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 85. `list_knowledge_docs` - List available knowledge documents by category
 
 ## Resources full index
+
+### Algorand Wallet Resources
 1. `algorand://wallet/secretkey` - Wallet Account Secret Key
 2. `algorand://wallet/publickey` - Wallet Account Public Key
 3. `algorand://wallet/mnemonic` - Wallet Account Mnemonic
 4. `algorand://wallet/address` - Wallet Account Address
 5. `algorand://wallet/account` - Wallet Account Information
 6. `algorand://wallet/assets` - Wallet Account Assets
+### Algorand Knowledge Resources
 7. `algorand://knowledge/taxonomy` - Algorand Knowledge Full Taxonomy
 8. `algorand://knowledge/taxonomy/arcs` - Algorand Request for Comments
 9. `algorand://knowledge/taxonomy/sdks` - Software Development Kits
@@ -328,4 +330,5 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 17. `algorand://knowledge/taxonomy/clis` - CLI Tools
 18. `algorand://knowledge/taxonomy/nodes` - Node Management
 19. `algorand://knowledge/taxonomy/details` - Developer Details
+### Algorand Remote MCP Guide
 20. `algorand://remote-mcp-guide` - Algorand MCP Guide
