@@ -90,6 +90,7 @@ PLAUSIBLEAI?: R2Bucket;
   
 
   OAUTH_KV?: KVNamespace;
+  HCV_WORKER_URL?: string; // Hashicorp Vault Worker binding for secure secret storage
   // OAUTH_KV_ACCOUNTS?: KVNamespace;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;

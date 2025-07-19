@@ -22,7 +22,7 @@ export async function storeMnemonic(env: Env, email: string, mnemonic: string): 
 
   try {
     const secretPath = `${email}`;
-    const response = await env.HCV_WORKER.fetch(`/secret/${secretPath}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/secret/${secretPath}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -64,7 +64,7 @@ export async function retrieveMnemonic(env: Env, email: string): Promise<string 
     // Fetch the secret from the vault
     // Note: Adjust the endpoint as per your vault worker's API
     console.log('Fetching secret from vault at path:', secretPath);
-    const response = await env.HCV_WORKER.fetch(`/secret/${secretPath}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/secret/${secretPath}`, {
       method: 'GET'
     });
     console.log('Response from vault:', response);
@@ -102,7 +102,7 @@ export async function deleteMnemonic(env: Env, email: string): Promise<boolean> 
 
   try {
     const secretPath = `${email}`;
-    const response = await env.HCV_WORKER.fetch(`/secret/${secretPath}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/secret/${secretPath}`, {
       method: 'DELETE'
     });
 
