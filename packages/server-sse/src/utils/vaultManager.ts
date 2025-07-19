@@ -60,9 +60,14 @@ export async function retrieveMnemonic(env: Env, email: string): Promise<string 
 
   try {
     const secretPath = `${email}`;
+    console.log('Retrieving mnemonic from vault for email:', email);
+    // Fetch the secret from the vault
+    // Note: Adjust the endpoint as per your vault worker's API
+    console.log('Fetching secret from vault at path:', secretPath);
     const response = await env.HCV_WORKER.fetch(`/secret/${secretPath}`, {
       method: 'GET'
     });
+    console.log('Response from vault:', response);
 
     if (!response.ok) {
       // If the secret doesn't exist, don't log an error, just return undefined

@@ -1,7 +1,7 @@
 import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { Env, State, Props } from './types';
+import { Env, State, Props, VaultResponse } from './types';
 import { ResponseProcessor } from './utils';
 import OAuthProvider from "@cloudflare/workers-oauth-provider";
 import { OauthHandler } from "./oauth-handler";

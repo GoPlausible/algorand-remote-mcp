@@ -4,8 +4,9 @@
  */
 
 import algosdk from 'algosdk';
-import { Env, Props } from '../../types';
+import { Env, Props, VaultResponse } from '../../types';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { retrieveMnemonic, storeMnemonic } from '../../utils/vaultManager';
 
 /**
  * Create and validate an Algorand client
@@ -41,7 +42,8 @@ function getAccountFromMnemonic(mnemonic: string | undefined): algosdk.Account |
  */
 export async function registerWalletResources(server: McpServer, env: Env, props: Props): Promise<void> {
 
-  const ALGORAND_AGENT_WALLET = await env?.OAUTH_KV_ACCOUNTS?.get(props.email);
+  const ALGORAND_AGENT_WALLET = await retrieveMnemonic(env, props.email);
+  console.log('ALGORAND_AGENT_WALLET:', ALGORAND_AGENT_WALLET);
   if (!ALGORAND_AGENT_WALLET) {
     try {
       console.log('Generating new account for Oauth user by email:', props.email);
@@ -49,7 +51,11 @@ export async function registerWalletResources(server: McpServer, env: Env, props
       if (!account) {
         throw new Error('Failed to generate account for Oauth user by email');
       }
-      await env?.OAUTH_KV_ACCOUNTS?.put(props.email, algosdk.secretKeyToMnemonic(account.sk));
+      const mnemonic = algosdk.secretKeyToMnemonic(account.sk);
+      const success = await storeMnemonic(env, props.email, mnemonic);
+      if (!success) {
+        throw new Error('Failed to store mnemonic in vault');
+      }
     } catch (error: any) {
       throw new Error(`Failed to generate account for Oauth user by email: ${error.message || 'Unknown error'}`);
     }

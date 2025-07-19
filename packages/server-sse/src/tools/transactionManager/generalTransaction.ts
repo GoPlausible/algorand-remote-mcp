@@ -7,7 +7,8 @@ import algosdk from 'algosdk';
 import { z } from 'zod';
 import { ResponseProcessor } from '../../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { Env, Props } from '../../types';
+import { Env, Props, VaultResponse } from '../../types';
+import { retrieveMnemonic, storeMnemonic } from '../../utils/vaultManager';
 
 /**
  * Create and validate an Algorand client
@@ -25,7 +26,7 @@ function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | nu
  * Register general transaction management tools to the MCP server
  */
 export async function registerGeneralTransactionTools(server: McpServer, env: Env, props: Props): Promise<void> {
-  const ALGORAND_AGENT_WALLET = await env?.OAUTH_KV_ACCOUNTS?.get(props.email);
+  const ALGORAND_AGENT_WALLET = await retrieveMnemonic(env, props.email);
   if (!ALGORAND_AGENT_WALLET) {
     try {
       console.log('Generating new account for Oauth user by email:', props.email);
@@ -33,7 +34,11 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
       if (!account) {
         throw new Error('Failed to generate account for Oauth user by email');
       }
-      await env?.OAUTH_KV_ACCOUNTS?.put(props.email, algosdk.secretKeyToMnemonic(account.sk));
+      const mnemonic = algosdk.secretKeyToMnemonic(account.sk);
+      const success = await storeMnemonic(env, props.email, mnemonic);
+      if (!success) {
+        throw new Error('Failed to store mnemonic in vault');
+      }
     } catch (error: any) {
       throw new Error(`Failed to generate account for Oauth user by email: ${error.message || 'Unknown error'}`);
     }
