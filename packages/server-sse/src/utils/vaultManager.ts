@@ -21,7 +21,7 @@ export async function storeMnemonic(env: Env, email: string, mnemonic: string): 
   }
 
   try {
-    const secretPath = `algorand-mnemonic-${email}`;
+    const secretPath = `${email}`;
     const response = await env.HCV_WORKER.fetch(`/secret/${secretPath}`, {
       method: 'PUT',
       headers: {
@@ -59,7 +59,7 @@ export async function retrieveMnemonic(env: Env, email: string): Promise<string 
   }
 
   try {
-    const secretPath = `algorand-mnemonic-${email}`;
+    const secretPath = `${email}`;
     const response = await env.HCV_WORKER.fetch(`/secret/${secretPath}`, {
       method: 'GET'
     });
@@ -96,7 +96,7 @@ export async function deleteMnemonic(env: Env, email: string): Promise<boolean> 
   }
 
   try {
-    const secretPath = `algorand-mnemonic-${email}`;
+    const secretPath = `${email}`;
     const response = await env.HCV_WORKER.fetch(`/secret/${secretPath}`, {
       method: 'DELETE'
     });

@@ -4,3 +4,4 @@
 
 export * from './responseProcessor';
 export * from './Guide';
+export * from './vaultManager';
