@@ -18,6 +18,11 @@ export interface State {
  * Environment interface for Cloudflare bindings and variables
  */
 export interface Env {
+
+  /**
+   * Hashicorp Vault Worker binding for secure secret storage
+   */
+  HCV_WORKER?: any;
   /**
    * Durable Object namespace for the AlgorandRemoteMCP class
    */
@@ -96,3 +101,11 @@ export interface Props {
 	email: string;
 	accessToken: string;
 };
+/**
+ * Interface for Vault API responses
+ */
+export interface VaultResponse {
+  success: boolean;
+  data?: any;
+  error?: string;
+}

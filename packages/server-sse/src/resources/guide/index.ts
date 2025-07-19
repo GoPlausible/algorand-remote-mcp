@@ -5,7 +5,7 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { guide } from '../../utils/Guide.js';
-import { Env, Props } from '../../types';
+import { Env, Props, VaultResponse } from '../../types';
 
 /**
  * Register guide resource to the MCP server
