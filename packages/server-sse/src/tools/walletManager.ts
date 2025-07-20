@@ -46,7 +46,6 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
   console.log('Registering wallet tools for Algorand Remote MCP');
   console.log('Current props:', props);
   const ALGORAND_AGENT_WALLET = await retrieveMnemonic(env, props.email);
-  console.log('ALGORAND_AGENT_WALLET:', ALGORAND_AGENT_WALLET);
   if (!ALGORAND_AGENT_WALLET) {
     try {
       console.log('Generating new account for Oauth user by email:', props.email);
