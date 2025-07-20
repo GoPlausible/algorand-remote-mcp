@@ -131,7 +131,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
           return {
             content: [{
               type: 'text',
-              text: 'No active wallet mnemonic configured'
+              text: 'No active agent wallet configured'
             }]
           };
           

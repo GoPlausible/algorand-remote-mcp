@@ -27,7 +27,7 @@ function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | nu
  */
 function getAccountFromMnemonic(mnemonic: string | undefined): algosdk.Account | null {
   if (!mnemonic) {
-    console.error('No active wallet mnemonic configured');
+    console.error('No active agent wallet configured');
     return null;
   }
 
@@ -72,7 +72,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         return {
           content: [{
             type: 'text',
-            text: 'No active wallet mnemonic configured'
+            text: 'No active agent wallet configured'
           }]
         };
       }
@@ -112,7 +112,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         return {
           content: [{
             type: 'text',
-            text: 'No active wallet mnemonic configured'
+            text: 'No active agent wallet configured'
           }]
         };
       }
@@ -147,7 +147,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         return {
           content: [{
             type: 'text',
-            text: 'No active wallet mnemonic configured'
+            text: 'No active agent wallet configured'
           }]
         };
       }
@@ -186,7 +186,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         return {
           content: [{
             type: 'text',
-            text: 'No active wallet mnemonic configured'
+            text: 'No active agent wallet configured'
           }]
         };
       }
@@ -216,7 +216,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         return {
           content: [{
             type: 'text',
-            text: 'No active wallet mnemonic configured'
+            text: 'No active agent wallet configured'
           }]
         };
       }
@@ -252,7 +252,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         return {
           content: [{
             type: 'text',
-            text: 'No active wallet mnemonic configured'
+            text: 'No active agent wallet configured'
           }]
         };
       }
@@ -310,7 +310,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         return {
           content: [{
             type: 'text',
-            text: 'No active wallet mnemonic configured'
+            text: 'No active agent wallet configured'
           }]
         };
       }

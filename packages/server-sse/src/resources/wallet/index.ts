@@ -25,7 +25,7 @@ function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | nu
  */
 function getAccountFromMnemonic(mnemonic: string | undefined): algosdk.Account | null {
   if (!mnemonic) {
-    console.error('No active wallet mnemonic configured');
+    console.error('No active agent wallet configured');
     return null;
   }
 
@@ -67,7 +67,7 @@ export async function registerWalletResources(server: McpServer, env: Env, props
         contents: [{
           uri: uri.href,
           text: JSON.stringify({
-            error: "No active wallet mnemonic configured"
+            error: "No active agent wallet configured"
           }, null, 2)
         }]
       };
@@ -106,7 +106,7 @@ export async function registerWalletResources(server: McpServer, env: Env, props
         contents: [{
           uri: uri.href,
           text: JSON.stringify({
-            error: "No active wallet mnemonic configured"
+            error: "No active agent wallet configured"
           }, null, 2)
         }]
       };
@@ -145,7 +145,7 @@ export async function registerWalletResources(server: McpServer, env: Env, props
         contents: [{
           uri: uri.href,
           text: JSON.stringify({
-            error: "No active wallet mnemonic configured"
+            error: "No active agent wallet configured"
           }, null, 2)
         }]
       };
@@ -179,7 +179,7 @@ export async function registerWalletResources(server: McpServer, env: Env, props
         contents: [{
           uri: uri.href,
           text: JSON.stringify({
-            error: "No active wallet mnemonic configured"
+            error: "No active agent wallet configured"
           }, null, 2)
         }]
       };
@@ -218,7 +218,7 @@ export async function registerWalletResources(server: McpServer, env: Env, props
         contents: [{
           uri: uri.href,
           text: JSON.stringify({
-            error: "No active wallet mnemonic configured"
+            error: "No active agent wallet configured"
           }, null, 2)
         }]
       };
@@ -281,7 +281,7 @@ export async function registerWalletResources(server: McpServer, env: Env, props
         contents: [{
           uri: uri.href,
           text: JSON.stringify({
-            error: "No active wallet mnemonic configured"
+            error: "No active agent wallet configured"
           }, null, 2)
         }]
       };
