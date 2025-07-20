@@ -27,7 +27,7 @@ import { registerWalletResources, registerKnowledgeResources, registerGuideResou
 export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 	server = new McpServer({
 		name: "Algorand Remote MCP",
-		version: "1.0.0",
+		version: "1.2.0",
 	});
 
 	// Initialize state with default values

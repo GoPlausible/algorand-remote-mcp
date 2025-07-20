@@ -1,6 +1,6 @@
 {
 	"name": "algorand-remote-mcp",
-	"version": "1.0.0",
+	"version": "1.2.0",
 	"private": true,
 	"scripts": {
 		"deploy": "wrangler deploy",
@@ -25,6 +25,6 @@
 		"@biomejs/biome": "^1.9.4",
 		"@types/node": "^20.17.24",
 		"typescript": "^5.8.3",
-		"wrangler": "^4.20.0"
+		"wrangler": "^4.25.0"
 	}
 }

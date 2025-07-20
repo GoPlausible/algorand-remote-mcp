@@ -6,7 +6,7 @@
 import algosdk from 'algosdk';
 import { Env, Props, VaultResponse } from '../../types';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { retrieveMnemonic, storeMnemonic } from '../../utils/vaultManager';
+import { retrieveMnemonic, storeMnemonic, deleteMnemonic } from '../../utils/vaultManager';
 
 /**
  * Create and validate an Algorand client

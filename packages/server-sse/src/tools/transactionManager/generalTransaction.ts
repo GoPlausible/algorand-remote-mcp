@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { ResponseProcessor } from '../../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Env, Props, VaultResponse } from '../../types';
-import { retrieveMnemonic, storeMnemonic } from '../../utils/vaultManager';
+import { retrieveMnemonic, storeMnemonic, deleteMnemonic } from '../../utils/vaultManager';
 
 /**
  * Create and validate an Algorand client

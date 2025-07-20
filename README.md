@@ -12,6 +12,7 @@ The server is designed to run on Cloudflare Workers and provides a comprehensive
 
 - **Secure Wallet Management**: Create, access, and manage Algorand wallets with automatic wallet creation for new users
 - **HashiCorp Vault Integration**: Secure storage of sensitive wallet mnemonics using HashiCorp Vault
+- **Ed25519 Cryptographic Operations**: Create keypairs, retrieve public keys, sign data, and verify signatures using HashiCorp Vault's transit secret engine
 - **Comprehensive Transaction Support**: Create, sign, and submit various transaction types (payments, assets, applications)
 - **API Integration**: Access Algorand node, indexer, and NFD APIs through standardized interfaces
 - **Knowledge Resources**: Access documentation and guides for Algorand development
@@ -56,7 +57,10 @@ Algorand Remote MCP is built on the Model Context Protocol (MCP), which provides
 - **Resource Providers**: URI-based access to data and documentation
 - **ResponseProcessor**: Standardized response formatting with pagination support
 - **OAuth Integration**: Secure user authentication and authorization
-- **HashiCorp Vault Integration**: Secure storage of sensitive wallet mnemonics
+- **HashiCorp Vault Integration**: 
+  - Secure storage of sensitive wallet mnemonics
+  - Ed25519 transit keypair operations for cryptographic functions
+  - Secure key management without exposing private keys
 - **Service Bindings**: Inter-worker communication for secure vault operations
 
 ## Available Tools
@@ -97,6 +101,12 @@ Algorand Remote MCP is built on the Model Context Protocol (MCP), which provides
 - `decode_obj`: Decode msgpack bytes to an object
 - `compile_teal`: Compile TEAL source code
 - `algorand_mcp_guide`: Access comprehensive guide for using Algorand Remote MCP
+
+### Cryptographic Tools
+- `create_keypair`: Create a new Ed25519 keypair in HashiCorp Vault
+- `get_public_key`: Get the public key for a keypair from HashiCorp Vault
+- `sign_data`: Sign data using a keypair in HashiCorp Vault
+- `verify_signature`: Verify a signature using a keypair in HashiCorp Vault
 
 ## Available Resources
 
@@ -177,7 +187,7 @@ packages/
 │   │   └── utils/                  # Utilities
 │   │       ├── Guide.js            # Guide content
 │   │       ├── oauth-utils.ts      # OAuth utilities
-│   │       ├── vaultManager.ts     # HashiCorp Vault utilities
+│   │       ├── vaultManager.ts     # HashiCorp Vault utilities for secret storage and cryptographic operations
 │   │       └── responseProcessor.ts # Response formatting
 └── client-sse/                     # Client implementation
 ```
