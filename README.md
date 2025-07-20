@@ -11,6 +11,7 @@ The server is designed to run on Cloudflare Workers and provides a comprehensive
 ## Features
 
 - **Secure Wallet Management**: Create, access, and manage Algorand wallets with automatic wallet creation for new users
+- **HashiCorp Vault Integration**: Secure storage of sensitive wallet mnemonics using HashiCorp Vault
 - **Comprehensive Transaction Support**: Create, sign, and submit various transaction types (payments, assets, applications)
 - **API Integration**: Access Algorand node, indexer, and NFD APIs through standardized interfaces
 - **Knowledge Resources**: Access documentation and guides for Algorand development
@@ -55,6 +56,8 @@ Algorand Remote MCP is built on the Model Context Protocol (MCP), which provides
 - **Resource Providers**: URI-based access to data and documentation
 - **ResponseProcessor**: Standardized response formatting with pagination support
 - **OAuth Integration**: Secure user authentication and authorization
+- **HashiCorp Vault Integration**: Secure storage of sensitive wallet mnemonics
+- **Service Bindings**: Inter-worker communication for secure vault operations
 
 ## Available Tools
 
@@ -126,6 +129,7 @@ NFD_API_URL=https://api.nf.domains
 ALGORAND_TOKEN=your-api-token
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
+HCV_WORKER_URL=https://your-hashicorp-vault-worker.workers.dev
 ```
 
 ### Deployment
@@ -138,7 +142,7 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 
 ### Authentication Flow for users
 1. User authenticates through Google OAuth
-2. Server creates or retrieves wallet credentials for the user
+2. Server creates or retrieves wallet credentials from HashiCorp Vault
 3. User can now access tools and resources through the MCP interface
 
 ### Transaction Flow for Agents
@@ -173,6 +177,7 @@ packages/
 │   │   └── utils/                  # Utilities
 │   │       ├── Guide.js            # Guide content
 │   │       ├── oauth-utils.ts      # OAuth utilities
+│   │       ├── vaultManager.ts     # HashiCorp Vault utilities
 │   │       └── responseProcessor.ts # Response formatting
 └── client-sse/                     # Client implementation
 ```
