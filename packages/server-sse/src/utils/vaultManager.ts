@@ -3,7 +3,23 @@
  * Provides utility functions for interacting with the Hashicorp Vault worker
  */
 
+import algosdk from 'algosdk';
 import { Env } from '../types';
+
+/**
+ * Account type enum
+ */
+export type AccountType = 'vault' | 'kv' | null;
+
+/**
+ * Response from the migrateFromMnemonicToVault function
+ */
+export interface MigrationResponse {
+  success: boolean;
+  oldAddress?: string;
+  newAddress?: string;
+  error?: string;
+}
 
 /**
  * Response from the createKeypair function
@@ -44,13 +60,13 @@ export interface VerificationResponse {
 
 
 /**
- * Store a mnemonic in the vault for a given email
+ * Store a secret in the vault for a given email
  * @param env Environment with HCV_WORKER binding
  * @param email User email as the key
- * @param mnemonic Mnemonic to store
+ * @param secret to store
  * @returns Promise resolving to success status
  */
-export async function storeMnemonic(env: Env, email: string, mnemonic: string): Promise<boolean> {
+export async function storeSecret(env: Env, email: string, secret: string): Promise<boolean> {
   if (!env.HCV_WORKER) {
     console.error('Hashicorp Vault worker not configured');
     return false;
@@ -64,31 +80,31 @@ export async function storeMnemonic(env: Env, email: string, mnemonic: string): 
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        value: mnemonic
+        value: secret
       })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Failed to store mnemonic in vault:', errorText);
+      console.error('Failed to store secret in vault:', errorText);
       return false;
     }
     
     const result = await response.json();
     return result.status === 'success';
   } catch (error: any) {
-    console.error('Error storing mnemonic in vault:', error.message || 'Unknown error');
+    console.error('Error storing secret in vault:', error.message || 'Unknown error');
     return false;
   }
 }
 
 /**
- * Retrieve a mnemonic from the vault for a given email
+ * Retrieve a secret from the vault for a given email
  * @param env Environment with HCV_WORKER binding
  * @param email User email as the key
- * @returns Promise resolving to the mnemonic or undefined if not found
+ * @returns Promise resolving to the secret or undefined if not found
  */
-export async function retrieveMnemonic(env: Env, email: string): Promise<string | undefined> {
+export async function retrieveSecret(env: Env, email: string): Promise<string | undefined> {
   if (!env.HCV_WORKER) {
     console.error('Hashicorp Vault worker not configured');
     return undefined;
@@ -96,7 +112,7 @@ export async function retrieveMnemonic(env: Env, email: string): Promise<string 
 
   try {
     const secretPath = `${email}`;
-    console.log('Retrieving mnemonic from vault for email:', email);
+    console.log('Retrieving secret from vault for email:', email);
     // Fetch the secret from the vault
     // Note: Adjust the endpoint as per your vault worker's API
     console.log('Fetching secret from vault at path:', secretPath);
@@ -112,46 +128,46 @@ export async function retrieveMnemonic(env: Env, email: string): Promise<string 
       }
       
       const errorText = await response.text();
-      console.error('Failed to retrieve mnemonic from vault:', errorText);
+      console.error('Failed to retrieve secret from vault:', errorText);
       return undefined;
     }
     
     const result = await response.json();
     return result.value;
   } catch (error: any) {
-    console.error('Error retrieving mnemonic from vault:', error.message || 'Unknown error');
+    console.error('Error retrieving secret from vault:', error.message || 'Unknown error');
     return undefined;
   }
 }
 
 /**
- * Delete a mnemonic from the vault for a given email
+ * Delete a secret from the vault for a given email
  * @param env Environment with HCV_WORKER binding
  * @param email User email as the key
  * @returns Promise resolving to success status
  */
-export async function deleteMnemonic(env: Env, email: string): Promise<boolean> {
+export async function deleteSecret(env: Env, email: string): Promise<boolean> {
   if (!env.HCV_WORKER) {
     console.error('Hashicorp Vault worker not configured');
     return false;
   }
 
   try {
-    const secretPath = encodeURIComponent(email);
+    const secretPath = `${email}`;
     const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/secret/${secretPath}`, {
       method: 'DELETE'
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Failed to delete mnemonic from vault:', errorText);
+      console.error('Failed to delete secret from vault:', errorText);
       return false;
     }
     
     const result = await response.json();
     return result.status === 'success';
   } catch (error: any) {
-    console.error('Error deleting mnemonic from vault:', error.message || 'Unknown error');
+    console.error('Error deleting secret from vault:', error.message || 'Unknown error');
     return false;
   }
 }
@@ -169,7 +185,7 @@ export async function createKeypair(env: Env, keyName?: string): Promise<Keypair
   }
 
   try {
-    const body = keyName ? JSON.stringify({ name: keyName }) : '{}';
+    const body = keyName ? JSON.stringify({ name: keyName.toLowerCase().replace(`@gmail.com`, '') }) : '{}';
     const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/keypair`, {
       method: 'POST',
       headers: {
@@ -205,8 +221,7 @@ export async function getPublicKey(env: Env, keyName: string = 'algorand-key'): 
   }
 
   try {
-    const encodedKeyName = encodeURIComponent(keyName);
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/publickey/${encodedKeyName}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/publickey/${keyName.toLowerCase().replace(`@gmail.com`, '')}`, {
       method: 'GET'
     });
 
@@ -238,8 +253,8 @@ export async function signData(env: Env, data: string, keyName: string = 'algora
   }
 
   try {
-    const encodedKeyName = encodeURIComponent(keyName);
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/sign/${encodedKeyName}`, {
+
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/sign/${keyName.toLowerCase().replace(`@gmail.com`, '')}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -278,8 +293,7 @@ export async function verifySignature(env: Env, data: string, signature: string,
   }
 
   try {
-    const encodedKeyName = encodeURIComponent(keyName);
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/verify/${encodedKeyName}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/verify/${keyName.toLowerCase().replace(`@gmail.com`, '')}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -303,3 +317,140 @@ export async function verifySignature(env: Env, data: string, signature: string,
     return { success: false, error: error.message || 'Unknown error' };
   }
 }
+
+/**
+ * Check if user has an account and determine its type
+ * @param env Environment with necessary bindings
+ * @param email User email
+ * @returns Promise resolving to account type or null if no account found
+ */
+export async function getUserAccountType(env: Env, email: string | undefined): Promise<AccountType> {
+  if (!email) {
+    console.error('No email provided for account type check');
+    return null;
+  }
+  // Check for vault-based account
+  const publicKeyResult = await getPublicKey(env, email);
+  
+  if (publicKeyResult.success) {
+    return 'vault';
+  }
+  
+  // Check for KV-based account
+  const secret = await retrieveSecret(env, email);
+  
+  if (secret) {
+    return 'kv';
+  }
+  
+  // No account found
+  return null;
+}
+
+/**
+ * Get user's address regardless of storage mechanism
+ * @param env Environment with necessary bindings
+ * @param email User email
+ * @returns Promise resolving to the user's address or null if not found
+ */
+export async function getUserAddress(env: Env, email: string | undefined): Promise<string | null> {
+  if (!email) {
+    console.error('No email provided for getting address');
+    return null;
+  }
+  // First try vault-based approach
+  const publicKeyResult = await getPublicKey(env, email);
+  
+  if (publicKeyResult.success && publicKeyResult.publicKey) {
+    // User has a vault-based account
+    const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
+    return algosdk.encodeAddress(publicKeyBuffer);
+  }
+  
+  // Fall back to KV-based approach
+  const secret = await retrieveSecret(env, email);
+  
+  if (secret) {
+    // User has a KV-based account
+    const account = algosdk.mnemonicToSecretKey(secret);
+    return account.addr;
+  }
+  
+  // No account found
+  return null;
+}
+
+/**
+ * Sign data using user's credentials regardless of storage mechanism
+ * @param env Environment with necessary bindings
+ * @param email User email
+ * @param data Data to sign
+ * @returns Promise resolving to the signature or null if signing failed
+ */
+export async function signUserData(env: Env, email: string | undefined, data: string): Promise<string | null> {
+  if (!email) {
+    console.error('No email provided for signing');
+    return null;
+  }
+  // First try vault-based approach
+  const publicKeyResult = await getPublicKey(env, email);
+  
+  if (publicKeyResult.success) {
+    // User has a vault-based account
+    const signatureResult = await signData(env, data, email);
+    
+    if (signatureResult.success && signatureResult.signature) {
+      return signatureResult.signature;
+    }
+  }
+  
+  // Fall back to KV-based approach
+  const secret = await retrieveSecret(env, email);
+  
+  if (secret) {
+    // User has a KV-based account
+    try {
+      const account = algosdk.mnemonicToSecretKey(secret);
+      const txn = algosdk.decodeUnsignedTransaction(Buffer.from(data, 'base64'));
+      const signedTxn = txn.signTxn(account.sk);
+      return Buffer.from(signedTxn).toString('base64');
+    } catch (error) {
+      console.error('Error signing with KV-based account:', error);
+      return null;
+    }
+  }
+  
+  // No account found or signing failed
+  return null;
+}
+
+
+/**
+ * Ensure user has an account, creating one if necessary
+ * @param env Environment with necessary bindings
+ * @param email User email
+ * @returns Promise resolving to account type
+ */
+export async function ensureUserAccount(env: Env, email: string | undefined): Promise<AccountType> {
+  if (!email) {
+    console.error('No email provided for account creation');
+    return null;
+  }
+  // Check if user already has an account
+  const accountType = await getUserAccountType(env, email);
+  
+  if (accountType) {
+    return accountType;
+  }
+  
+  // No account found, create a new vault-based account
+  const keypairResult = await createKeypair(env, email);
+  
+  if (!keypairResult.success) {
+    throw new Error(keypairResult.error || 'Failed to create keypair in vault');
+  }
+  
+  return 'vault';
+}
+
+

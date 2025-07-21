@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { ResponseProcessor } from '../../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Env, Props } from '../../types';
+import { getUserAccountType, signUserData } from '../../utils/vaultManager';
 /**
  * Register group transaction tools to the MCP server
  */
@@ -90,12 +91,12 @@ export function registerGroupTransactionTools(server: McpServer,env: Env, props:
     'Sign and submit an atomic transaction group in one operation',
     {
       encodedTxns: z.array(z.string()).describe('Array of base64-encoded unsigned transactions'),
-      mnemonics: z.array(z.string()).describe('Array of mnemonics for signing transactions')
+      keyNames: z.array(z.string()).describe('Array of key names in the vault for signing transactions')
     },
-    async ({ encodedTxns, mnemonics }) => {
+    async ({ encodedTxns, keyNames }) => {
       try {
-        if (encodedTxns.length !== mnemonics.length) {
-          throw new Error('Number of transactions must match number of mnemonics.');
+        if (encodedTxns.length !== keyNames.length) {
+          throw new Error('Number of transactions must match number of key names.');
         }
         
         // Decode transactions
@@ -113,15 +114,28 @@ export function registerGroupTransactionTools(server: McpServer,env: Env, props:
           groupedTxns = decodedTxns;
         }
         
-        // Sign each transaction with corresponding mnemonic
-        const signedTxns = groupedTxns.map((txn, i) => {
-          const account = algosdk.mnemonicToSecretKey(mnemonics[i]);
-          return txn.signTxn(account.sk);
-        });
+        // Re-encode transactions with group ID
+        const groupedEncodedTxns = groupedTxns.map(txn =>
+          Buffer.from(algosdk.encodeUnsignedTransaction(txn)).toString('base64')
+        );
+        
+        // Sign each transaction with corresponding vault key
+        const signaturePromises = groupedEncodedTxns.map((txn, i) =>
+          signUserData(env, keyNames[i], txn)
+        );
+        
+        const signatures = await Promise.all(signaturePromises);
+        
+        // Check if all signatures were successful
+        const failedSignatures = signatures.filter(signature => !signature);
+        if (failedSignatures.length > 0) {
+          throw new Error(`Failed to sign ${failedSignatures.length} transaction(s) in the group`);
+        }
         
         // Return the signed transactions
         return ResponseProcessor.processResponse({
-          signedTxns: signedTxns.map(stxn => Buffer.from(stxn).toString('base64'))
+          signedTxns: signatures,
+          message: 'Transactions signed securely using vault keys'
         });
       } catch (error: any) {
         return {

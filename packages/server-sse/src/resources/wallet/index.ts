@@ -6,7 +6,15 @@
 import algosdk from 'algosdk';
 import { Env, Props, VaultResponse } from '../../types';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { retrieveMnemonic, storeMnemonic, deleteMnemonic } from '../../utils/vaultManager';
+import { 
+  retrieveSecret, 
+  storeSecret, 
+  deleteSecret, 
+  getUserAccountType, 
+  getUserAddress, 
+  getPublicKey, 
+  ensureUserAccount 
+} from '../../utils/vaultManager';
 
 /**
  * Create and validate an Algorand client
@@ -41,91 +49,76 @@ function getAccountFromMnemonic(mnemonic: string | undefined): algosdk.Account |
  * Register wallet resources to the MCP server
  */
 export async function registerWalletResources(server: McpServer, env: Env, props: Props): Promise<void> {
-
-  const ALGORAND_AGENT_WALLET = await retrieveMnemonic(env, props.email);
-
-  if (!ALGORAND_AGENT_WALLET) {
-    try {
-      console.log('Generating new account for Oauth user by email:', props.email);
-      const account = algosdk.generateAccount();
-      if (!account) {
-        throw new Error('Failed to generate account for Oauth user by email');
-      }
-      const mnemonic = algosdk.secretKeyToMnemonic(account.sk);
-      const success = await storeMnemonic(env, props.email, mnemonic);
-      if (!success) {
-        throw new Error('Failed to store mnemonic in vault');
-      }
-    } catch (error: any) {
-      throw new Error(`Failed to generate account for Oauth user by email: ${error.message || 'Unknown error'}`);
-    }
+  // Ensure user has an account (either vault-based or KV-based)
+  try {
+    const accountType = await ensureUserAccount(env, props.email);
+    console.log(`User has a ${accountType}-based account`);
+  } catch (error: any) {
+    throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
   }
-  // === Wallet Secret Key ===
-  server.resource("Wallet Account Secret Key", "algorand://wallet/secretkey", async (uri) => {
-    if (!ALGORAND_AGENT_WALLET) {
-      return {
-        contents: [{
-          uri: uri.href,
-          text: JSON.stringify({
-            error: "No active agent wallet configured"
-          }, null, 2)
-        }]
-      };
-    }
-
-    try {
-      const account = getAccountFromMnemonic(ALGORAND_AGENT_WALLET);
-      if (!account) {
-        throw new Error('Failed to load account from mnemonic');
-      }
-
-      return {
-        contents: [{
-          uri: uri.href,
-          text: JSON.stringify({
-            secretKey: Buffer.from(account.sk).toString('hex')
-          }, null, 2)
-        }]
-      };
-    } catch (error: any) {
-      return {
-        contents: [{
-          uri: uri.href,
-          text: JSON.stringify({
-            error: `Failed to get secret key: ${error.message || 'Unknown error'}`
-          }, null, 2)
-        }]
-      };
-    }
-  });
-
+  
+  // For backward compatibility, check if there's a KV-based account
+  const ALGORAND_AGENT_WALLET = await retrieveSecret(env, props.email);
   // === Wallet Public Key ===
   server.resource("Wallet Account Public Key", "algorand://wallet/publickey", async (uri) => {
-    if (!ALGORAND_AGENT_WALLET) {
-      return {
-        contents: [{
-          uri: uri.href,
-          text: JSON.stringify({
-            error: "No active agent wallet configured"
-          }, null, 2)
-        }]
-      };
-    }
-
     try {
-      const account = getAccountFromMnemonic(ALGORAND_AGENT_WALLET);
-      if (!account) {
-        throw new Error('Failed to load account from mnemonic');
+      // Check account type
+      const accountType = await getUserAccountType(env, props.email);
+      
+      if (accountType === null) {
+        return {
+          contents: [{
+            uri: uri.href,
+            text: JSON.stringify({
+              error: "No active agent wallet configured"
+            }, null, 2)
+          }]
+        };
       }
-
-      return {
-        contents: [{
-          uri: uri.href,
-          text: JSON.stringify({
-            publicKey: Buffer.from(account.sk.slice(32)).toString('hex')
-          }, null, 2)
-        }]
-      };
+      
+      if (accountType === 'vault') {
+        // Get public key from vault
+        const publicKeyResult = await getPublicKey(env, props.email);
+        
+        if (!publicKeyResult.success || !publicKeyResult.publicKey) {
+          throw new Error(publicKeyResult.error || 'Failed to get public key from vault');
+        }
+        
+        return {
+          contents: [{
+            uri: uri.href,
+            text: JSON.stringify({
+              publicKey: publicKeyResult.publicKey,
+              format: 'base64',
+              accountType: 'vault'
+            }, null, 2)
+          }]
+        };
+      } else {
+        // Get public key from KV-based account
+        if (!ALGORAND_AGENT_WALLET) {
+          throw new Error('Failed to retrieve secret from KV store');
+        }
+        
+        const account = getAccountFromMnemonic(ALGORAND_AGENT_WALLET);
+        if (!account) {
+          throw new Error('Failed to load account from secret');
+        }
+        
+        // Add migration suggestion
+        return {
+          contents: [{
+            uri: uri.href,
+            text: JSON.stringify({
+              publicKey: Buffer.from(account.sk.slice(32)).toString('hex'),
+              format: 'hex',
+              accountType: 'kv',
+              migrationAvailable: true,
+              migrationMessage: 'Your account is using legacy storage. Consider using migrate_to_vault tool for enhanced security.'
+            }, null, 2)
+          }]
+        };
+      }
     } catch (error: any) {
       return {
         contents: [{
@@ -138,64 +131,36 @@ export async function registerWalletResources(server: McpServer, env: Env, props
     }
   });
 
-  // === Wallet Mnemonic ===
-  server.resource("Wallet Account Mnemonic", "algorand://wallet/mnemonic", async (uri) => {
-    if (!ALGORAND_AGENT_WALLET) {
-      return {
-        contents: [{
-          uri: uri.href,
-          text: JSON.stringify({
-            error: "No active agent wallet configured"
-          }, null, 2)
-        }]
-      };
-    }
-
-    try {
-      return {
-        contents: [{
-          uri: uri.href,
-          text: JSON.stringify({
-            mnemonic: ALGORAND_AGENT_WALLET
-          }, null, 2)
-        }]
-      };
-    } catch (error: any) {
-      return {
-        contents: [{
-          uri: uri.href,
-          text: JSON.stringify({
-            error: `Failed to get mnemonic: ${error.message || 'Unknown error'}`
-          }, null, 2)
-        }]
-      };
-    }
-  });
-
   // === Wallet Address ===
   server.resource("Wallet Account Address", "algorand://wallet/address", async (uri) => {
-    if (!ALGORAND_AGENT_WALLET) {
-      return {
-        contents: [{
-          uri: uri.href,
-          text: JSON.stringify({
-            error: "No active agent wallet configured"
-          }, null, 2)
-        }]
-      };
-    }
-
     try {
-      const account = getAccountFromMnemonic(ALGORAND_AGENT_WALLET);
-      if (!account) {
-        throw new Error('Failed to load account from mnemonic');
+      // Get address using the unified approach
+      const address = await getUserAddress(env, props.email);
+      
+      if (!address) {
+        return {
+          contents: [{
+            uri: uri.href,
+            text: JSON.stringify({
+              error: "No active agent wallet configured"
+            }, null, 2)
+          }]
+        };
       }
-
+      
+      // Check account type for migration suggestion
+      const accountType = await getUserAccountType(env, props.email);
+      
       return {
         contents: [{
           uri: uri.href,
           text: JSON.stringify({
-            address: account.addr
+            address,
+            ...(accountType === 'kv' && {
+              accountType: 'kv',
+              migrationAvailable: true,
+              migrationMessage: 'Your account is using legacy storage. Consider using migrate_to_vault tool for enhanced security.'
+            })
           }, null, 2)
         }]
       };
@@ -213,17 +178,6 @@ export async function registerWalletResources(server: McpServer, env: Env, props
 
   // === Wallet Account ===
   server.resource("Wallet Account Information", "algorand://wallet/account", async (uri) => {
-    if (!ALGORAND_AGENT_WALLET) {
-      return {
-        contents: [{
-          uri: uri.href,
-          text: JSON.stringify({
-            error: "No active agent wallet configured"
-          }, null, 2)
-        }]
-      };
-    }
-
     if (!env.ALGORAND_ALGOD) {
       return {
         contents: [{
@@ -236,9 +190,18 @@ export async function registerWalletResources(server: McpServer, env: Env, props
     }
 
     try {
-      const account = getAccountFromMnemonic(ALGORAND_AGENT_WALLET);
-      if (!account) {
-        throw new Error('Failed to load account from mnemonic');
+      // Get address using the unified approach
+      const address = await getUserAddress(env, props.email);
+      
+      if (!address) {
+        return {
+          contents: [{
+            uri: uri.href,
+            text: JSON.stringify({
+              error: "No active agent wallet configured"
+            }, null, 2)
+          }]
+        };
       }
 
       // Create algod client
@@ -248,17 +211,25 @@ export async function registerWalletResources(server: McpServer, env: Env, props
       }
 
       // Get account information
-      const accountInfo = await algodClient.accountInformation(account.addr).do();
-
+      const accountInfo = await algodClient.accountInformation(address).do();
+      
+      // Check account type for migration suggestion
+      const accountType = await getUserAccountType(env, props.email);
+      
       return {
         contents: [{
           uri: uri.href,
           text: JSON.stringify({
             accounts: [{
-              address: account.addr,
+              address,
               amount: accountInfo.amount,
               assets: accountInfo.assets || []
-            }]
+            }],
+            ...(accountType === 'kv' && {
+              accountType: 'kv',
+              migrationAvailable: true,
+              migrationMessage: 'Your account is using legacy storage. Consider using migrate_to_vault tool for enhanced security.'
+            })
           }, null, 2)
         }]
       };
@@ -276,17 +247,6 @@ export async function registerWalletResources(server: McpServer, env: Env, props
 
   // === Wallet Assets ===
   server.resource("Wallet Account Assets", "algorand://wallet/assets", async (uri) => {
-    if (!ALGORAND_AGENT_WALLET) {
-      return {
-        contents: [{
-          uri: uri.href,
-          text: JSON.stringify({
-            error: "No active agent wallet configured"
-          }, null, 2)
-        }]
-      };
-    }
-
     if (!env.ALGORAND_ALGOD) {
       return {
         contents: [{
@@ -299,9 +259,18 @@ export async function registerWalletResources(server: McpServer, env: Env, props
     }
 
     try {
-      const account = getAccountFromMnemonic(ALGORAND_AGENT_WALLET);
-      if (!account) {
-        throw new Error('Failed to load account from mnemonic');
+      // Get address using the unified approach
+      const address = await getUserAddress(env, props.email);
+      
+      if (!address) {
+        return {
+          contents: [{
+            uri: uri.href,
+            text: JSON.stringify({
+              error: "No active agent wallet configured"
+            }, null, 2)
+          }]
+        };
       }
 
       // Create algod client
@@ -311,13 +280,21 @@ export async function registerWalletResources(server: McpServer, env: Env, props
       }
 
       // Get account information
-      const accountInfo = await algodClient.accountInformation(account.addr).do();
-
+      const accountInfo = await algodClient.accountInformation(address).do();
+      
+      // Check account type for migration suggestion
+      const accountType = await getUserAccountType(env, props.email);
+      
       return {
         contents: [{
           uri: uri.href,
           text: JSON.stringify({
-            assets: accountInfo.assets || []
+            assets: accountInfo.assets || [],
+            ...(accountType === 'kv' && {
+              accountType: 'kv',
+              migrationAvailable: true,
+              migrationMessage: 'Your account is using legacy storage. Consider using migrate_to_vault tool for enhanced security.'
+            })
           }, null, 2)
         }]
       };

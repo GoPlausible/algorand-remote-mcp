@@ -12,7 +12,7 @@ The server is designed to run on Cloudflare Workers and provides a comprehensive
 
 - **Secure Wallet Management**: Create, access, and manage Algorand wallets with automatic wallet creation for new users
 - **HashiCorp Vault Integration**: Secure storage of sensitive wallet mnemonics using HashiCorp Vault
-- **Ed25519 Cryptographic Operations**: Create keypairs, retrieve public keys, sign data, and verify signatures using HashiCorp Vault's transit secret engine
+- **Ed25519 Cryptographic Operations**: Create keypairs, retrieve public keys, sign data, and verify signatures using HashiCorp Vault's Ed25519 secret engine
 - **Comprehensive Transaction Support**: Create, sign, and submit various transaction types (payments, assets, applications)
 - **API Integration**: Access Algorand node, indexer, and NFD APIs through standardized interfaces
 - **Knowledge Resources**: Access documentation and guides for Algorand development
@@ -59,7 +59,7 @@ Algorand Remote MCP is built on the Model Context Protocol (MCP), which provides
 - **OAuth Integration**: Secure user authentication and authorization
 - **HashiCorp Vault Integration**: 
   - Secure storage of sensitive wallet mnemonics
-  - Ed25519 transit keypair operations for cryptographic functions
+  - Ed25519 keypair operations for cryptographic functions
   - Secure key management without exposing private keys
 - **Service Bindings**: Inter-worker communication for secure vault operations
 
@@ -67,17 +67,16 @@ Algorand Remote MCP is built on the Model Context Protocol (MCP), which provides
 
 ### Account Management
 - `create_account`: Create a new Algorand account
-- `recover_account`: Recover an account from a mnemonic
+- `mnemonic_to_address`: View the address associated with a mnemonic (without storing the private key)
 - `check_balance`: Check the balance of an Algorand account
 
 ### Wallet Management
 - `get_wallet_address`: Get the address for the configured wallet
 - `get_wallet_account`: Get account information for the configured wallet
 - `get_wallet_assets`: Get assets owned by the configured wallet
-- `get_wallet_mnemonic`: Get the mnemonic for the configured wallet
 - `get_wallet_publickey`: Get the public key for the configured wallet
-- `get_wallet_secretkey`: Get the secret key for the configured wallet
-- `reset-wallet_account`: Reset the wallet account for the configured user
+- `reset_wallet_account`: Reset the wallet account for the configured user
+- `migrate_to_vault`: Migrate your account from KV-based mnemonic to vault-based keypair
 
 ### Transaction Management
 - `create_payment_transaction`: Create a payment transaction
@@ -114,6 +113,7 @@ Algorand Remote MCP is built on the Model Context Protocol (MCP), which provides
 - `algorand://wallet/address`: Wallet account address
 - `algorand://wallet/account`: Wallet account information
 - `algorand://wallet/assets`: Wallet account assets
+- `algorand://wallet/publickey`: Wallet account public key
 
 ### Knowledge Resources
 - `algorand://knowledge/taxonomy`: Full taxonomy of knowledge resources
@@ -231,15 +231,14 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ### Account Management
 13. `create_account` - Create a new Algorand account
-14. `recover_account` - Recover an Algorand account from mnemonic
+14. `mnemonic_to_address` - View the address associated with a mnemonic (without storing the private key)
 15. `check_balance` - Check the balance of an Algorand account
-16. `get_wallet_secretkey` - Get the secret key for the configured wallet
-17. `get_wallet_publickey` - Get the public key for the configured wallet
-18. `get_wallet_mnemonic` - Get the mnemonic for the configured wallet
-19. `get_wallet_address` - Get the address for the configured wallet
-20. `get_wallet_account` - Get the account information for the configured wallet
-21. `get_wallet_assets` - Get the assets for the configured wallet
-22. `reset-wallet_account` - Reset the wallet account for the configured user
+16. `get_wallet_publickey` - Get the public key for the configured wallet
+17. `get_wallet_address` - Get the address for the configured wallet
+18. `get_wallet_account` - Get the account information for the configured wallet
+19. `get_wallet_assets` - Get the assets for the configured wallet
+20. `reset_wallet_account` - Reset the wallet account for the configured user
+21. `migrate_to_vault` - Migrate your account from KV-based mnemonic to vault-based keypair
 
 ### Transaction Operations
 23. `create_payment_transaction` - Create a payment transaction on Algorand
@@ -325,25 +324,23 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Resources full index
 
 ### Algorand Wallet Resources
-1. `algorand://wallet/secretkey` - Wallet Account Secret Key
-2. `algorand://wallet/publickey` - Wallet Account Public Key
-3. `algorand://wallet/mnemonic` - Wallet Account Mnemonic
-4. `algorand://wallet/address` - Wallet Account Address
-5. `algorand://wallet/account` - Wallet Account Information
-6. `algorand://wallet/assets` - Wallet Account Assets
+1. `algorand://wallet/publickey` - Wallet Account Public Key
+2. `algorand://wallet/address` - Wallet Account Address
+3. `algorand://wallet/account` - Wallet Account Information
+4. `algorand://wallet/assets` - Wallet Account Assets
 ### Algorand Knowledge Resources
-7. `algorand://knowledge/taxonomy` - Algorand Knowledge Full Taxonomy
-8. `algorand://knowledge/taxonomy/arcs` - Algorand Request for Comments
-9. `algorand://knowledge/taxonomy/sdks` - Software Development Kits
-10. `algorand://knowledge/taxonomy/algokit` - AlgoKit
-11. `algorand://knowledge/taxonomy/algokit-utils` - AlgoKit Utils
-12. `algorand://knowledge/taxonomy/tealscript` - TEALScript
-13. `algorand://knowledge/taxonomy/puya` - Puya
-14. `algorand://knowledge/taxonomy/liquid-auth` - Liquid Auth
-15. `algorand://knowledge/taxonomy/python` - Python Development
-16. `algorand://knowledge/taxonomy/developers` - Developer Documentation
-17. `algorand://knowledge/taxonomy/clis` - CLI Tools
-18. `algorand://knowledge/taxonomy/nodes` - Node Management
-19. `algorand://knowledge/taxonomy/details` - Developer Details
+5. `algorand://knowledge/taxonomy` - Algorand Knowledge Full Taxonomy
+6. `algorand://knowledge/taxonomy/arcs` - Algorand Request for Comments
+7. `algorand://knowledge/taxonomy/sdks` - Software Development Kits
+8. `algorand://knowledge/taxonomy/algokit` - AlgoKit
+9. `algorand://knowledge/taxonomy/algokit-utils` - AlgoKit Utils
+10. `algorand://knowledge/taxonomy/tealscript` - TEALScript
+11. `algorand://knowledge/taxonomy/puya` - Puya
+12. `algorand://knowledge/taxonomy/liquid-auth` - Liquid Auth
+13. `algorand://knowledge/taxonomy/python` - Python Development
+14. `algorand://knowledge/taxonomy/developers` - Developer Documentation
+15. `algorand://knowledge/taxonomy/clis` - CLI Tools
+16. `algorand://knowledge/taxonomy/nodes` - Node Management
+17. `algorand://knowledge/taxonomy/details` - Developer Details
 ### Algorand Remote MCP Guide
-20. `algorand://remote-mcp-guide` - Algorand MCP Guide
+18. `algorand://remote-mcp-guide` - Algorand MCP Guide

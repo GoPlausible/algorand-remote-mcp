@@ -260,7 +260,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
    - Parameters: None
    - Returns: The secret key in hex format (sensitive!)
    
-   - Tool: \`reset-wallet_account\`
+   - Tool: \`reset_wallet_account\`
    - Purpose: Reset the wallet account for the configured user
    - Parameters: None
    - Returns: Address of the new wallet
@@ -287,9 +287,15 @@ Here are frequently used assets on Algorand Mainnet for reference:
    - Purpose: Create new Algorand account
    - Returns: Address and mnemonic
 
-   - Tool: \`recover_account\`
-   - Purpose: Recover account from mnemonic
+   - Tool: \`mnemonic_to_address\`
+   - Purpose: View the address associated with a mnemonic (without storing the private key)
    - Parameters: \`{ mnemonic: string }\`
+   - Note: This only shows the address and does not store the private key in the vault
+
+   - Tool: \`migrate_to_vault\`
+   - Purpose: Migrate your account from KV-based mnemonic to vault-based keypair
+   - Parameters: None
+   - Note: Only appears if you have a KV-based account
 
    - Tool: \`check_balance\`
    - Purpose: Check account balance
@@ -309,12 +315,11 @@ Here are frequently used assets on Algorand Mainnet for reference:
      \`\`\`
 
    - Tool: \`sign_transaction\`
-   - Purpose: Sign transaction with mnemonic
+   - Purpose: Sign transaction with your agent account
    - Parameters:
      \`\`\`
      {
-       encodedTxn: string,  // Base64 encoded
-       mnemonic: string
+       encodedTxn: string  // Base64 encoded
      }
      \`\`\`
 
@@ -492,18 +497,11 @@ Here are frequently used assets on Algorand Mainnet for reference:
    }
    \`\`\`
 
-4. Get wallet mnemonic:
-   \`\`\`
-   use_tool: get_wallet_mnemonic
-   parameters: {}
-   \`\`\`
-
-5. Sign the transaction:
+4. Sign the transaction:
    \`\`\`
    use_tool: sign_transaction
    parameters: {
-     "encodedTxn": "[transaction_from_step_3]",
-     "mnemonic": "[mnemonic_from_step_4]"
+     "encodedTxn": "[transaction_from_step_3]"
    }
    \`\`\`
 
@@ -555,8 +553,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
    \`\`\`
    use_tool: sign_transaction
    parameters: {
-     "encodedTxn": "[transaction_from_step_4]",
-     "mnemonic": "[mnemonic_from_step_5]"
+     "encodedTxn": "[transaction_from_step_4]"
    }
    \`\`\`
 
@@ -620,8 +617,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
    \`\`\`
    use_tool: sign_transaction
    parameters: {
-     "encodedTxn": "[transaction_from_step_5]",
-     "mnemonic": "[mnemonic_from_step_6]"
+     "encodedTxn": "[transaction_from_step_5]"
    }
    \`\`\`
 
@@ -669,18 +665,11 @@ Here are frequently used assets on Algorand Mainnet for reference:
    }
    \`\`\`
 
-5. Get wallet mnemonic:
-   \`\`\`
-   use_tool: get_wallet_mnemonic
-   parameters: {}
-   \`\`\`
-
-6. Sign the transaction:
+5. Sign the transaction:
    \`\`\`
    use_tool: sign_transaction
    parameters: {
-     "encodedTxn": "[transaction_from_step_4]",
-     "mnemonic": "[mnemonic_from_step_5]"
+     "encodedTxn": "[transaction_from_step_4]"
    }
    \`\`\`
 
@@ -742,18 +731,11 @@ Here are frequently used assets on Algorand Mainnet for reference:
    }
    \`\`\`
 
-6. Get wallet mnemonic:
-   \`\`\`
-   use_tool: get_wallet_mnemonic
-   parameters: {}
-   \`\`\`
-
-7. Sign the transaction:
+6. Sign the transaction:
    \`\`\`
    use_tool: sign_transaction
    parameters: {
-     "encodedTxn": "[transaction_from_step_5]",
-     "mnemonic": "[mnemonic_from_step_6]"
+     "encodedTxn": "[transaction_from_step_5]"
    }
    \`\`\`
 
@@ -804,7 +786,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
      \`\`\`
      {
        encodedTxns: string[],
-       mnemonics: string[]
+       keyNames: string[]
      }
      \`\`\`
 
@@ -839,9 +821,9 @@ If operations are not working properly, verify:
 ⚠️ **MAINNET WARNING**: This system operates on Algorand Mainnet with real assets and real value. Exercise extreme caution with all operations.
 
 1. **Sensitive Data Protection**
-   - Never expose mnemonics
-   - Never reveal private keys
-   - Never display secret keys to users
+   - Private keys are securely stored in HashiCorp Vault
+   - Cryptographic operations happen within the vault
+   - Never display sensitive information to users
    - Use securely stored wallet configuration
    - Use Wrangler secrets for sensitive values
 

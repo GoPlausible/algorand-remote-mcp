@@ -8,7 +8,16 @@ import { z } from 'zod';
 import { ResponseProcessor } from '../../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Env, Props, VaultResponse } from '../../types';
-import { retrieveMnemonic, storeMnemonic, deleteMnemonic } from '../../utils/vaultManager';
+import { 
+  retrieveSecret, 
+  storeSecret, 
+  deleteSecret, 
+  getUserAccountType, 
+  getUserAddress, 
+  signUserData, 
+  ensureUserAccount,
+  getPublicKey
+} from '../../utils/vaultManager';
 
 /**
  * Create and validate an Algorand client
@@ -26,23 +35,16 @@ function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | nu
  * Register general transaction management tools to the MCP server
  */
 export async function registerGeneralTransactionTools(server: McpServer, env: Env, props: Props): Promise<void> {
-  const ALGORAND_AGENT_WALLET = await retrieveMnemonic(env, props.email);
-  if (!ALGORAND_AGENT_WALLET) {
-    try {
-      console.log('Generating new account for Oauth user by email:', props.email);
-      const account = algosdk.generateAccount();
-      if (!account) {
-        throw new Error('Failed to generate account for Oauth user by email');
-      }
-      const mnemonic = algosdk.secretKeyToMnemonic(account.sk);
-      const success = await storeMnemonic(env, props.email, mnemonic);
-      if (!success) {
-        throw new Error('Failed to store mnemonic in vault');
-      }
-    } catch (error: any) {
-      throw new Error(`Failed to generate account for Oauth user by email: ${error.message || 'Unknown error'}`);
-    }
+  // Ensure user has an account (either vault-based or KV-based)
+  try {
+    const accountType = await ensureUserAccount(env, props.email);
+    console.log(`User has a ${accountType}-based account`);
+  } catch (error: any) {
+    throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
   }
+  
+  // For backward compatibility, check if there's a KV-based account
+  const ALGORAND_AGENT_WALLET = await retrieveSecret(env, props.email);
   // Create payment transaction tool
   server.tool(
     'create_payment_transaction',
@@ -117,38 +119,44 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
     }
   );
 
-  // Sign transaction with mnemonic
+  // Sign transaction with user's credentials
   server.tool(
     'sign_transaction',
     'Sign an Algorand transaction with your agent account',
     {
-      encodedTxn: z.string().describe('Base64 encoded transaction'),
-      // mnemonic: z.string().describe('Account mnemonic')
+      encodedTxn: z.string().describe('Base64 encoded transaction')
     },
-    async ({ encodedTxn/* , mnemonic */ }) => {
+    async ({ encodedTxn }) => {
       try {
-        if (!ALGORAND_AGENT_WALLET) {
+        // Ensure user has an account
+        await ensureUserAccount(env, props.email || '');
+        
+        // Sign the transaction using the unified approach
+        const signature = await signUserData(env, props.email, encodedTxn);
+        
+        if (!signature) {
           return {
             content: [{
               type: 'text',
-              text: 'No active agent wallet configured'
+              text: 'No active agent wallet configured or signing failed'
             }]
           };
-          
         }
-        // Decode transaction
+        
+        // Decode transaction to get the txID
         const txn = algosdk.decodeUnsignedTransaction(Buffer.from(encodedTxn, 'base64'));
-
-        // Get secret key from mnemonic
-
-        const account = algosdk.mnemonicToSecretKey(ALGORAND_AGENT_WALLET);
-
-        // Sign transaction
-        const signedTxn = txn.signTxn(account.sk);
-
+        
+        // Check account type for migration suggestion
+        const accountType = await getUserAccountType(env, props.email || '');
+        
         return ResponseProcessor.processResponse({
           txID: txn.txID(),
-          signedTxn: Buffer.from(signedTxn).toString('base64')
+          signedTxn: signature,
+          ...(accountType === 'kv' && {
+            accountType: 'kv',
+            migrationAvailable: true,
+            migrationMessage: 'Your account is using legacy storage. Consider using migrate_to_vault tool for enhanced security.'
+          })
         });
       } catch (error: any) {
         return {
