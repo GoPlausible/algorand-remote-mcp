@@ -11,8 +11,11 @@ The server is designed to run on Cloudflare Workers and provides a comprehensive
 ## Features
 
 - **Secure Wallet Management**: Create, access, and manage Algorand wallets with automatic wallet creation for new users
-- **HashiCorp Vault Integration**: Secure storage of sensitive wallet mnemonics using HashiCorp Vault
-- **Ed25519 Cryptographic Operations**: Create keypairs, retrieve public keys, sign data, and verify signatures using HashiCorp Vault's Ed25519 secret engine
+- **HashiCorp Vault Integration**: 
+  - Secure storage of sensitive wallet credentials using HashiCorp Vault
+  - Ed25519 keypair operations for cryptographic functions
+  - Migration path from previously used KV-based to vault-based accounts
+  - Policy that all new accounts use Ed25519 secure secrets engine.
 - **Comprehensive Transaction Support**: Create, sign, and submit various transaction types (payments, assets, applications)
 - **API Integration**: Access Algorand node, indexer, and NFD APIs through standardized interfaces
 - **Knowledge Resources**: Access documentation and guides for Algorand development
@@ -58,9 +61,11 @@ Algorand Remote MCP is built on the Model Context Protocol (MCP), which provides
 - **ResponseProcessor**: Standardized response formatting with pagination support
 - **OAuth Integration**: Secure user authentication and authorization
 - **HashiCorp Vault Integration**: 
-  - Secure storage of sensitive wallet mnemonics
+  - Secure storage of sensitive wallet credentials
   - Ed25519 keypair operations for cryptographic functions
   - Secure key management without exposing private keys
+  - Migration path from previously used KV-based to vault-based accounts
+  - Policy that all new accounts use the secure Ed25519 secrets engine
 - **Service Bindings**: Inter-worker communication for secure vault operations
 
 ## Available Tools
@@ -129,6 +134,7 @@ Algorand Remote MCP is built on the Model Context Protocol (MCP), which provides
 - Cloudflare Workers account
 - Algorand node access (or use a service like Nodely.io aka AlgoNode)
 - Google OAuth credentials
+- HashiCorp Vault worker for secure credential storage
 
 ### Environment Variables
 ```
@@ -157,9 +163,16 @@ HCV_WORKER_URL=https://your-hashicorp-vault-worker.workers.dev
 
 ### Transaction Flow for Agents
 1. Create transaction using appropriate tool
-2. Sign transaction with wallet credentials
+2. Sign transaction with wallet credentials using unified signUserData function using Google OAuth credentials to authorize signing by a Ed25519 keypair binded to the user's OAuth credentials.
 3. Submit transaction to network
 4. Verify transaction success
+
+### Migration Flow for KV-based Accounts
+1. User initiates migration using the `migrate_to_vault` tool
+2. System creates a new vault-based account
+3. System transfers assets from old account to new account
+4. System closes out old account and deletes old credentials
+5. User now has a more secure vault-based account
 
 ## Project Structure
 
