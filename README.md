@@ -285,54 +285,52 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ### URI Generation
 45. `generate_algorand_uri` - Generate a URI following the ARC-26 specification
-46. `generate_payment_uri` - Generate a payment URI following the ARC-26 specification
-47. `generate_asset_transfer_uri` - Generate an asset transfer URI following the ARC-26 specification
 
 ### API Access
-48. `api_algod_get_account_info` - Get current account balance, assets, and auth address from algod
-49. `api_algod_get_account_application_info` - Get account-specific application information
-50. `api_algod_get_account_asset_info` - Get account-specific asset information
-51. `api_algod_get_application_info` - Get application details from algod
-52. `api_algod_get_application_box_value` - Get application box contents
-53. `api_algod_get_application_boxes` - Get all application boxes
-54. `api_algod_get_application_state` - Get application global state
-55. `api_algod_get_asset_info` - Get asset details from algod
-56. `api_algod_get_asset_holding` - Get asset holding information for an account
-57. `api_algod_get_transaction_info` - Get transaction details by transaction ID
-58. `api_algod_get_pending_transactions` - Get pending transactions from algod mempool
+46. `api_algod_get_account_info` - Get current account balance, assets, and auth address from algod
+47. `api_algod_get_account_application_info` - Get account-specific application information
+48. `api_algod_get_account_asset_info` - Get account-specific asset information
+49. `api_algod_get_application_info` - Get application details from algod
+50. `api_algod_get_application_box_value` - Get application box contents
+51. `api_algod_get_application_boxes` - Get all application boxes
+52. `api_algod_get_application_state` - Get application global state
+53. `api_algod_get_asset_info` - Get asset details from algod
+54. `api_algod_get_asset_holding` - Get asset holding information for an account
+55. `api_algod_get_transaction_info` - Get transaction details by transaction ID
+56. `api_algod_get_pending_transactions` - Get pending transactions from algod mempool
 
 ### Indexer API Access
-59. `api_indexer_lookup_account_by_id` - Get account information from indexer
-60. `api_indexer_lookup_account_assets` - Get account assets
-61. `api_indexer_lookup_account_app_local_states` - Get account application local states
-62. `api_indexer_lookup_account_created_applications` - Get applications created by an account
-63. `api_indexer_search_for_accounts` - Search for accounts with various criteria
-64. `api_indexer_lookup_applications` - Get application information from indexer
-65. `api_indexer_lookup_application_logs` - Get application log messages
-66. `api_indexer_search_for_applications` - Search for applications with various criteria
-67. `api_indexer_lookup_application_box` - Get application box by name
-68. `api_indexer_lookup_application_boxes` - Get all application boxes
-69. `api_indexer_lookup_asset_by_id` - Get asset information from indexer
-70. `api_indexer_lookup_asset_balances` - Get accounts that hold a specific asset
-71. `api_indexer_search_for_assets` - Search for assets with various criteria
-72. `api_indexer_lookup_transaction_by_id` - Get transaction details from indexer
-73. `api_indexer_lookup_account_transactions` - Get transactions related to an account
-74. `api_indexer_search_for_transactions` - Search for transactions with various criteria
-75. `api_indexer_search` - Search the Algorand indexer for accounts, transactions, assets, or applications
+57. `api_indexer_lookup_account_by_id` - Get account information from indexer
+58. `api_indexer_lookup_account_assets` - Get account assets
+59. `api_indexer_lookup_account_app_local_states` - Get account application local states
+60. `api_indexer_lookup_account_created_applications` - Get applications created by an account
+61. `api_indexer_search_for_accounts` - Search for accounts with various criteria
+62. `api_indexer_lookup_applications` - Get application information from indexer
+63. `api_indexer_lookup_application_logs` - Get application log messages
+64. `api_indexer_search_for_applications` - Search for applications with various criteria
+65. `api_indexer_lookup_application_box` - Get application box by name
+66. `api_indexer_lookup_application_boxes` - Get all application boxes
+67. `api_indexer_lookup_asset_by_id` - Get asset information from indexer
+68. `api_indexer_lookup_asset_balances` - Get accounts that hold a specific asset
+69. `api_indexer_search_for_assets` - Search for assets with various criteria
+70. `api_indexer_lookup_transaction_by_id` - Get transaction details from indexer
+71. `api_indexer_lookup_account_transactions` - Get transactions related to an account
+72. `api_indexer_search_for_transactions` - Search for transactions with various criteria
+73. `api_indexer_search` - Search the Algorand indexer for accounts, transactions, assets, or applications
 
 ### NFD (Algorand Name Service) Operations
-76. `api_nfd_get_nfd` - Get NFD domain information by name
-77. `api_nfd_get_nfds_for_address` - Get all NFD domains owned by an address
-78. `api_nfd_get_nfd_activity` - Get activity for an NFD domain
-79. `api_nfd_get_nfd_analytics` - Get analytics for an NFD domain
-80. `api_nfd_browse_nfds` - Browse NFD domains with filtering options
-81. `api_nfd_search_nfds` - Search for NFD domains
+74. `api_nfd_get_nfd` - Get NFD domain information by name
+75. `api_nfd_get_nfds_for_address` - Get all NFD domains owned by an address
+76. `api_nfd_get_nfd_activity` - Get activity for an NFD domain
+77. `api_nfd_get_nfd_analytics` - Get analytics for an NFD domain
+78. `api_nfd_browse_nfds` - Browse NFD domains with filtering options
+79. `api_nfd_search_nfds` - Search for NFD domains
 
 ### General API and Documentation
-82. `api_request` - Make a request to an external API
-83. `algorand_mcp_guide` - Access comprehensive guide for using Algorand Remote MCP
-84. `get_knowledge_doc` - Get markdown content for specified knowledge documents
-85. `list_knowledge_docs` - List available knowledge documents by category
+80. `api_request` - Make a request to an external API
+81. `algorand_mcp_guide` - Access comprehensive guide for using Algorand Remote MCP
+82. `get_knowledge_doc` - Get markdown content for specified knowledge documents
+83. `list_knowledge_docs` - List available knowledge documents by category
 
 ## Resources full index
 
