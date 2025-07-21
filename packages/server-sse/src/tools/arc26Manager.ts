@@ -83,7 +83,7 @@ export function registerArc26Tools(server: McpServer, env: Env, props: Props): v
   // Generate Algorand URI
   server.tool(
     'generate_algorand_uri',
-    'Generate a URI following the ARC-26 specification',
+    'Generate a URI following the Algorand ARC-26 specification to send account address or request payment or asset transfer',
     {
       address: z.string().describe('Algorand address (58 characters)'),
       label: z.string().optional().describe('Optional label for the address'),
