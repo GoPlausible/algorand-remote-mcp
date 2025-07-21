@@ -54,7 +54,6 @@ function getAccountFromMnemonic(mnemonic: string | undefined): algosdk.Account |
  */
 export async function registerWalletTools(server: McpServer, env: Env, props: Props): Promise<void> {
   console.log('Registering wallet tools for Algorand Remote MCP');
-  console.log('Current props:', props);
   
   // Ensure user has an account (either vault-based or KV-based)
   try {
