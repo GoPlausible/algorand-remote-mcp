@@ -8,28 +8,50 @@ import { z } from 'zod';
 import { ResponseProcessor } from '../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Env, Props } from '../types';
+
 /**
  * Generate Algorand URI following ARC-26 specification
+ * 
+ * URI types:
+ * 1. Account URI (for contacts): Just the address, optionally with a label
+ *    - algorand://ADDRESS
+ *    - algorand://ADDRESS?label=Silvio
+ * 
+ * 2. Payment URI: Address with amount (no asset)
+ *    - algorand://ADDRESS?amount=150500000
+ * 
+ * 3. Asset Transfer URI: Address with amount and asset
+ *    - algorand://ADDRESS?amount=150&asset=45
+ * 
+ * @param address Algorand address
+ * @param label Optional label for the address
+ * @param amount Optional amount in microAlgos (for payment) or asset units (for asset transfer)
+ * @param assetId Optional asset ID (for asset transfer)
+ * @param note Optional note
+ * @returns Algorand URI string
  */
 function generateAlgorandUri(
-  action: string,
-  parameters: Record<string, string | number | boolean>,
+  address: string,
+  label?: string,
   amount?: number,
   assetId?: number,
   note?: string
 ): string {
-  // Build the base URI with action
-  let uri = `algorand://${action}`;
+  // Validate address format (58 characters)
+  if (!/^[A-Z2-7]{58}$/.test(address)) {
+    throw new Error('Invalid Algorand address format');
+  }
+  
+  // Build the base URI
+  let uri = `algorand://${address}`;
   
   // Build query parameters
   const queryParams: string[] = [];
   
-  // Add regular parameters
-  Object.entries(parameters).forEach(([key, value]) => {
-    if (value !== undefined && value !== null) {
-      queryParams.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
-    }
-  });
+  // Add optional label
+  if (label) {
+    queryParams.push(`label=${encodeURIComponent(label)}`);
+  }
   
   // Add optional amount
   if (amount !== undefined) {
@@ -42,7 +64,7 @@ function generateAlgorandUri(
   }
   
   // Add optional note
-  if (note !== undefined) {
+  if (note) {
     queryParams.push(`note=${encodeURIComponent(note)}`);
   }
   
@@ -57,22 +79,34 @@ function generateAlgorandUri(
 /**
  * Register ARC-26 tools to the MCP server
  */
-export function registerArc26Tools(server: McpServer,env: Env, props: Props): void {
+export function registerArc26Tools(server: McpServer, env: Env, props: Props): void {
   // Generate Algorand URI
   server.tool(
     'generate_algorand_uri',
     'Generate a URI following the ARC-26 specification',
     {
-      action: z.enum(['pay', 'axfer', 'acfg', 'afrz', 'appl']).describe('Action to perform'),
-      parameters: z.record(z.union([z.string(), z.number(), z.boolean()])).describe('URI parameters'),
-      amount: z.number().optional().describe('Amount in microAlgos (for payment)'),
+      address: z.string().describe('Algorand address (58 characters)'),
+      label: z.string().optional().describe('Optional label for the address'),
+      amount: z.number().optional().describe('Amount in microAlgos (for payment) or asset units (for asset transfer)'),
       assetId: z.number().optional().describe('Asset ID (for asset transfer)'),
       note: z.string().optional().describe('Optional note')
     },
-    async ({ action, parameters, amount, assetId, note }) => {
+    async ({ address, label, amount, assetId, note }) => {
       try {
-        const uri = generateAlgorandUri(action, parameters, amount, assetId, note);
-        return ResponseProcessor.processResponse({ uri });
+        const uri = generateAlgorandUri(address, label, amount, assetId, note);
+        
+        // Determine URI type
+        let uriType = 'Account URI';
+        if (amount !== undefined && assetId !== undefined) {
+          uriType = 'Asset Transfer URI';
+        } else if (amount !== undefined) {
+          uriType = 'Payment URI';
+        }
+        
+        return ResponseProcessor.processResponse({ 
+          uri,
+          uriType,
+        });
       } catch (error: any) {
         return {
           content: [{
