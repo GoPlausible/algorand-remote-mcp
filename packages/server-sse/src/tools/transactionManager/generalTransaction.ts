@@ -4,11 +4,16 @@
  */
 
 import algosdk from 'algosdk';
-import { encode as msgpackEncode } from 'msgpack-lite';
+import * as encoding from '../../utils/encoding/encoding';
+
 import { z } from 'zod';
 import { ResponseProcessor } from '../../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { Env, Props, VaultResponse } from '../../types';
+import { Env, Props, VaultResponse,
+  EncodedTransaction,
+  EncodedSignedTransaction,
+  EncodedMultisig,
+  EncodedLogicSig } from '../../types';
 import {
   retrieveSecret,
   storeSecret,
@@ -18,7 +23,7 @@ import {
   signWithSecret,
   ensureUserAccount,
   getPublicKey,
-  signWithVault
+  signWithTransit
 } from '../../utils/vaultManager';
 
 /**
@@ -173,7 +178,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
           console.log('Public key from vault:', publicKeyResult.publicKey);
 
           // Get the raw signature from the vault
-          const signatureResult = await signWithVault(env, encodedTxn, props.email);
+          const signatureResult = await signWithTransit(env, encodedTxn, props.email);
 
 
           if (!signatureResult.success || !signatureResult.signature) {
@@ -200,19 +205,19 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
           console.log('Transaction object for encoding:', txnObj);
 
           // Create a Map for the signed transaction
-          const signedTxn: Record<string, any> = {
+          const signedTxn: EncodedSignedTransaction = {
             txn: txnObj,
-            sig: new Uint8Array(signature),
+            sig: signature,
           };
           console.log('Signed transaction map:', signedTxn);
 
           // Add AuthAddr if signing with a different key than From indicates
           if (txn.from.publicKey.toString() !== publicKeyBuffer.toString()) {
-            signedTxn.sgnr = algosdk.decodeAddress(signerAddr);
+            signedTxn.sgnr = publicKeyBuffer;
           }
 
           // Encode the signed transaction using MessagePack
-          const encodedSignedTxn = msgpackEncode(signedTxn);
+          const encodedSignedTxn = encoding.encode(signedTxn);
           console.log('Encoded signed transaction:', encodedSignedTxn);
           console.log('TXN ID:', txn.txID());
           // Return the base64 encoded signed transaction
@@ -265,7 +270,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         // Decode and submit transaction
         const decodedTxn = Buffer.from(signedTxn, 'base64');
         console.log('Decoded signed transaction:', decodedTxn);
-        const response = await algodClient.sendRawTransaction(decodedTxn).do();
+        const response = await algodClient.sendRawTransaction(new Uint8Array(decodedTxn)).do();
         console.log('Transaction ID:', response.txId);
         // Wait for confirmation
         const confirmedTxn = await algosdk.waitForConfirmation(algodClient, response.txId, 4);

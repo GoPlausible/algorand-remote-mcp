@@ -40,7 +40,7 @@ export interface PublicKeyResponse {
 }
 
 /**
- * Response from the signWithVault function
+ * Response from the signWithTransit function
  */
 export interface SignatureResponse {
   success: boolean;
@@ -246,7 +246,7 @@ export async function getPublicKey(env: Env, keyName: string = 'algorand-key'): 
  * @param data Base64-encoded data to sign
  * @returns Promise resolving to the signature
  */
-export async function signWithVault(env: Env, data: string, keyName: string = 'algorand-key'): Promise<SignatureResponse> {
+export async function signWithTransit(env: Env, data: string, keyName: string = 'algorand-key'): Promise<SignatureResponse> {
   if (!env.HCV_WORKER) {
     console.error('Hashicorp Vault worker not configured');
     return { success: false, error: 'Hashicorp Vault worker not configured' };

@@ -15,7 +15,7 @@ import {
   createKeypair, 
   deleteSecret, 
   signWithSecret,
-  signWithVault 
+  signWithTransit 
 } from '../utils/vaultManager';
 
 /**

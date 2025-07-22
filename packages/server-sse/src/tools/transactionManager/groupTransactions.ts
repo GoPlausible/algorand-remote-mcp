@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { ResponseProcessor } from '../../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Env, Props } from '../../types';
-import { getUserAccountType, signWithVault, signWithSecret, getPublicKey } from '../../utils/vaultManager';
+import { getUserAccountType, signWithTransit, signWithSecret, getPublicKey } from '../../utils/vaultManager';
 /**
  * Register group transaction tools to the MCP server
  */
@@ -127,9 +127,9 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
           );
           signatures = await Promise.all(signaturePromises);
         } else if (accountType === 'vault') {
-          // For vault-based accounts, use signWithVault and process the response
+          // For vault-based accounts, use signWithTransit and process the response
           const signaturePromises = groupedEncodedTxns.map(async txn => {
-            const signatureResult = await signWithVault(env, txn, keyName);
+            const signatureResult = await signWithTransit(env, txn, keyName);
             if (!signatureResult.success || !signatureResult.signature) {
               return null;
             }
