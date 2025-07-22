@@ -91,13 +91,10 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
     'Sign and submit an atomic transaction group in one operation',
     {
       encodedTxns: z.array(z.string()).describe('Array of base64-encoded unsigned transactions'),
-      keyNames: z.array(z.string()).describe('Array of key names in the vault for signing transactions')
+      keyName: z.string().describe('Key name of the signer for all transactions in the group')
     },
-    async ({ encodedTxns, keyNames }) => {
+    async ({ encodedTxns, keyName }) => {
       try {
-        if (encodedTxns.length !== keyNames.length) {
-          throw new Error('Number of transactions must match number of key names.');
-        }
 
         // Decode transactions
         const decodedTxns = encodedTxns.map(txn => {
@@ -119,26 +116,26 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
           Buffer.from(algosdk.encodeUnsignedTransaction(txn)).toString('base64')
         );
 
-        // Sign each transaction with corresponding key
+        // Sign each transaction with the same key
         let signatures: (string | null)[] = [];
         const accountType = await getUserAccountType(env, props.email || '');
         
         if (accountType === 'kv') {
           // For KV-based accounts, use signWithSecret
-          const signaturePromises = groupedEncodedTxns.map((txn, i) =>
-            signWithSecret(env, keyNames[i], txn)
+          const signaturePromises = groupedEncodedTxns.map(txn =>
+            signWithSecret(env, keyName, txn)
           );
           signatures = await Promise.all(signaturePromises);
         } else if (accountType === 'vault') {
           // For vault-based accounts, use signWithVault and process the response
-          const signaturePromises = groupedEncodedTxns.map(async (txn, i) => {
-            const signatureResult = await signWithVault(env, txn, keyNames[i]);
+          const signaturePromises = groupedEncodedTxns.map(async txn => {
+            const signatureResult = await signWithVault(env, txn, keyName);
             if (!signatureResult.success || !signatureResult.signature) {
               return null;
             }
             
             // Get the public key from the vault
-            const publicKeyResult = await getPublicKey(env, keyNames[i]);
+            const publicKeyResult = await getPublicKey(env, keyName);
             if (!publicKeyResult.success || !publicKeyResult.publicKey) {
               return null;
             }

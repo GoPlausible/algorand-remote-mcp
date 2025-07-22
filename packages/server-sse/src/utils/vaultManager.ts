@@ -441,5 +441,3 @@ export async function ensureUserAccount(env: Env, email: string | undefined): Pr
   
   return 'vault';
 }
-
-

@@ -260,7 +260,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 26. `create_key_registration_transaction` - Create a key registration transaction
 27. `assign_group_id` - Assign a group ID to a set of transactions for atomic execution
 28. `create_atomic_group` - Create an atomic transaction group from multiple transactions
-29. `send_atomic_group` - Sign and submit an atomic transaction group in one operation
+29. `send_atomic_group` - Sign and submit an atomic transaction group in one operation with a single signer
 30. `send_raw_transaction` - Submit signed transactions to the Algorand network
 31. `simulate_raw_transactions` - Simulate raw transactions
 32. `simulate_transactions` - Simulate encoded transactions
