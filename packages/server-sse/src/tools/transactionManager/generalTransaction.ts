@@ -261,13 +261,16 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         if (!algodClient) {
           throw new Error('Failed to create Algorand client');
         }
-
+        console.log('Signed TXN:', signedTxn);
         // Decode and submit transaction
         const decodedTxn = Buffer.from(signedTxn, 'base64');
+        console.log('Decoded signed transaction:', decodedTxn);
         const response = await algodClient.sendRawTransaction(decodedTxn).do();
-
+        console.log('Transaction ID:', response.txId);
         // Wait for confirmation
         const confirmedTxn = await algosdk.waitForConfirmation(algodClient, response.txId, 4);
+        console.log('Confirmed transaction:', confirmedTxn);
+ 
 
         return ResponseProcessor.processResponse({
           confirmed: true,
