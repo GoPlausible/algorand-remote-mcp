@@ -208,7 +208,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
 
           // Add AuthAddr if signing with a different key than From indicates
           if (txn.from.publicKey.toString() !== publicKeyBuffer.toString()) {
-            signedTxn.set('sgnr', algosdk.decodeAddress(signerAddr));
+            signedTxn.sgnr = algosdk.decodeAddress(signerAddr);
           }
 
           // Encode the signed transaction using MessagePack
