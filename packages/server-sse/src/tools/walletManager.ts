@@ -16,7 +16,7 @@ import {
   getPublicKey, 
   getUserAccountType, 
   getUserAddress, 
-  signUserData, 
+  signWithSecret, 
   ensureUserAccount 
 } from '../utils/vaultManager';
 

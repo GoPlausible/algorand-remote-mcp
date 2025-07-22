@@ -14,9 +14,10 @@ import {
   deleteSecret, 
   getUserAccountType, 
   getUserAddress, 
-  signUserData, 
+  signWithSecret, 
   ensureUserAccount,
-  getPublicKey
+  getPublicKey,
+  signWithVault
 } from '../../utils/vaultManager';
 
 /**
@@ -131,33 +132,89 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         // Ensure user has an account
         await ensureUserAccount(env, props.email || '');
         
-        // Sign the transaction using the unified approach
-        const signature = await signUserData(env, props.email, encodedTxn);
-        
-        if (!signature) {
-          return {
-            content: [{
-              type: 'text',
-              text: 'No active agent wallet configured or signing failed'
-            }]
-          };
-        }
-        
-        // Decode transaction to get the txID
-        const txn = algosdk.decodeUnsignedTransaction(Buffer.from(encodedTxn, 'base64'));
-        
-        // Check account type for migration suggestion
+        // Get account type to determine signing approach
         const accountType = await getUserAccountType(env, props.email || '');
         
-        return ResponseProcessor.processResponse({
-          txID: txn.txID(),
-          signedTxn: signature,
-          ...(accountType === 'kv' && {
+        // For KV-based accounts, use the existing signWithSecret function
+        if (accountType === 'kv') {
+          const signature = await signWithSecret(env, props.email, encodedTxn);
+          
+          if (!signature) {
+            return {
+              content: [{
+                type: 'text',
+                text: 'No active agent wallet configured or signing failed'
+              }]
+            };
+          }
+          
+          // Decode transaction to get the txID
+          const txn = algosdk.decodeUnsignedTransaction(Buffer.from(encodedTxn, 'base64'));
+          
+          return ResponseProcessor.processResponse({
+            txID: txn.txID(),
+            signedTxn: signature,
             accountType: 'kv',
             migrationAvailable: true,
             migrationMessage: 'Your account is using legacy storage. Consider using migrate_to_vault tool for enhanced security.'
-          })
-        });
+          });
+        }
+        
+        // For vault-based accounts, we need to manually construct the signed transaction
+        if (accountType === 'vault') {
+          // Get the public key from the vault
+          const publicKeyResult = await getPublicKey(env, props.email);
+          
+          if (!publicKeyResult.success || !publicKeyResult.publicKey) {
+            throw new Error('Failed to get public key from vault');
+          }
+          
+          // Get the raw signature from the vault
+          const signatureResult = await signWithVault(env, encodedTxn, props.email);
+          
+          if (!signatureResult.success || !signatureResult.signature) {
+            throw new Error('Failed to get signature from vault');
+          }
+          
+          // Decode the transaction
+          const txn = algosdk.decodeUnsignedTransaction(Buffer.from(encodedTxn, 'base64'));
+          
+          // Convert the base64 signature to Uint8Array
+          const signature = Buffer.from(signatureResult.signature, 'base64');
+          
+          // Convert the base64 public key to Uint8Array
+          const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
+          
+          // Get the address from the public key
+          const signerAddr = algosdk.encodeAddress(publicKeyBuffer);
+          
+          // Create a Map for the signed transaction
+          const sTxn = new Map<string, unknown>([
+            ['sig', signature],
+            ['txn', txn.get_obj_for_encoding()],
+          ]);
+          
+          // Add AuthAddr if signing with a different key than From indicates
+          if (txn.from.publicKey.toString() !== publicKeyBuffer.toString()) {
+            sTxn.set('sgnr', algosdk.decodeAddress(signerAddr));
+          }
+          
+          // Encode the signed transaction using MessagePack
+          const encodedSignedTxn = algosdk.encodeObj(sTxn);
+          
+          // Return the base64 encoded signed transaction
+          return ResponseProcessor.processResponse({
+            txID: txn.txID(),
+            signedTxn: Buffer.from(encodedSignedTxn).toString('base64')
+          });
+        }
+        
+        return {
+          content: [{
+            type: 'text',
+            text: 'No active agent wallet configured'
+          }]
+        };
       } catch (error: any) {
         return {
           content: [{

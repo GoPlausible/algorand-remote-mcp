@@ -14,7 +14,8 @@ import {
   getPublicKey, 
   createKeypair, 
   deleteSecret, 
-  signUserData 
+  signWithSecret,
+  signWithVault 
 } from '../utils/vaultManager';
 
 /**
@@ -297,7 +298,7 @@ export function registerAccountTools(server: McpServer,env: Env, props: Props): 
             throw new Error('User email is required for signing');
           }
           const encodedTxn = Buffer.from(algosdk.encodeUnsignedTransaction(optinTxn)).toString('base64');
-          const signature = await signUserData(env, props.email as string, encodedTxn);
+          const signature = await signWithSecret(env, props.email as string, encodedTxn);
           
           if (!signature) {
             throw new Error(`Failed to sign opt-in transaction for asset ${assetHolding['asset-id']}`);

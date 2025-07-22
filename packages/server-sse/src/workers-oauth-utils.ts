@@ -66,7 +66,7 @@ async function importKey(secret: string): Promise<CryptoKey> {
  * @param data - The string data to sign.
  * @returns A promise resolving to the signature as a hex string.
  */
-async function signData(key: CryptoKey, data: string): Promise<string> {
+async function signWithVault(key: CryptoKey, data: string): Promise<string> {
 	const enc = new TextEncoder();
 	const signatureBuffer = await crypto.subtle.sign("HMAC", key, enc.encode(data));
 	// Convert ArrayBuffer to hex string
@@ -626,7 +626,7 @@ export async function parseRedirectApproval(
 	// Sign the updated list
 	const payload = JSON.stringify(updatedApprovedClients);
 	const key = await importKey(cookieSecret);
-	const signature = await signData(key, payload);
+	const signature = await signWithVault(key, payload);
 	const newCookieValue = `${signature}.${btoa(payload)}`; // signature.base64(payload)
 
 	// Generate Set-Cookie header

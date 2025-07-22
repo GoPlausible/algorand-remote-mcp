@@ -109,7 +109,7 @@ Algorand Remote MCP is built on the Model Context Protocol (MCP), which provides
 ### Cryptographic Tools
 - `create_keypair`: Create a new Ed25519 keypair in HashiCorp Vault
 - `get_public_key`: Get the public key for a keypair from HashiCorp Vault
-- `sign_data`: Sign data using a keypair in HashiCorp Vault
+- `sign_bytes`: Sign bytes with a secret key
 - `verify_signature`: Verify a signature using a keypair in HashiCorp Vault
 
 ## Available Resources
@@ -163,7 +163,7 @@ HCV_WORKER_URL=https://your-hashicorp-vault-worker.workers.dev
 
 ### Transaction Flow for Agents
 1. Create transaction using appropriate tool
-2. Sign transaction with wallet credentials using unified signUserData function using Google OAuth credentials to authorize signing by a Ed25519 keypair binded to the user's OAuth credentials.
+2. Sign transaction with wallet credentials using HashiCorp Vault's secure Ed25519 engine
 3. Submit transaction to network
 4. Verify transaction success
 

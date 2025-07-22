@@ -40,7 +40,7 @@ export interface PublicKeyResponse {
 }
 
 /**
- * Response from the signData function
+ * Response from the signWithVault function
  */
 export interface SignatureResponse {
   success: boolean;
@@ -246,7 +246,7 @@ export async function getPublicKey(env: Env, keyName: string = 'algorand-key'): 
  * @param data Base64-encoded data to sign
  * @returns Promise resolving to the signature
  */
-export async function signData(env: Env, data: string, keyName: string = 'algorand-key'): Promise<SignatureResponse> {
+export async function signWithVault(env: Env, data: string, keyName: string = 'algorand-key'): Promise<SignatureResponse> {
   if (!env.HCV_WORKER) {
     console.error('Hashicorp Vault worker not configured');
     return { success: false, error: 'Hashicorp Vault worker not configured' };
@@ -387,24 +387,13 @@ export async function getUserAddress(env: Env, email: string | undefined): Promi
  * @param data Data to sign
  * @returns Promise resolving to the signature or null if signing failed
  */
-export async function signUserData(env: Env, email: string | undefined, data: string): Promise<string | null> {
+export async function signWithSecret(env: Env, email: string | undefined, data: string): Promise<string | null> {
   if (!email) {
     console.error('No email provided for signing');
     return null;
   }
-  // First try vault-based approach
-  const publicKeyResult = await getPublicKey(env, email);
   
-  if (publicKeyResult.success) {
-    // User has a vault-based account
-    const signatureResult = await signData(env, data, email);
-    
-    if (signatureResult.success && signatureResult.signature) {
-      return signatureResult.signature;
-    }
-  }
-  
-  // Fall back to KV-based approach
+  // Sign with Secrets KV-based approach
   const secret = await retrieveSecret(env, email);
   
   if (secret) {
