@@ -19,7 +19,8 @@
 		"just-pick": "^4.2.0",
 		"zod": "^3.25.61",
 		"algosdk": "2.9.0",
-		"qrcode": "^1.5.4"
+		"qrcode": "^1.5.4",
+		"msgpack-lite": "^0.1.26"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",

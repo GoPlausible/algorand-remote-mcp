@@ -4,6 +4,7 @@
  */
 
 import algosdk from 'algosdk';
+import { encode as msgpackEncode } from 'msgpack-lite';
 import { z } from 'zod';
 import { ResponseProcessor } from '../../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -195,21 +196,23 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
           // Get the address from the public key
           const signerAddr = algosdk.encodeAddress(publicKeyBuffer);
           console.log('Signer address:', signerAddr);
+          const txnObj = txn.get_obj_for_encoding();
+          console.log('Transaction object for encoding:', txnObj);
 
           // Create a Map for the signed transaction
-          const sTxn = new Map<string, unknown>([
-            ['sig', signatureResult.signature],
-            ['txn', txn.get_obj_for_encoding()],
-          ]);
-          console.log('Signed transaction map:', sTxn.toString());
+          const signedTxn: Record<string, any> = {
+            txn: txnObj,
+            sig: new Uint8Array(signature),
+          };
+          console.log('Signed transaction map:', signedTxn);
 
           // Add AuthAddr if signing with a different key than From indicates
           if (txn.from.publicKey.toString() !== publicKeyBuffer.toString()) {
-            sTxn.set('sgnr', algosdk.decodeAddress(signerAddr));
+            signedTxn.set('sgnr', algosdk.decodeAddress(signerAddr));
           }
 
           // Encode the signed transaction using MessagePack
-          const encodedSignedTxn = algosdk.encodeObj(sTxn);
+          const encodedSignedTxn = msgpackEncode(signedTxn);
           console.log('Encoded signed transaction:', encodedSignedTxn);
           console.log('TXN ID:', txn.txID());
           // Return the base64 encoded signed transaction
