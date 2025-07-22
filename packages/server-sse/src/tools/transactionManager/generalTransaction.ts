@@ -178,21 +178,26 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
           
           // Decode the transaction
           const txn = algosdk.decodeUnsignedTransaction(Buffer.from(encodedTxn, 'base64'));
+          console.log('Decoded transaction:', txn);
           
           // Convert the base64 signature to Uint8Array
           const signature = Buffer.from(signatureResult.signature, 'base64');
+          console.log('Signature:', signature);
           
           // Convert the base64 public key to Uint8Array
           const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
+          console.log('Public key buffer:', publicKeyBuffer);
           
           // Get the address from the public key
           const signerAddr = algosdk.encodeAddress(publicKeyBuffer);
+          console.log('Signer address:', signerAddr);
           
           // Create a Map for the signed transaction
           const sTxn = new Map<string, unknown>([
             ['sig', signature],
             ['txn', txn.get_obj_for_encoding()],
           ]);
+          console.log('Signed transaction map:', sTxn.toString());
           
           // Add AuthAddr if signing with a different key than From indicates
           if (txn.from.publicKey.toString() !== publicKeyBuffer.toString()) {
@@ -201,7 +206,8 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
           
           // Encode the signed transaction using MessagePack
           const encodedSignedTxn = algosdk.encodeObj(sTxn);
-          
+          console.log('Encoded signed transaction:', encodedSignedTxn);
+          console.log('TXN ID:', txn.txID());
           // Return the base64 encoded signed transaction
           return ResponseProcessor.processResponse({
             txID: txn.txID(),
