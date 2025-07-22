@@ -8,13 +8,13 @@ import { z } from 'zod';
 import { ResponseProcessor } from '../../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Env, Props, VaultResponse } from '../../types';
-import { 
-  retrieveSecret, 
-  storeSecret, 
-  deleteSecret, 
-  getUserAccountType, 
-  getUserAddress, 
-  signWithSecret, 
+import {
+  retrieveSecret,
+  storeSecret,
+  deleteSecret,
+  getUserAccountType,
+  getUserAddress,
+  signWithSecret,
   ensureUserAccount,
   getPublicKey,
   signWithVault
@@ -43,7 +43,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
   } catch (error: any) {
     throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
   }
-  
+
   // For backward compatibility, check if there's a KV-based account
   const ALGORAND_AGENT_WALLET = await retrieveSecret(env, props.email);
   // Create payment transaction tool
@@ -131,14 +131,15 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
       try {
         // Ensure user has an account
         await ensureUserAccount(env, props.email || '');
-        
+
         // Get account type to determine signing approach
         const accountType = await getUserAccountType(env, props.email || '');
-        
+        console.log(`Signing transaction with ${accountType}-based account`);
+
         // For KV-based accounts, use the existing signWithSecret function
         if (accountType === 'kv') {
           const signature = await signWithSecret(env, props.email, encodedTxn);
-          
+
           if (!signature) {
             return {
               content: [{
@@ -147,10 +148,10 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
               }]
             };
           }
-          
+
           // Decode transaction to get the txID
           const txn = algosdk.decodeUnsignedTransaction(Buffer.from(encodedTxn, 'base64'));
-          
+
           return ResponseProcessor.processResponse({
             txID: txn.txID(),
             signedTxn: signature,
@@ -159,51 +160,54 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
             migrationMessage: 'Your account is using legacy storage. Consider using migrate_to_vault tool for enhanced security.'
           });
         }
-        
+
         // For vault-based accounts, we need to manually construct the signed transaction
-        if (accountType === 'vault') {
+        else if (accountType === 'vault') {
           // Get the public key from the vault
           const publicKeyResult = await getPublicKey(env, props.email);
-          
+
           if (!publicKeyResult.success || !publicKeyResult.publicKey) {
             throw new Error('Failed to get public key from vault');
           }
-          
+          console.log('Public key from vault:', publicKeyResult.publicKey);
+
           // Get the raw signature from the vault
           const signatureResult = await signWithVault(env, encodedTxn, props.email);
-          
+
+
           if (!signatureResult.success || !signatureResult.signature) {
             throw new Error('Failed to get signature from vault');
           }
-          
+
+
           // Decode the transaction
           const txn = algosdk.decodeUnsignedTransaction(Buffer.from(encodedTxn, 'base64'));
           console.log('Decoded transaction:', txn);
-          
+
           // Convert the base64 signature to Uint8Array
           const signature = Buffer.from(signatureResult.signature, 'base64');
           console.log('Signature:', signature);
-          
+
           // Convert the base64 public key to Uint8Array
           const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
           console.log('Public key buffer:', publicKeyBuffer);
-          
+
           // Get the address from the public key
           const signerAddr = algosdk.encodeAddress(publicKeyBuffer);
           console.log('Signer address:', signerAddr);
-          
+
           // Create a Map for the signed transaction
           const sTxn = new Map<string, unknown>([
-            ['sig', signature],
+            ['sig', signatureResult.signature],
             ['txn', txn.get_obj_for_encoding()],
           ]);
           console.log('Signed transaction map:', sTxn.toString());
-          
+
           // Add AuthAddr if signing with a different key than From indicates
           if (txn.from.publicKey.toString() !== publicKeyBuffer.toString()) {
             sTxn.set('sgnr', algosdk.decodeAddress(signerAddr));
           }
-          
+
           // Encode the signed transaction using MessagePack
           const encodedSignedTxn = algosdk.encodeObj(sTxn);
           console.log('Encoded signed transaction:', encodedSignedTxn);
@@ -214,7 +218,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
             signedTxn: Buffer.from(encodedSignedTxn).toString('base64')
           });
         }
-        
+
         return {
           content: [{
             type: 'text',
