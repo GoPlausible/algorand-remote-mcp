@@ -770,9 +770,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 > **Note**: This system is configured for Algorand Mainnet. The examples above use USDC (ASA ID: 31566704). For TestNet testing, you would need to use different asset IDs for test assets. The workflow patterns remain the same, just substitute the appropriate asset ID for your target network.
 
-## Working with Atomic Transactions
-
-
+## Working with Atomic Transaction Groups
 
 1. Atomic Group Creation
    - Tool: \`create_atomic_group\`
