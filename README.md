@@ -14,7 +14,7 @@ The server is designed to run on Cloudflare Workers and provides a comprehensive
 - **HashiCorp Vault Integration**: 
   - Secure storage of sensitive wallet credentials using HashiCorp Vault
   - Ed25519 keypair operations for cryptographic functions
-  - Migration path from previously used KV-based to vault-based accounts (to honor our only 5 users using previosuly used KV-based accounts)
+  - Migration path from previously used KV-based to vault-based accounts (to honor our only 5 users using previosuly used KV-based accounts during first day after beta release)
   - Policy that all new accounts use Ed25519 secure secrets engine.
 - **Comprehensive Transaction Support**: Create, sign, and submit various transaction types (payments, assets, applications)
 - **API Integration**: Access Algorand node, indexer, and NFD APIs through standardized interfaces
