@@ -9,8 +9,9 @@ import algosdk from 'algosdk';
 import { z } from 'zod';
 import { ResponseProcessor } from '../../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { Env, Props, VaultResponse,
- } from '../../types';
+import {
+  Env, Props, VaultResponse,
+} from '../../types';
 import {
   retrieveSecret,
   storeSecret,
@@ -35,7 +36,18 @@ function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | nu
 
   return new algosdk.Algodv2(token, algodUrl, '');
 }
+function ConcatArrays(...arrs: ArrayLike<number>[]) {
+  const size = arrs.reduce((sum, arr) => sum + arr.length, 0)
+  const c = new Uint8Array(size)
 
+  let offset = 0
+  for (let i = 0; i < arrs.length; i++) {
+    c.set(arrs[i], offset)
+    offset += arrs[i].length
+  }
+
+  return c
+}
 /**
  * Register general transaction management tools to the MCP server
  */
@@ -133,6 +145,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
     },
     async ({ encodedTxn }) => {
       try {
+
         // Ensure user has an account
         await ensureUserAccount(env, props.email || '');
 
@@ -176,7 +189,14 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
           console.log('Public key from vault:', publicKeyResult.publicKey);
 
           // Get the raw signature from the vault
-          const signatureResult = await signWithTransit(env, encodedTxn, props.email);
+          const TAG: Buffer = Buffer.from("TX");
+          console.log('TAG:', Buffer.from("TX"));
+          console.log('Encoded transaction buffer signing:', new Uint8Array(Buffer.from(encodedTxn, 'base64')));
+          const finalEncodedTxn = new Uint8Array(Buffer.from(encodedTxn, 'base64'));
+          const finalEncodedTxnTagged = ConcatArrays(TAG, finalEncodedTxn);
+          console.log('Final encoded transaction:', finalEncodedTxnTagged);
+          const finalEncodedTxnBase64 = Buffer.from(finalEncodedTxnTagged).toString('base64');
+          const signatureResult = await signWithTransit(env,finalEncodedTxnBase64, props.email);
 
 
           if (!signatureResult.success || !signatureResult.signature) {
@@ -191,6 +211,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
           // Convert the base64 signature to Uint8Array
           const signature = Buffer.from(signatureResult.signature, 'base64');
           console.log('Signature:', signature);
+
 
           // Convert the base64 public key to Uint8Array
           const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
@@ -221,7 +242,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
               }
             }
           }
-          
+
           if (!keysMatch) {
             // Only add sgnr if the keys are actually different
             signedTxn.sgnr = algosdk.decodeAddress(signerAddr);
@@ -286,7 +307,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         // Wait for confirmation
         const confirmedTxn = await algosdk.waitForConfirmation(algodClient, response.txId, 4);
         console.log('Confirmed transaction:', confirmedTxn);
- 
+
 
         return ResponseProcessor.processResponse({
           confirmed: true,

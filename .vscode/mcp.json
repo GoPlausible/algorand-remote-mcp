@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "algorand-remote-mcp": {
+      "type": "sse",
+      "url": "https://algorand-remote-mcp.emg110.workers.dev/sse",
+    }
+  }
+}
