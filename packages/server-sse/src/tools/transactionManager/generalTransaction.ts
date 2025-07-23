@@ -4,16 +4,13 @@
  */
 
 import algosdk from 'algosdk';
-import * as encoding from '../../utils/encoding/encoding';
+
 
 import { z } from 'zod';
 import { ResponseProcessor } from '../../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Env, Props, VaultResponse,
-  EncodedTransaction,
-  EncodedSignedTransaction,
-  EncodedMultisig,
-  EncodedLogicSig } from '../../types';
+ } from '../../types';
 import {
   retrieveSecret,
   storeSecret,
@@ -25,6 +22,7 @@ import {
   getPublicKey,
   signWithTransit
 } from '../../utils/vaultManager';
+import * as msgpack from "algo-msgpack-with-bigint"
 
 /**
  * Create and validate an Algorand client
@@ -205,19 +203,32 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
           console.log('Transaction object for encoding:', txnObj);
 
           // Create a Map for the signed transaction
-          const signedTxn: EncodedSignedTransaction = {
+          const signedTxn: object = {
             txn: txnObj,
             sig: signature,
           };
           console.log('Signed transaction map:', signedTxn);
 
           // Add AuthAddr if signing with a different key than From indicates
-          if (txn.from.publicKey.toString() !== publicKeyBuffer.toString()) {
-            signedTxn.sgnr = publicKeyBuffer;
+          // Compare the actual bytes of the public keys, not their string representations
+          const fromPubKey = txn.from.publicKey;
+          let keysMatch = fromPubKey.length === publicKeyBuffer.length;
+          if (keysMatch) {
+            for (let i = 0; i < fromPubKey.length; i++) {
+              if (fromPubKey[i] !== publicKeyBuffer[i]) {
+                keysMatch = false;
+                break;
+              }
+            }
+          }
+          
+          if (!keysMatch) {
+            // Only add sgnr if the keys are actually different
+            signedTxn.sgnr = algosdk.decodeAddress(signerAddr);
           }
 
           // Encode the signed transaction using MessagePack
-          const encodedSignedTxn = encoding.encode(signedTxn);
+          const encodedSignedTxn: Uint8Array = new Uint8Array(msgpack.encode(signedTxn, { sortKeys: true, ignoreUndefined: true }))
           console.log('Encoded signed transaction:', encodedSignedTxn);
           console.log('TXN ID:', txn.txID());
           // Return the base64 encoded signed transaction

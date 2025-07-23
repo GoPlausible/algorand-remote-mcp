@@ -146,3 +146,5 @@ vite.config.ts.timestamp-*
 packages/.DS_Store
 .cl*
 packages/server-sse/package-lock.json
+packages/server-sse/src/utils/encoding/*
+packages/server-sse/src/utils/encoding_old/*

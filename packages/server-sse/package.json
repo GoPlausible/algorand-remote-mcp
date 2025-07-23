@@ -20,7 +20,8 @@
 		"zod": "^3.25.61",
 		"algosdk": "2.9.0",
 		"qrcode": "^1.5.4",
-		"algo-msgpack-with-bigint": "^2.1.1"
+		"algo-msgpack-with-bigint": "^2.1.1",
+		"hi-base32": "^0.5.1"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
