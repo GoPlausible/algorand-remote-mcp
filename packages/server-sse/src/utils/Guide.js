@@ -45,8 +45,8 @@ export const guide = `# Algorand Remote MCP Guide for Agents
 
 ## Quick Start for LLM Agents (⚠️ Always present to user as "Quick Start Workflows" at each session start)
 
-## Transaction types on Algorand
-The main Algorand transaction types are:
+## Transactions management
+The Algorand transaction types are:
 
 - **pay**: Payment transaction (transfers ALGOs between accounts)
 - **axfer**: Asset transfer transaction (transfers Algorand Standard Assets, opt-in, clawback, etc.)
@@ -54,9 +54,10 @@ The main Algorand transaction types are:
 - **appl**: Application call transaction (create, call, update, or delete Algorand smart contracts)
 - **afrz**: Asset freeze transaction (freeze or unfreeze an asset for a specific account)
 - **keyreg**: Key registration transaction (register participation keys for consensus)
-- **stpf**: State proof transaction (provides state proof for light clients)
 
 > Use the correct transaction type when creating or analyzing transactions. Each type has specific required parameters and behaviors.
+> Use create_atomic_group tool to create a group of transactions that will be executed atomically (all or nothing).
+
 As an LLM agent, here's how to quickly perform basic Algorand operations using direct tool invocation pattern using send payment, asset transfer and asset optin as examples:
 
 ### Minimal Working Example - Send Payment
@@ -771,36 +772,48 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 ## Working with Atomic Transactions
 
-1. Transaction Grouping
-   - Tool: \`assign_group_id\`
-   - Purpose: Group transactions for atomic execution
-   - Parameters: \`{ encodedTxns: string[] }\`
-   - Effect: All transactions succeed or all fail
 
-2. Atomic Group Creation
+
+1. Atomic Group Creation
    - Tool: \`create_atomic_group\`
    - Purpose: Create multiple transactions as one unit
    - Parameters:
      \`\`\`
      {
        transactions: [
-         { type: "payment", params: {...} },
-         { type: "asset_transfer", params: {...} },
+         { type: "pay", params: {...} },
+         { type: "axfer", params: {...} },
          ...
        ]
      }
      \`\`\`
 
-3. Submitting Groups
-   - Tool: \`send_atomic_group\`
-   - Purpose: Sign and submit transaction group
+2. Signing Groups
+   - Tool: \`sign_atomic_group\`
+   - Purpose: Sign transaction group
    - Parameters:
      \`\`\`
      {
        encodedTxns: string[],
-       keyNames: string[]
+       keyName: string[]
      }
      \`\`\`
+
+3. Submitting Groups
+   - Tool: \`submit_atomic_group\`
+   - Purpose: Sign and submit transaction group
+   - Parameters:
+     \`\`\`
+     {
+       signedTxns: string[],
+     }
+     \`\`\`
+
+Note: When manually creating individual transactions for Transaction Grouping and before signing them, you must assign a group ID to the transactions using the \`assign_group_id\` tool.
+   - Tool: \`assign_group_id\`
+   - Purpose: Group transactions for atomic execution
+   - Parameters: \`{ encodedTxns: string[] }\`
+   - Effect: All transactions succeed or all fail
 
 ## Troubleshooting Session Issues
 

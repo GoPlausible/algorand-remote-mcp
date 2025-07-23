@@ -195,7 +195,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
   // Assign group ID to transactions
   server.tool(
     'assign_group_id',
-    'Assign a group ID to a set of transactions for atomic execution',
+    'When manually creating transactions individually, assign a group ID to a set of transactions for atomic execution',
     {
       encodedTxns: z.array(z.string()).describe('Array of base64-encoded unsigned transactions')
     },
@@ -235,10 +235,10 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
   // Create atomic transaction group
   server.tool(
     'create_atomic_group',
-    'Create an atomic transaction group from multiple transactions of types pay, axfer, acfg, appl, afrz, keyreg or stpf',
+    'Create an atomic transaction group from multiple transactions of types pay, axfer, acfg, appl, afrz or keyreg',
     {
       transactions: z.array(z.object({
-        type: z.enum(['pay', 'axfer', 'acfg', 'appl', 'afrz', 'keyreg', 'stpf']).describe('Transaction type'),
+        type: z.enum(['pay', 'axfer', 'acfg', 'appl', 'afrz', 'keyreg']).describe('Transaction type'),
         params: z.any().describe('Transaction-specific parameters')
       })).describe('Array of transaction specifications')
     },
