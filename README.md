@@ -87,6 +87,9 @@ Algorand Remote MCP is built on the Model Context Protocol (MCP), which provides
 - `create_payment_transaction`: Create a payment transaction
 - `sign_transaction`: Sign a transaction with the wallet's credentials
 - `submit_transaction`: Submit a signed transaction to the network
+- `create_atomic_group`: Create an atomic transaction group from multiple transactions
+- `sign_atomic_group`: Sign an atomic transaction group
+- `submit_atomic_group`: Submit a signed atomic transaction group to the network
 - `asset_optin`: Create an asset opt-in transaction
 - `transfer_asset`: Create an asset transfer transaction
 - `create_asset`: Create a new Algorand Standard Asset
@@ -162,9 +165,17 @@ HCV_WORKER_URL=https://your-hashicorp-vault-worker.workers.dev
 3. User can now access tools and resources through the MCP interface
 
 ### Transaction Flow for Agents
-1. Create transaction using appropriate tool
-2. Sign transaction with wallet credentials using HashiCorp Vault's secure Ed25519 engine
-3. Submit transaction to network
+
+#### Individual Transactions
+1. Create transaction using appropriate tool (e.g., `create_payment_transaction`)
+2. Sign transaction with wallet credentials using `sign_transaction`
+3. Submit transaction to network using `submit_transaction`
+4. Verify transaction success
+
+#### Atomic Transaction Groups
+1. Create multiple transactions as an atomic group using `create_atomic_group`
+2. Sign the transaction group using `sign_atomic_group`
+3. Submit the signed group to the network using `submit_atomic_group`
 4. Verify transaction success
 
 ### Migration Flow for KV-based Accounts
@@ -259,12 +270,12 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 25. `submit_transaction` - Submit a signed transaction to the Algorand network
 26. `create_key_registration_transaction` - Create a key registration transaction
 27. `assign_group_id` - Assign a group ID to a set of transactions for atomic execution
-28. `create_atomic_group` - Create an atomic transaction group from multiple transactions
+28. `create_atomic_group` - Create an atomic transaction group from multiple transactions of types pay, axfer, acfg, appl, afrz or keyreg
 29. `sign_atomic_group` - Sign an atomic transaction group
 30. `submit_atomic_group` - Submit a signed atomic transaction group to the Algorand network
-30. `send_raw_transaction` - Submit signed transactions to the Algorand network
-31. `simulate_raw_transactions` - Simulate raw transactions
-32. `simulate_transactions` - Simulate encoded transactions
+31. `send_raw_transaction` - Submit signed transactions to the Algorand network
+32. `simulate_raw_transactions` - Simulate raw transactions
+33. `simulate_transactions` - Simulate encoded transactions
 
 ### Asset Operations
 33. `create_asset` - Create a new Algorand Standard Asset (ASA)
