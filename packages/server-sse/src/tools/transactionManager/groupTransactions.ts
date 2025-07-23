@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { ResponseProcessor } from '../../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Env, Props } from '../../types';
-import { getUserAccountType, signWithTransit, signWithSecret, getPublicKey } from '../../utils/vaultManager';
+import { getUserAccountType, signWithTransit, signWithSecret, getPublicKey, ensureUserAccount } from '../../utils/vaultManager';
 import * as msgpack from "algo-msgpack-with-bigint";
 
 /**
@@ -305,6 +305,13 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
     },
     async ({ encodedTxns, keyName }) => {
       try {
+        // Ensure user has an account
+        try {
+          await ensureUserAccount(env, props.email || '');
+          console.log(`Ensured user account for ${props.email || keyName}`);
+        } catch (error: any) {
+          throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
+        }
 
         // Decode transactions
         const decodedTxns = encodedTxns.map(txn => {
@@ -333,14 +340,14 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
         if (accountType === 'kv') {
           // For KV-based accounts, use signWithSecret
           const signaturePromises = groupedEncodedTxns.map(txn =>
-            signWithSecret(env, keyName, txn)
+            signWithSecret(env, props.email || keyName, txn)
           );
           signatures = await Promise.all(signaturePromises);
         } else if (accountType === 'vault') {
           // For vault-based accounts, use signWithTransit and process the response
           const signaturePromises = groupedEncodedTxns.map(async txn => {
             // Get the public key from the vault
-            const publicKeyResult = await getPublicKey(env, keyName);
+            const publicKeyResult = await getPublicKey(env, props.email || keyName);
             if (!publicKeyResult.success || !publicKeyResult.publicKey) {
               return null;
             }
@@ -354,7 +361,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
             const finalEncodedTxnTagged = ConcatArrays(TAG, finalEncodedTxn);
             console.log('Final encoded transaction:', finalEncodedTxnTagged);
             const finalEncodedTxnBase64 = Buffer.from(finalEncodedTxnTagged).toString('base64');
-            const signatureResult = await signWithTransit(env, finalEncodedTxnBase64, keyName);
+            const signatureResult = await signWithTransit(env, finalEncodedTxnBase64, props.email || keyName);
 
             if (!signatureResult.success || !signatureResult.signature) {
               return null;
