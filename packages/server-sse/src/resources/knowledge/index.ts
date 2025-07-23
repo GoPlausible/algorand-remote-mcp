@@ -18,14 +18,14 @@ const categoryNames = [
  * Load a JSON file from R2 storage
  */
 async function loadJsonFromR2(env: Env, filename: string): Promise<any> {
-  if (!env.PLAUSIBLEAI) {
+  if (!env.PLAUSIBLE_AI) {
     console.error('R2 bucket not available for knowledge resources');
     return null;
   }
 
   try {
     const path = `taxonomy-categories/${filename}`;
-    const object = await env.PLAUSIBLEAI.get(path);
+    const object = await env.PLAUSIBLE_AI.get(path);
     
     if (!object) {
       console.error(`Resource not found: ${path}`);
@@ -67,7 +67,7 @@ export function registerKnowledgeResources(server: McpServer, env: Env, props: P
   // Register full taxonomy resource
   server.resource("Algorand Knowledge Full Taxonomy", "algorand://knowledge/taxonomy", async (uri) => {
     try {
-      if (!env.PLAUSIBLEAI) {
+      if (!env.PLAUSIBLE_AI) {
         return {
           contents: [{
             uri: uri.href,

@@ -424,7 +424,7 @@ KNOWLEDGE_BUCKET?: R2Bucket;
 /**
  * R2 bucket binding for PlausibleAI documentation
  */
-PLAUSIBLEAI?: R2Bucket;
+PLAUSIBLE_AI?: R2Bucket;
   
   /**
    * Algorand network to use (mainnet, testnet, etc.)

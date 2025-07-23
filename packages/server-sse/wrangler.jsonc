@@ -32,13 +32,17 @@
     { "service": "hashicorp-vault-worker", "binding": "HCV_WORKER" }
   ],
   /**
-   * PLAUSIBLEAI bucket
+   * PLAUSIBLE_AI bucket
    * is a property of GoPlausible used for public implementation and you need to make an R2 bucket on cloudflare and configure it here. Use the open data in knowledge folder of server package resources and you find all files to upload to your R2 bucket there. Use taxonomic naming for your uploads and maintain the file naming coming from server package.
    */
   "r2_buckets": [
     {
-      "binding": "PLAUSIBLEAI",
+      "binding": "PLAUSIBLE_AI",
       "bucket_name": "plausibleai"
+    },
+    {
+      "binding": "PLAUSIBLE_VAULT",
+      "bucket_name": "plausible-vault"
     }
   ],
   "kv_namespaces": [

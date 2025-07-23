@@ -24,7 +24,7 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
     async ({ documents }) => {
       
       try {
-        if (!env.PLAUSIBLEAI) {
+        if (!env.PLAUSIBLE_AI) {
           console.error('R2 bucket not available');
           return {
             content: [{
@@ -46,13 +46,13 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
             console.log(`Looking for document at key: ${r2Key}`);
             
             // Get the document from R2 bucket
-            // @ts-ignore - We've checked PLAUSIBLEAI exists above
-            let object = await env.PLAUSIBLEAI.get(r2Key);
+            // @ts-ignore - We've checked PLAUSIBLE_AI exists above
+            let object = await env.PLAUSIBLE_AI.get(r2Key);
             
             // If not found, try listing objects with this prefix to see what's available
             if (!object) {
               console.log(`Object not found at ${r2Key}, trying to list similar objects`);
-              const similarObjects = await env.PLAUSIBLEAI.list({
+              const similarObjects = await env.PLAUSIBLE_AI.list({
                 prefix: r2Key.split('/')[0], // Get just the first segment
                 delimiter: '/'
               });
@@ -68,7 +68,7 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
                 
                 if (exactMatch) {
                   // console.log(`Found exact match: ${exactMatch.key}`);
-                  object = await env.PLAUSIBLEAI.get(exactMatch.key);
+                  object = await env.PLAUSIBLE_AI.get(exactMatch.key);
                 }
               }
             }
@@ -111,7 +111,7 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
     async ({ prefix }) => {
       
       try {
-        if (!env.PLAUSIBLEAI) {
+        if (!env.PLAUSIBLE_AI) {
           console.error('R2 bucket not available');
           return {
             content: [{
@@ -127,8 +127,8 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
         console.log(`Listing objects with prefix: '${r2Prefix}'`);
         
         // List objects from the R2 bucket with the given prefix
-        // @ts-ignore - We've checked PLAUSIBLEAI exists above
-        const objects = await env.PLAUSIBLEAI.list({
+        // @ts-ignore - We've checked PLAUSIBLE_AI exists above
+        const objects = await env.PLAUSIBLE_AI.list({
           prefix: r2Prefix,
           delimiter: '/'
         });
