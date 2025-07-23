@@ -45,6 +45,18 @@ export const guide = `# Algorand Remote MCP Guide for Agents
 
 ## Quick Start for LLM Agents (⚠️ Always present to user as "Quick Start Workflows" at each session start)
 
+## Transaction types on Algorand
+The main Algorand transaction types are:
+
+- **pay**: Payment transaction (transfers ALGOs between accounts)
+- **axfer**: Asset transfer transaction (transfers Algorand Standard Assets, opt-in, clawback, etc.)
+- **acfg**: Asset configuration transaction (create, reconfigure, or destroy an Algorand Standard Asset)
+- **appl**: Application call transaction (create, call, update, or delete Algorand smart contracts)
+- **afrz**: Asset freeze transaction (freeze or unfreeze an asset for a specific account)
+- **keyreg**: Key registration transaction (register participation keys for consensus)
+- **stpf**: State proof transaction (provides state proof for light clients)
+
+> Use the correct transaction type when creating or analyzing transactions. Each type has specific required parameters and behaviors.
 As an LLM agent, here's how to quickly perform basic Algorand operations using direct tool invocation pattern using send payment, asset transfer and asset optin as examples:
 
 ### Minimal Working Example - Send Payment
