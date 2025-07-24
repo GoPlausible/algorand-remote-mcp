@@ -39,10 +39,6 @@
     {
       "binding": "PLAUSIBLE_AI",
       "bucket_name": "plausibleai"
-    },
-    {
-      "binding": "PLAUSIBLE_VAULT",
-      "bucket_name": "plausible-vault"
     }
   ],
   "kv_namespaces": [
