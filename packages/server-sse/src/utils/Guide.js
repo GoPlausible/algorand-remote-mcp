@@ -705,6 +705,8 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 9. Inform the user that they can now receive USDC on Algorand.
 
+Note: For opt-out of asset, first get asset info and then use asset creator address for both to and closeRemainderTo fields in the asset transfer transaction with amount 0.
+
 ### USDC Transfer Example (Mainnet)
 
 1. Retrieve wallet information:
