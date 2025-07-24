@@ -14,7 +14,6 @@ The server is designed to run on Cloudflare Workers and provides a comprehensive
 - **HashiCorp Vault Integration**: 
   - Secure storage of sensitive wallet credentials using HashiCorp Vault
   - Ed25519 keypair operations for cryptographic functions
-  - Migration path from previously used KV-based to vault-based accounts (to honor our only 5 users using previosuly used KV-based accounts during first day after beta release)
   - Policy that all new accounts use Ed25519 secure secrets engine.
 - **Comprehensive Transaction Support**: Create, sign, and submit various transaction types (payments, assets, applications)
 - **API Integration**: Access Algorand node, indexer, and NFD APIs through standardized interfaces
@@ -64,7 +63,6 @@ Algorand Remote MCP is built on the Model Context Protocol (MCP), which provides
   - Secure storage of sensitive wallet credentials
   - Ed25519 keypair operations for cryptographic functions
   - Secure key management without exposing private keys
-  - Migration path from previously used KV-based to vault-based accounts
   - Policy that all new accounts use the secure Ed25519 secrets engine
 - **Service Bindings**: Inter-worker communication for secure vault operations
 
@@ -81,7 +79,6 @@ Algorand Remote MCP is built on the Model Context Protocol (MCP), which provides
 - `get_wallet_assets`: Get assets owned by the configured wallet
 - `get_wallet_publickey`: Get the public key for the configured wallet
 - `reset_wallet_account`: Reset the wallet account for the configured user
-- `migrate_to_vault`: Migrate your account from KV-based mnemonic to vault-based keypair
 
 ### Transaction Management
 - `create_payment_transaction`: Create a payment transaction
@@ -178,12 +175,6 @@ HCV_WORKER_URL=https://your-hashicorp-vault-worker.workers.dev
 3. Submit the signed group to the network using `submit_atomic_group`
 4. Verify transaction success
 
-### Migration Flow for KV-based Accounts
-1. User initiates migration using the `migrate_to_vault` tool
-2. System creates a new vault-based account
-3. System transfers assets from old account to new account
-4. System closes out old account and deletes old credentials
-5. User now has a more secure vault-based account
 
 ## Project Structure
 
@@ -262,7 +253,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 18. `get_wallet_account` - Get the account information for the configured wallet
 19. `get_wallet_assets` - Get the assets for the configured wallet
 20. `reset_wallet_account` - Reset the wallet account for the configured user
-21. `migrate_to_vault` - Migrate your account from KV-based mnemonic to vault-based keypair
 
 ### Transaction Operations
 23. `create_payment_transaction` - Create a payment transaction on Algorand

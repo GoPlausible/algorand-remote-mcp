@@ -305,11 +305,6 @@ Here are frequently used assets on Algorand Mainnet for reference:
    - Parameters: \`{ mnemonic: string }\`
    - Note: This only shows the address and does not store the private key in the vault
 
-   - Tool: \`migrate_to_vault\`
-   - Purpose: Migrate your account from KV-based mnemonic to vault-based keypair
-   - Parameters: None
-   - Note: Only appears if you have a KV-based account
-
    - Tool: \`check_balance\`
    - Purpose: Check account balance
    - Parameters: \`{ address: string }\`
