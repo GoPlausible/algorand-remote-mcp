@@ -209,10 +209,10 @@ export async function createKeypair(env: Env, keyName?: string): Promise<Keypair
 }
 
 /**
- * Create a new Ed25519 keypair in the vault
+ * Delete a Ed25519 keypair in the vault
  * @param env Environment with HCV_WORKER binding
  * @param keyName Optional name for the keypair 
- * @returns Promise resolving to keypair creation status
+ * @returns Promise resolving to keypair deletion status
  */
 export async function deleteKeypair(env: Env, keyName: string): Promise<KeypairResponse> {
   if (!env.HCV_WORKER || !keyName) {
