@@ -467,6 +467,7 @@ export async function ensureUserAccount(env: Env, email: string | undefined): Pr
   }
 
   // No account found, create a new vault-based account
+  
   const keypairResult = await createKeypair(env, email);
 
   if (!keypairResult.success) {

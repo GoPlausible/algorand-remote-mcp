@@ -10,13 +10,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Env, Props, VaultResponse } from '../types';
 import { 
   retrieveSecret, 
-  storeSecret, 
   deleteSecret, 
-  createKeypair, 
+  createKeypair,
   getPublicKey, 
   getUserAccountType, 
-  getUserAddress, 
-  signWithSecret, 
+  getUserAddress,
   ensureUserAccount, 
   deleteKeypair
 } from '../utils/vaultManager';
