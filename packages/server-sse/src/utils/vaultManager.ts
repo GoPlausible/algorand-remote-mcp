@@ -74,7 +74,7 @@ export async function storeSecret(env: Env, email: string, secret: string): Prom
 
   try {
     const secretPath = `${email}`;
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/secret/${secretPath}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/secret/${secretPath.toLowerCase().split('@')[0]}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -89,7 +89,7 @@ export async function storeSecret(env: Env, email: string, secret: string): Prom
       console.error('Failed to store secret in vault:', errorText);
       return false;
     }
-    
+
     const result = await response.json();
     return result.status === 'success';
   } catch (error: any) {
@@ -116,7 +116,7 @@ export async function retrieveSecret(env: Env, email: string): Promise<string | 
     // Fetch the secret from the vault
     // Note: Adjust the endpoint as per your vault worker's API
     console.log('Fetching secret from vault at path:', secretPath);
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/secret/${secretPath}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/secret/${secretPath.toLowerCase().split('@')[0]}`, {
       method: 'GET'
     });
     console.log('Response from vault:', response);
@@ -126,12 +126,12 @@ export async function retrieveSecret(env: Env, email: string): Promise<string | 
       if (response.status === 404) {
         return undefined;
       }
-      
+
       const errorText = await response.text();
       console.error('Failed to retrieve secret from vault:', errorText);
       return undefined;
     }
-    
+
     const result = await response.json();
     return result.value;
   } catch (error: any) {
@@ -154,7 +154,7 @@ export async function deleteSecret(env: Env, email: string): Promise<boolean> {
 
   try {
     const secretPath = `${email}`;
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/secret/${secretPath}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/secret/${secretPath.toLowerCase().split('@')[0]}`, {
       method: 'DELETE'
     });
 
@@ -163,7 +163,7 @@ export async function deleteSecret(env: Env, email: string): Promise<boolean> {
       console.error('Failed to delete secret from vault:', errorText);
       return false;
     }
-    
+
     const result = await response.json();
     return result.status === 'success';
   } catch (error: any) {
@@ -175,17 +175,17 @@ export async function deleteSecret(env: Env, email: string): Promise<boolean> {
 /**
  * Create a new Ed25519 keypair in the vault
  * @param env Environment with HCV_WORKER binding
- * @param keyName Optional name for the keypair (defaults to 'algorand-key')
+ * @param keyName Optional name for the keypair
  * @returns Promise resolving to keypair creation status
  */
 export async function createKeypair(env: Env, keyName?: string): Promise<KeypairResponse> {
-  if (!env.HCV_WORKER) {
+  if (!env.HCV_WORKER || !keyName) {
     console.error('Hashicorp Vault worker not configured');
-    return { success: false, keyName: keyName || 'algorand-key', error: 'Hashicorp Vault worker not configured' };
+    return { success: false, keyName: keyName || 'No key', error: 'Hashicorp Vault worker not configured' };
   }
 
   try {
-    const body = keyName ? JSON.stringify({ name: keyName.toLowerCase().replace(`@gmail.com`, '') }) : '{}';
+    const body = keyName ? JSON.stringify({ name: keyName.toLowerCase().split('@')[0] }) : '{}';
     const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/keypair`, {
       method: 'POST',
       headers: {
@@ -197,31 +197,65 @@ export async function createKeypair(env: Env, keyName?: string): Promise<Keypair
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Failed to create keypair in vault:', errorText);
-      return { success: false, keyName: keyName || 'algorand-key', error: errorText };
+      return { success: false, keyName: keyName, error: errorText };
     }
-    
+
     const result = await response.json();
-    return { success: true, keyName: keyName || 'algorand-key' };
+    return { success: true, keyName: keyName };
   } catch (error: any) {
     console.error('Error creating keypair in vault:', error.message || 'Unknown error');
-    return { success: false, keyName: keyName || 'algorand-key', error: error.message || 'Unknown error' };
+    return { success: false, keyName: keyName, error: error.message || 'Unknown error' };
+  }
+}
+
+/**
+ * Create a new Ed25519 keypair in the vault
+ * @param env Environment with HCV_WORKER binding
+ * @param keyName Optional name for the keypair 
+ * @returns Promise resolving to keypair creation status
+ */
+export async function deleteKeypair(env: Env, keyName: string): Promise<KeypairResponse> {
+  if (!env.HCV_WORKER || !keyName) {
+    console.error('Hashicorp Vault worker not configured');
+    return { success: false, keyName: keyName, error: 'Hashicorp Vault worker not configured' };
+  }
+  try {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/keys/${keyName.toLowerCase().split('@')[0]}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Failed to delete keypair in vault:', errorText);
+      return { success: false, keyName: keyName, error: errorText };
+    }
+
+    const result = await response.json();
+    console.log('Keypair deleted successfully:', result);
+    return { success: true, keyName: keyName };
+  } catch (error: any) {
+    console.error('Error creating keypair in vault:', error.message || 'Unknown error');
+    return { success: false, keyName: keyName, error: error.message || 'Unknown error' };
   }
 }
 
 /**
  * Get the public key for a keypair from the vault
  * @param env Environment with HCV_WORKER binding
- * @param keyName Name of the keypair (defaults to 'algorand-key')
+ * @param keyName Name of the keypair 
  * @returns Promise resolving to the public key
  */
-export async function getPublicKey(env: Env, keyName: string = 'algorand-key'): Promise<PublicKeyResponse> {
-  if (!env.HCV_WORKER) {
+export async function getPublicKey(env: Env, keyName: string): Promise<PublicKeyResponse> {
+  if (!env.HCV_WORKER || !keyName) {
     console.error('Hashicorp Vault worker not configured');
     return { success: false, error: 'Hashicorp Vault worker not configured' };
   }
 
   try {
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/publickey/${keyName.toLowerCase().replace(`@gmail.com`, '')}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/publickey/${keyName.toLowerCase().split('@')[0]}`, {
       method: 'GET'
     });
 
@@ -230,7 +264,7 @@ export async function getPublicKey(env: Env, keyName: string = 'algorand-key'): 
       console.error('Failed to get public key from vault:', errorText);
       return { success: false, error: errorText };
     }
-    
+
     const result = await response.json();
     return { success: true, publicKey: result.public_key };
   } catch (error: any) {
@@ -242,19 +276,19 @@ export async function getPublicKey(env: Env, keyName: string = 'algorand-key'): 
 /**
  * Sign data using a keypair in the vault
  * @param env Environment with HCV_WORKER binding
- * @param keyName Name of the keypair to use for signing (defaults to 'algorand-key')
+ * @param keyName Name of the keypair to use for signing 
  * @param data Base64-encoded data to sign
  * @returns Promise resolving to the signature
  */
-export async function signWithTransit(env: Env, data: string, keyName: string = 'algorand-key'): Promise<SignatureResponse> {
-  if (!env.HCV_WORKER) {
+export async function signWithTransit(env: Env, data: string, keyName: string): Promise<SignatureResponse> {
+  if (!env.HCV_WORKER || !keyName) {
     console.error('Hashicorp Vault worker not configured');
     return { success: false, error: 'Hashicorp Vault worker not configured' };
   }
 
   try {
 
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/sign/${keyName.toLowerCase().replace(`@gmail.com`, '')}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/sign/${keyName.toLowerCase().split('@')[0]}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -269,7 +303,7 @@ export async function signWithTransit(env: Env, data: string, keyName: string = 
       console.error('Failed to sign data with vault:', errorText);
       return { success: false, error: errorText };
     }
-    
+
     const result = await response.json();
     return { success: true, signature: result.signature };
   } catch (error: any) {
@@ -281,19 +315,19 @@ export async function signWithTransit(env: Env, data: string, keyName: string = 
 /**
  * Verify a signature using a keypair in the vault
  * @param env Environment with HCV_WORKER binding
- * @param keyName Name of the keypair to use for verification (defaults to 'algorand-key')
+ * @param keyName Name of the keypair to use for verification 
  * @param data Base64-encoded data that was signed
  * @param signature Base64-encoded signature to verify
  * @returns Promise resolving to verification result
  */
-export async function verifySignature(env: Env, data: string, signature: string, keyName: string = 'algorand-key'): Promise<VerificationResponse> {
-  if (!env.HCV_WORKER) {
+export async function verifySignature(env: Env, data: string, signature: string, keyName: string): Promise<VerificationResponse> {
+  if (!env.HCV_WORKER || !keyName) {
     console.error('Hashicorp Vault worker not configured');
     return { success: false, error: 'Hashicorp Vault worker not configured' };
   }
 
   try {
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/verify/${keyName.toLowerCase().replace(`@gmail.com`, '')}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/verify/${keyName.toLowerCase().split('@')[0]}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -309,7 +343,7 @@ export async function verifySignature(env: Env, data: string, signature: string,
       console.error('Failed to verify signature with vault:', errorText);
       return { success: false, error: errorText };
     }
-    
+
     const result = await response.json();
     return { success: true, valid: result.valid };
   } catch (error: any) {
@@ -331,18 +365,18 @@ export async function getUserAccountType(env: Env, email: string | undefined): P
   }
   // Check for vault-based account
   const publicKeyResult = await getPublicKey(env, email);
-  
+
   if (publicKeyResult.success) {
     return 'vault';
   }
-  
+
   // Check for KV-based account
   const secret = await retrieveSecret(env, email);
-  
+
   if (secret) {
     return 'kv';
   }
-  
+
   // No account found
   return null;
 }
@@ -360,22 +394,22 @@ export async function getUserAddress(env: Env, email: string | undefined): Promi
   }
   // First try vault-based approach
   const publicKeyResult = await getPublicKey(env, email);
-  
+
   if (publicKeyResult.success && publicKeyResult.publicKey) {
     // User has a vault-based account
     const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
     return algosdk.encodeAddress(publicKeyBuffer);
   }
-  
+
   // Fall back to KV-based approach
   const secret = await retrieveSecret(env, email);
-  
+
   if (secret) {
     // User has a KV-based account
     const account = algosdk.mnemonicToSecretKey(secret);
     return account.addr;
   }
-  
+
   // No account found
   return null;
 }
@@ -392,10 +426,10 @@ export async function signWithSecret(env: Env, email: string | undefined, data: 
     console.error('No email provided for signing');
     return null;
   }
-  
+
   // Sign with Secrets KV-based approach
   const secret = await retrieveSecret(env, email);
-  
+
   if (secret) {
     // User has a KV-based account
     try {
@@ -408,7 +442,7 @@ export async function signWithSecret(env: Env, email: string | undefined, data: 
       return null;
     }
   }
-  
+
   // No account found or signing failed
   return null;
 }
@@ -427,17 +461,17 @@ export async function ensureUserAccount(env: Env, email: string | undefined): Pr
   }
   // Check if user already has an account
   const accountType = await getUserAccountType(env, email);
-  
+
   if (accountType) {
     return accountType;
   }
-  
+
   // No account found, create a new vault-based account
   const keypairResult = await createKeypair(env, email);
-  
+
   if (!keypairResult.success) {
     throw new Error(keypairResult.error || 'Failed to create keypair in vault');
   }
-  
+
   return 'vault';
 }

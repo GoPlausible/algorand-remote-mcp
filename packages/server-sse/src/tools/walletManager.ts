@@ -17,7 +17,8 @@ import {
   getUserAccountType, 
   getUserAddress, 
   signWithSecret, 
-  ensureUserAccount 
+  ensureUserAccount, 
+  deleteKeypair
 } from '../utils/vaultManager';
 
 /**
@@ -113,6 +114,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           // Note: This would require a delete endpoint in the vault worker
           
           // Create new keypair
+          await deleteKeypair(env, props.email);
           const keypairResult = await createKeypair(env, props.email);
           
           if (!keypairResult.success) {
