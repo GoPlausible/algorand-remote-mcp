@@ -61,7 +61,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
   }
 
   // For backward compatibility, check if there's a KV-based account
-  const ALGORAND_AGENT_WALLET = await retrieveSecret(env, props.email);
+
   // Create payment transaction tool
   server.tool(
     'create_payment_transaction',

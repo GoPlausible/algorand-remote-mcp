@@ -58,7 +58,8 @@ export async function registerWalletResources(server: McpServer, env: Env, props
   }
   
   // For backward compatibility, check if there's a KV-based account
-  const ALGORAND_AGENT_WALLET = await retrieveSecret(env, props.email);
+  // const ALGORAND_AGENT_WALLET = await retrieveSecret(env, props.email);
+  const ALGORAND_AGENT_WALLET = await getPublicKey(env, props.email);
   // === Wallet Public Key ===
   server.resource("Wallet Account Public Key", "algorand://wallet/publickey", async (uri) => {
     try {
@@ -100,17 +101,14 @@ export async function registerWalletResources(server: McpServer, env: Env, props
           throw new Error('Failed to retrieve secret from KV store');
         }
         
-        const account = getAccountFromMnemonic(ALGORAND_AGENT_WALLET);
-        if (!account) {
-          throw new Error('Failed to load account from secret');
-        }
+   
         
         // Add migration suggestion
         return {
           contents: [{
             uri: uri.href,
             text: JSON.stringify({
-              publicKey: Buffer.from(account.sk.slice(32)).toString('hex'),
+              publicKey: ALGORAND_AGENT_WALLET?.publicKey ? Buffer.from(ALGORAND_AGENT_WALLET.publicKey, 'hex') : null,
               format: 'hex',
               accountType: 'kv',
               migrationAvailable: true,

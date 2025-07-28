@@ -287,6 +287,7 @@ export async function getPublicKey(env: Env, keyName: string): Promise<PublicKey
     }
 
     const result = await response.json();
+    console.log('Public key retrieved successfully:', result);
     return { success: true, publicKey: result.public_key };
   } catch (error: any) {
     console.error('Error getting public key from vault:', error.message || 'Unknown error');
@@ -384,22 +385,23 @@ export async function getUserAccountType(env: Env, email: string | undefined): P
     console.error('No email provided for account type check');
     return null;
   }
+  return 'vault';
   // Check for vault-based account
-  const publicKeyResult = await getPublicKey(env, email);
+  // const publicKeyResult = await getPublicKey(env, email);
 
-  if (publicKeyResult.success) {
-    return 'vault';
-  }
+  // if (publicKeyResult.success) {
+  //   return 'vault';
+  // }
 
-  // Check for KV-based account
-  const secret = await retrieveSecret(env, email);
+  // // Check for KV-based account
+  // const secret = await retrieveSecret(env, email);
 
-  if (secret) {
-    return 'kv';
-  }
+  // if (secret) {
+  //   return 'kv';
+  // }
 
-  // No account found
-  return null;
+  // // No account found
+  // return null;
 }
 
 /**
@@ -423,13 +425,13 @@ export async function getUserAddress(env: Env, email: string | undefined): Promi
   }
 
   // Fall back to KV-based approach
-  const secret = await retrieveSecret(env, email);
+  // const secret = await retrieveSecret(env, email);
 
-  if (secret) {
-    // User has a KV-based account
-    const account = algosdk.mnemonicToSecretKey(secret);
-    return account.addr;
-  }
+  // if (secret) {
+  //   // User has a KV-based account
+  //   const account = algosdk.mnemonicToSecretKey(secret);
+  //   return account.addr;
+  // }
 
   // No account found
   return null;
@@ -629,40 +631,44 @@ export async function createNewEntity(env: Env, email: string): Promise<EntityRe
     }
 
     // Step 4: Create Token for Entity
-    const createTokenResponse = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/v1/auth/token/create`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        entity_id: entityId,
-        role_name: 'user-role', // Use a default role or specify as needed
-        policies: ["per-user-policy"],
-        meta: {
-          email: email,
-        },
-        no_default_policy: true,
-        display_name: `${email}`,
-        // entity_alias: email,
-        // role_name: "user-role",
-      })
-    });
+    // const createTokenResponse = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/v1/auth/token/create`, {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json',
+    //   },
+    //   body: JSON.stringify({
+    //     entity_id: entityId,
+    //     role_name: email.toLowerCase().replace('@', '-').replaceAll('.', '-'),
+    //     policies: ["per-user-policy"],
+    //     meta: {
+    //       email: email,
+    //       role_name: email.toLowerCase().replace('@', '-').replaceAll('.', '-')
+    //     },
+    //     no_default_policy: true,
+    //     display_name: `${email}`,
+    //     // entity_alias: email,
+    //     // role_name: "user-role",
+    //   })
+    // });
 
-    if (!createTokenResponse.ok) {
-      const errorText = await createTokenResponse.text();
-      console.error('Failed to create token in vault:', errorText);
-      return { success: false, entityId, error: `Failed to create token: ${errorText}` };
-    }
+    // if (!createTokenResponse.ok) {
+    //   const errorText = await createTokenResponse.text();
+    //   console.error('Failed to create token in vault:', errorText);
+    //   return { success: false, entityId, error: `Failed to create token: ${errorText}` };
+    // }
 
-    const tokenResult = await createTokenResponse.json();
-    const token = tokenResult.auth.client_token;
+    // const tokenResult = await createTokenResponse.json();
+    // const token = tokenResult.auth.client_token;
 
-    if (!token) {
-      return { success: false, entityId, error: 'Token not found in response' };
+    // if (!token) {
+    //   return { success: false, entityId, error: 'Token not found in response' };
+    // }
+    if (!entityId) {
+      return { success: false, entityId, error: 'Entity creation failed' };
     }
     
 
-    return { success: true, entityId, token };
+    return { success: true, entityId };
   } catch (error: any) {
     console.error('Error creating entity in vault:', error.message || 'Unknown error');
     return { success: false, error: error.message || 'Unknown error' };

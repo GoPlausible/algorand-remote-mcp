@@ -63,7 +63,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
   }
   
   // For backward compatibility, check if there's a KV-based account
-  const ALGORAND_AGENT_WALLET = await retrieveSecret(env, props.email);
+  const ALGORAND_AGENT_WALLET = await getPublicKey(env, props.email);
   //Reset wallet account
   server.tool(
     'reset_wallet_account',

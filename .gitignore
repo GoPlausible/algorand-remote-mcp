@@ -148,3 +148,4 @@ packages/.DS_Store
 packages/server-sse/package-lock.json
 packages/server-sse/src/utils/encoding/*
 packages/server-sse/src/utils/encoding_old/*
+packages/server-sse/src/.DS_Store
