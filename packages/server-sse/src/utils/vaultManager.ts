@@ -5,6 +5,7 @@
 
 import algosdk from 'algosdk';
 import { Env } from '../types';
+import { custom } from 'zod';
 
 /**
  * Account type enum
@@ -57,6 +58,26 @@ export interface VerificationResponse {
   error?: string;
 }
 
+/**
+ * Response from the createNewEntity function
+ */
+export interface EntityResponse {
+  success: boolean;
+  entityId?: string;
+  token?: string;
+  error?: string;
+}
+
+/**
+ * Response from the checkIdentityEntity function
+ */
+export interface EntityCheckResponse {
+  success: boolean;
+  exists: boolean;
+  entityDetails?: any;
+  error?: string;
+}
+
 
 
 /**
@@ -74,7 +95,7 @@ export async function storeSecret(env: Env, email: string, secret: string): Prom
 
   try {
     const secretPath = `${email}`;
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/secret/${secretPath.toLowerCase().split('@')[0]}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/secret/${secretPath}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -116,7 +137,7 @@ export async function retrieveSecret(env: Env, email: string): Promise<string | 
     // Fetch the secret from the vault
     // Note: Adjust the endpoint as per your vault worker's API
     console.log('Fetching secret from vault at path:', secretPath);
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/secret/${secretPath.toLowerCase().split('@')[0]}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/secret/${secretPath}`, {
       method: 'GET'
     });
     console.log('Response from vault:', response);
@@ -154,7 +175,7 @@ export async function deleteSecret(env: Env, email: string): Promise<boolean> {
 
   try {
     const secretPath = `${email}`;
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/secret/${secretPath.toLowerCase().split('@')[0]}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/secret/${secretPath}`, {
       method: 'DELETE'
     });
 
@@ -185,7 +206,7 @@ export async function createKeypair(env: Env, keyName?: string): Promise<Keypair
   }
 
   try {
-    const body = keyName ? JSON.stringify({ name: keyName.toLowerCase().split('@')[0] }) : '{}';
+    const body = keyName ? JSON.stringify({ name: keyName }) : '{}';
     const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/keypair`, {
       method: 'POST',
       headers: {
@@ -220,7 +241,7 @@ export async function deleteKeypair(env: Env, keyName: string): Promise<KeypairR
     return { success: false, keyName: keyName, error: 'Hashicorp Vault worker not configured' };
   }
   try {
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/keys/${keyName.toLowerCase().split('@')[0]}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/keys/${keyName}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -255,7 +276,7 @@ export async function getPublicKey(env: Env, keyName: string): Promise<PublicKey
   }
 
   try {
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/publickey/${keyName.toLowerCase().split('@')[0]}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/publickey/${keyName}`, {
       method: 'GET'
     });
 
@@ -288,7 +309,7 @@ export async function signWithTransit(env: Env, data: string, keyName: string): 
 
   try {
 
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/sign/${keyName.toLowerCase().split('@')[0]}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/sign/${keyName}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -327,7 +348,7 @@ export async function verifySignature(env: Env, data: string, signature: string,
   }
 
   try {
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/verify/${keyName.toLowerCase().split('@')[0]}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/verify/${keyName}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -455,10 +476,17 @@ export async function signWithSecret(env: Env, email: string | undefined, data: 
  * @returns Promise resolving to account type
  */
 export async function ensureUserAccount(env: Env, email: string | undefined): Promise<AccountType> {
-  if (!email) {
+  console.log('Ensuring user account for email:', email);
+  if (!email || email === '') {
     console.error('No email provided for account creation');
     return null;
   }
+  
+  if (!env) {
+    console.error('Environment not provided for account creation');
+    return null;
+  }
+  
   // Check if user already has an account
   const accountType = await getUserAccountType(env, email);
 
@@ -466,8 +494,38 @@ export async function ensureUserAccount(env: Env, email: string | undefined): Pr
     return accountType;
   }
 
-  // No account found, create a new vault-based account
+  // No account found, check if entity exists in KV store
+  let entityId: string | null = null;
   
+  if (env.VAULT_ENTITIES) {
+    console.log(`Checking for existing entity in VAULT_ENTITIES for email: ${email}`);
+    try {
+      entityId = await env.VAULT_ENTITIES.get(email);
+      console.log(`Entity ID for ${email} from KV store:`, entityId);
+    } catch (error) {
+      console.error('Error getting entity ID from KV store:', error);
+    }
+  }
+  
+  // If no entity exists, create one
+  if (!entityId) {
+    try {
+      console.log(`Creating new entity for ${email}`);
+      const entityResult = await createNewEntity(env, email);
+      
+      if (!entityResult.success) {
+        console.error('Failed to create entity:', entityResult.error);
+      } else {
+        entityId = entityResult.entityId || null;
+        console.log(`Created new entity with ID: ${entityId}`);
+      }
+    } catch (error) {
+      console.error('Error creating entity:', error);
+    }
+  }
+  
+  // Create a new vault-based account
+  console.log(`Creating new keypair for ${email}`);
   const keypairResult = await createKeypair(env, email);
 
   if (!keypairResult.success) {
@@ -475,4 +533,184 @@ export async function ensureUserAccount(env: Env, email: string | undefined): Pr
   }
 
   return 'vault';
+}
+
+/**
+ * Create a new entity in HashiCorp Vault with proper identity mapping
+ * This function performs the following steps:
+ * 1. Creates a new entity in Vault
+ * 2. Gets the OIDC accessor
+ * 3. Creates an alias mapping for the entity
+ * 4. Creates a token for the entity
+ * 
+ * @param env Environment with HCV_WORKER binding
+ * @param email User email to use as entity name and for metadata
+ * @returns Promise resolving to entity creation status and token
+ */
+export async function createNewEntity(env: Env, email: string): Promise<EntityResponse> {
+  if (!env.HCV_WORKER || !email) {
+    console.error('Hashicorp Vault worker not configured or email not provided');
+    return { success: false, error: 'Hashicorp Vault worker not configured or email not provided' };
+  }
+
+  try {
+    // Step 1: Create the Entity
+    const createEntityResponse = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/v1/identity/entity`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: email,
+      })
+    });
+
+    if (!createEntityResponse.ok) {
+      const errorText = await createEntityResponse.text();
+      console.error('Failed to create entity in vault:', errorText);
+      return { success: false, error: `Failed to create entity: ${errorText}` };
+    }
+
+    const entityResult = await createEntityResponse.json();
+    const entityId = entityResult.data.id;
+    console.log('Entity created successfully with ID:', entityId);
+    
+
+    if (!entityId) {
+      return { success: false, error: 'Entity ID not found in response' };
+    }
+    
+    
+    // Step 2: Get OIDC Accessor
+    // const authMethodsResponse = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/v1/sys/auth`, {
+    //   method: 'GET',
+    // });
+
+    // if (!authMethodsResponse.ok) {
+    //   const errorText = await authMethodsResponse.text();
+    //   console.error('Failed to get auth methods from vault:', errorText);
+    //   return { success: false, entityId, error: `Failed to get auth methods: ${errorText}` };
+    // }
+
+    // const authMethods = await authMethodsResponse.json();
+    // let oidcAccessor = '';
+
+    // // Find the OIDC accessor
+    // if (authMethods['oidc/'] && authMethods['oidc/'].accessor) {
+    //   oidcAccessor = authMethods['oidc/'].accessor;
+    // } else {
+    //   return { success: false, entityId, error: 'OIDC accessor not found' };
+    // }
+    const oidcAccessor = env.VAULT_OIDC_ACCESSOR; // Use a default or configured OIDC accessor
+
+    // Step 3: Create Alias Mapping Email to Entity
+    const createAliasResponse = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/v1/identity/entity-alias`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: email,
+        canonical_id: entityId,
+        mount_accessor: oidcAccessor,
+        
+      })
+    });
+
+    if (!createAliasResponse.ok) {
+      const errorText = await createAliasResponse.text();
+      console.error('Failed to create entity alias in vault:', errorText);
+      return { success: false, entityId, error: `Failed to create entity alias: ${errorText}` };
+    }
+    console.log('Entity alias created successfully');
+    // Write the entityId to VAULT_ENTITIES KV store with email as the key
+    if (env.VAULT_ENTITIES) {
+       await env.VAULT_ENTITIES.put(email, entityId);
+    }
+
+    // Step 4: Create Token for Entity
+    const createTokenResponse = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/v1/auth/token/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        entity_id: entityId,
+        role_name: 'user-role', // Use a default role or specify as needed
+        policies: ["per-user-policy"],
+        meta: {
+          email: email,
+        },
+        no_default_policy: true,
+        display_name: `${email}`,
+        // entity_alias: email,
+        // role_name: "user-role",
+      })
+    });
+
+    if (!createTokenResponse.ok) {
+      const errorText = await createTokenResponse.text();
+      console.error('Failed to create token in vault:', errorText);
+      return { success: false, entityId, error: `Failed to create token: ${errorText}` };
+    }
+
+    const tokenResult = await createTokenResponse.json();
+    const token = tokenResult.auth.client_token;
+
+    if (!token) {
+      return { success: false, entityId, error: 'Token not found in response' };
+    }
+    
+
+    return { success: true, entityId, token };
+  } catch (error: any) {
+    console.error('Error creating entity in vault:', error.message || 'Unknown error');
+    return { success: false, error: error.message || 'Unknown error' };
+  }
+}
+
+/**
+ * Check if an entity exists in HashiCorp Vault by ID
+ * 
+ * @param env Environment with HCV_WORKER binding
+ * @param entityId ID of the entity to check
+ * @returns Promise resolving to entity check status and details if it exists
+ */
+export async function checkIdentityEntity(env: Env, entityId: string): Promise<EntityCheckResponse> {
+  if (!env.HCV_WORKER || !entityId) {
+    console.error('Hashicorp Vault worker not configured or entity ID not provided');
+    return { success: false, exists: false, error: 'Hashicorp Vault worker not configured or entity ID not provided' };
+  }
+
+  try {
+    // Make a GET request to the entity endpoint with the provided ID
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/v1/identity/entity/id/${entityId}`, {
+      method: 'GET'
+    });
+
+    // If the response is 404, the entity doesn't exist
+    if (response.status === 404) {
+      return { success: true, exists: false };
+    }
+
+    // If the response is not OK and not 404, there was an error
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Failed to check entity in vault:', errorText);
+      return { success: false, exists: false, error: `Failed to check entity: ${errorText}` };
+    }
+
+    // Parse the response to get the entity details
+    const result = await response.json();
+    
+    // Return success with the entity details
+    return { 
+      success: true, 
+      exists: true, 
+      entityDetails: result.data 
+    };
+  } catch (error: any) {
+    console.error('Error checking entity in vault:', error.message || 'Unknown error');
+    return { success: false, exists: false, error: error.message || 'Unknown error' };
+  }
 }
