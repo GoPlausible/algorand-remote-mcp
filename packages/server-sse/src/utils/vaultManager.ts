@@ -601,28 +601,28 @@ export async function createNewEntity(env: Env, email: string): Promise<EntityRe
     // } else {
     //   return { success: false, entityId, error: 'OIDC accessor not found' };
     // }
-    const oidcAccessor = env.VAULT_OIDC_ACCESSOR; // Use a default or configured OIDC accessor
+    // const oidcAccessor = env.VAULT_OIDC_ACCESSOR; // Use a default or configured OIDC accessor
 
     // Step 3: Create Alias Mapping Email to Entity
-    const createAliasResponse = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/v1/identity/entity-alias`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: email,
-        canonical_id: entityId,
-        mount_accessor: oidcAccessor,
+    // const createAliasResponse = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/v1/identity/entity-alias`, {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json',
+    //   },
+    //   body: JSON.stringify({
+    //     name: email,
+    //     canonical_id: entityId,
+    //     mount_accessor: oidcAccessor,
 
-      })
-    });
+    //   })
+    // });
 
-    if (!createAliasResponse.ok) {
-      const errorText = await createAliasResponse.text();
-      console.error('Failed to create entity alias in vault:', errorText);
-      return { success: false, entityId, error: `Failed to create entity alias: ${errorText}` };
-    }
-    console.log('Entity alias created successfully');
+    // if (!createAliasResponse.ok) {
+    //   const errorText = await createAliasResponse.text();
+    //   console.error('Failed to create entity alias in vault:', errorText);
+    //   return { success: false, entityId, error: `Failed to create entity alias: ${errorText}` };
+    // }
+    // console.log('Entity alias created successfully');
     // Write the entityId to VAULT_ENTITIES KV store with email as the key
     if (env.VAULT_ENTITIES) {
       await env.VAULT_ENTITIES.put(email, entityId);
