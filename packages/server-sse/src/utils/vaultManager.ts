@@ -23,7 +23,7 @@ export interface MigrationResponse {
 }
 
 /**
- * Response from the createKeypair function
+ * Response from the create Keypair function
  */
 export interface KeypairResponse {
   success: boolean;
@@ -385,13 +385,14 @@ export async function getUserAccountType(env: Env, email: string | undefined): P
     console.error('No email provided for account type check');
     return null;
   }
-  return 'vault';
-  // Check for vault-based account
-  // const publicKeyResult = await getPublicKey(env, email);
+  
+  //Check for vault-based account
+  const publicKeyResult = await getPublicKey(env, email);
 
-  // if (publicKeyResult.success) {
-  //   return 'vault';
-  // }
+  if (publicKeyResult.success) {
+    return 'vault';
+  }
+  return null
 
   // // Check for KV-based account
   // const secret = await retrieveSecret(env, email);
@@ -483,22 +484,22 @@ export async function ensureUserAccount(env: Env, email: string | undefined): Pr
     console.error('No email provided for account creation');
     return null;
   }
-  
+
   if (!env) {
     console.error('Environment not provided for account creation');
     return null;
   }
-  
+
   // Check if user already has an account
-  const accountType = await getUserAccountType(env, email);
+  // const accountType = await getUserAccountType(env, email);
 
-  if (accountType) {
-    return accountType;
-  }
+  // if (accountType) {
+  //   return accountType;
+  // }
 
-  // No account found, check if entity exists in KV store
+
   let entityId: string | null = null;
-  
+
   if (env.VAULT_ENTITIES) {
     console.log(`Checking for existing entity in VAULT_ENTITIES for email: ${email}`);
     try {
@@ -508,24 +509,20 @@ export async function ensureUserAccount(env: Env, email: string | undefined): Pr
       console.error('Error getting entity ID from KV store:', error);
     }
   }
-  
+
   // If no entity exists, create one
   if (!entityId) {
-    try {
-      console.log(`Creating new entity for ${email}`);
-      const entityResult = await createNewEntity(env, email);
-      
-      if (!entityResult.success) {
-        console.error('Failed to create entity:', entityResult.error);
-      } else {
-        entityId = entityResult.entityId || null;
-        console.log(`Created new entity with ID: ${entityId}`);
-      }
-    } catch (error) {
-      console.error('Error creating entity:', error);
+    console.log(`Creating new entity for ${email}`);
+    const entityResult = await createNewEntity(env, email);
+
+    if (!entityResult.success) {
+      console.error('Failed to create entity:', entityResult.error);
+    } else {
+      entityId = entityResult.entityId || null;
+      console.log(`Created new entity with ID: ${entityId}`);
     }
   }
-  
+
   // Create a new vault-based account
   console.log(`Creating new keypair for ${email}`);
   const keypairResult = await createKeypair(env, email);
@@ -556,6 +553,7 @@ export async function createNewEntity(env: Env, email: string): Promise<EntityRe
   }
 
   try {
+    console.log(`Creating new entity in vault for email: ${email}`);
     // Step 1: Create the Entity
     const createEntityResponse = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/v1/identity/entity`, {
       method: 'POST',
@@ -576,13 +574,13 @@ export async function createNewEntity(env: Env, email: string): Promise<EntityRe
     const entityResult = await createEntityResponse.json();
     const entityId = entityResult.data.id;
     console.log('Entity created successfully with ID:', entityId);
-    
+
 
     if (!entityId) {
       return { success: false, error: 'Entity ID not found in response' };
     }
-    
-    
+
+
     // Step 2: Get OIDC Accessor
     // const authMethodsResponse = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/v1/sys/auth`, {
     //   method: 'GET',
@@ -615,7 +613,7 @@ export async function createNewEntity(env: Env, email: string): Promise<EntityRe
         name: email,
         canonical_id: entityId,
         mount_accessor: oidcAccessor,
-        
+
       })
     });
 
@@ -627,7 +625,7 @@ export async function createNewEntity(env: Env, email: string): Promise<EntityRe
     console.log('Entity alias created successfully');
     // Write the entityId to VAULT_ENTITIES KV store with email as the key
     if (env.VAULT_ENTITIES) {
-       await env.VAULT_ENTITIES.put(email, entityId);
+      await env.VAULT_ENTITIES.put(email, entityId);
     }
 
     // Step 4: Create Token for Entity
@@ -663,10 +661,8 @@ export async function createNewEntity(env: Env, email: string): Promise<EntityRe
     // if (!token) {
     //   return { success: false, entityId, error: 'Token not found in response' };
     // }
-    if (!entityId) {
-      return { success: false, entityId, error: 'Entity creation failed' };
-    }
-    
+   
+
 
     return { success: true, entityId };
   } catch (error: any) {
@@ -708,12 +704,12 @@ export async function checkIdentityEntity(env: Env, entityId: string): Promise<E
 
     // Parse the response to get the entity details
     const result = await response.json();
-    
+
     // Return success with the entity details
-    return { 
-      success: true, 
-      exists: true, 
-      entityDetails: result.data 
+    return {
+      success: true,
+      exists: true,
+      entityDetails: result.data
     };
   } catch (error: any) {
     console.error('Error checking entity in vault:', error.message || 'Unknown error');
