@@ -8,14 +8,14 @@ import { z } from 'zod';
 import { ResponseProcessor } from '../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Env, Props, VaultResponse } from '../types';
-import { 
-  retrieveSecret, 
-  deleteSecret, 
+import {
+  retrieveSecret,
+  deleteSecret,
   createKeypair,
-  getPublicKey, 
-  getUserAccountType, 
+  getPublicKey,
+  getUserAccountType,
   getUserAddress,
-  ensureUserAccount, 
+  ensureUserAccount,
   deleteKeypair
 } from '../utils/vaultManager';
 
@@ -53,7 +53,7 @@ function getAccountFromMnemonic(mnemonic: string | undefined): algosdk.Account |
  */
 export async function registerWalletTools(server: McpServer, env: Env, props: Props): Promise<void> {
   console.log('Registering wallet tools for Algorand Remote MCP');
-  
+
   // Ensure user has an account (either vault-based or KV-based)
   try {
     const accountType = await ensureUserAccount(env, props.email);
@@ -61,7 +61,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
   } catch (error: any) {
     throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
   }
-  
+
   // For backward compatibility, check if there's a KV-based account
   const ALGORAND_AGENT_WALLET = await getPublicKey(env, props.email);
   //Reset wallet account
@@ -73,32 +73,32 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
       try {
         // Check account type
         const accountType = await getUserAccountType(env, props.email);
-        
+
         if (accountType === 'kv') {
           // For KV-based accounts, delete the old KV-based account and create a new vault-based account
           console.log('Replacing KV-based account with vault-based account for user:', props.email);
-          
+
           // Delete the old KV-based account
           await deleteSecret(env, props.email);
-          
+
           // Create a new vault-based account
           const keypairResult = await createKeypair(env, props.email);
-          
+
           if (!keypairResult.success) {
             throw new Error(keypairResult.error || 'Failed to create keypair in vault');
           }
-          
+
           // Get the address from the public key
           const publicKeyResult = await getPublicKey(env, props.email);
-          
+
           if (!publicKeyResult.success || !publicKeyResult.publicKey) {
             throw new Error(publicKeyResult.error || 'Failed to get public key from vault');
           }
-          
+
           // Convert the public key to an Algorand address
           const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
           const address = algosdk.encodeAddress(publicKeyBuffer);
-          
+
           return ResponseProcessor.processResponse({
             address,
             accountType: 'vault',
@@ -107,29 +107,29 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         } else if (accountType === 'vault') {
           // For vault-based accounts, create a new keypair in the vault
           console.log('Creating new vault-based keypair for user:', props.email);
-          
+
           // Delete existing keypair if it exists
           // Note: This would require a delete endpoint in the vault worker
-          
+
           // Create new keypair
           await deleteKeypair(env, props.email);
           const keypairResult = await createKeypair(env, props.email);
-          
+
           if (!keypairResult.success) {
             throw new Error(keypairResult.error || 'Failed to create keypair in vault');
           }
-          
+
           // Get the address from the public key
           const publicKeyResult = await getPublicKey(env, props.email);
-          
+
           if (!publicKeyResult.success || !publicKeyResult.publicKey) {
             throw new Error(publicKeyResult.error || 'Failed to get public key from vault');
           }
-          
+
           // Convert the public key to an Algorand address
           const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
           const address = algosdk.encodeAddress(publicKeyBuffer);
-          
+
           return ResponseProcessor.processResponse({
             address,
             accountType: 'vault'
@@ -138,22 +138,22 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           // No account found, create a new vault-based account
           console.log('No account found, creating new vault-based keypair for user:', props.email);
           const keypairResult = await createKeypair(env, props.email);
-          
+
           if (!keypairResult.success) {
             throw new Error(keypairResult.error || 'Failed to create keypair in vault');
           }
-          
+
           // Get the address from the public key
           const publicKeyResult = await getPublicKey(env, props.email);
-          
+
           if (!publicKeyResult.success || !publicKeyResult.publicKey) {
             throw new Error(publicKeyResult.error || 'Failed to get public key from vault');
           }
-          
+
           // Convert the public key to an Algorand address
           const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
           const address = algosdk.encodeAddress(publicKeyBuffer);
-          
+
           return ResponseProcessor.processResponse({
             address,
             accountType: 'vault'
@@ -178,7 +178,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
       try {
         // Check account type
         const accountType = await getUserAccountType(env, props.email);
-        
+
         if (accountType === null) {
           return {
             content: [{
@@ -187,40 +187,19 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
             }]
           };
         }
-        
-        if (accountType === 'vault') {
-          // Get public key from vault
+
+        // Get public key from vault
           const publicKeyResult = await getPublicKey(env, props.email);
-          
+
           if (!publicKeyResult.success || !publicKeyResult.publicKey) {
             throw new Error(publicKeyResult.error || 'Failed to get public key from vault');
           }
-          
+
           return ResponseProcessor.processResponse({
             publicKey: publicKeyResult.publicKey,
             format: 'base64',
             accountType: 'vault'
-          });
-        } else {
-          // Get public key from KV-based account
-          if (!ALGORAND_AGENT_WALLET) {
-            throw new Error('Failed to retrieve mnemonic from KV store');
-          }
-          
-          const account = getAccountFromMnemonic(ALGORAND_AGENT_WALLET);
-          if (!account) {
-            throw new Error('Failed to load account from mnemonic');
-          }
-          
-          // Add migration suggestion
-          return ResponseProcessor.processResponse({
-            publicKey: Buffer.from(account.sk.slice(32)).toString('hex'),
-            format: 'hex',
-            accountType: 'kv',
-            migrationAvailable: true,
-            migrationMessage: 'Your account is using legacy storage. Consider using migrate_to_vault tool for enhanced security.'
-          });
-        }
+          }); 
       } catch (error: any) {
         return {
           content: [{
@@ -241,7 +220,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
       try {
         // Get address using the unified approach
         const address = await getUserAddress(env, props.email);
-        
+
         if (!address) {
           return {
             content: [{
@@ -250,17 +229,52 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
             }]
           };
         }
-        
-        // Check account type for migration suggestion
-        const accountType = await getUserAccountType(env, props.email);
-        
+
+        const entityId = await env.VAULT_ENTITIES.get(props.email);
+        console.log(`Entity ID for ${props.email} from KV store:`, entityId);
+        const roleId = await env.VAULT_ENTITIES.get(entityId);
+        console.log(`Role ID for ${entityId} from KV store:`, roleId);
+
         return ResponseProcessor.processResponse({
           address,
-          ...(accountType === 'kv' && {
-            accountType: 'kv',
-            migrationAvailable: true,
-            migrationMessage: 'Your account is using legacy storage. Consider using migrate_to_vault tool for enhanced security.'
-          })
+          role_id: roleId
+        });
+      } catch (error: any) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Failed to get address: ${error.message || 'Unknown error'}`
+          }]
+        };
+      }
+    }
+  );
+
+  // Get wallet role UUID
+  server.tool(
+    'get_wallet_role',
+    'Get the role UUID for the configured wallet to be used to login into Hashicorp Vault with OIDC',
+    {},
+    async () => {
+      try {
+        // Get address using the unified approach
+        const entityId = await env.VAULT_ENTITIES.get(props.email);
+        console.log(`Entity ID for ${props.email} from KV store:`, entityId);
+        const roleId = await env.VAULT_ENTITIES.get(entityId);
+        console.log(`Role ID for ${entityId} from KV store:`, roleId);
+
+        if (!entityId) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'No active agent wallet configured'
+            }]
+          };
+        }
+
+        return ResponseProcessor.processResponse({
+          role_id: roleId,
+       
         });
       } catch (error: any) {
         return {
@@ -275,7 +289,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
   // Get wallet account information
   server.tool(
-    'get_wallet_account',
+    'get_wallet_info',
     'Get the account information for the configured wallet',
     {},
     async () => {
@@ -291,7 +305,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
       try {
         // Get address using the unified approach
         const address = await getUserAddress(env, props.email);
-        
+
         if (!address) {
           return {
             content: [{
@@ -309,21 +323,13 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
         // Get account information
         const accountInfo = await algodClient.accountInformation(address).do();
-        
-        // Check account type for migration suggestion
-        const accountType = await getUserAccountType(env, props.email);
-        
+
         return ResponseProcessor.processResponse({
           accounts: [{
             address,
             amount: accountInfo.amount,
-            assets: accountInfo.assets || []
-          }],
-          ...(accountType === 'kv' && {
-            accountType: 'kv',
-            migrationAvailable: true,
-            migrationMessage: 'Your account is using legacy storage. Consider using migrate_to_vault tool for enhanced security.'
-          })
+            assets: accountInfo.assets || [],
+          }]
         });
       } catch (error: any) {
         return {
@@ -354,7 +360,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
       try {
         // Get address using the unified approach
         const address = await getUserAddress(env, props.email);
-        
+
         if (!address) {
           return {
             content: [{
@@ -372,17 +378,13 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
         // Get account information
         const accountInfo = await algodClient.accountInformation(address).do();
-        
+
         // Check account type for migration suggestion
         const accountType = await getUserAccountType(env, props.email);
-        
+
         return ResponseProcessor.processResponse({
           assets: accountInfo.assets || [],
-          ...(accountType === 'kv' && {
-            accountType: 'kv',
-            migrationAvailable: true,
-            migrationMessage: 'Your account is using legacy storage. Consider using migrate_to_vault tool for enhanced security.'
-          })
+    
         });
       } catch (error: any) {
         return {

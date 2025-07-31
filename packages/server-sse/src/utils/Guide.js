@@ -14,7 +14,7 @@ export const guide = `# Algorand Remote MCP Guide for Agents
 ⚠️ **AGENTS MUST PERFORM THESE ACTIONS AT THE START OF EACH SESSION WITH ALGORAND-REMOTE-MCP:**
 
 **Check Wallet Configuration:**
-   - Tool: \`get_wallet_account\`
+   - Tool: \`get_wallet_info\`
    - Purpose: Verify wallet exists and is correctly configured
    - Action Required: Use this tool FIRST in EVERY session
    - If wallet exists. Verify opt-in success:
@@ -36,7 +36,7 @@ export const guide = `# Algorand Remote MCP Guide for Agents
 
 | Step | Action | Tool | Purpose |
 |------|--------|------|---------|
-| 1 | Check wallet | \`get_wallet_account\` | Verify wallet configuration |
+| 1 | Check wallet | \`get_wallet_info\` | Verify wallet configuration |
 | 2 | Get blockchain data | API query tools | Retrieve necessary information |
 | 3 | Create transactions | Transaction tools | Prepare blockchain operations |
 | 4 | Sign transactions | \`sign_transaction\` | Authorize operations |
@@ -64,7 +64,7 @@ As an LLM agent, here's how to quickly perform basic Algorand operations using d
 
 1. First, retrieve wallet information:
    \`\`\`
-   use_tool: "get_wallet_account"
+   use_tool: "get_wallet_info"
    parameters: {}
    \`\`\`
 
@@ -106,7 +106,7 @@ As an LLM agent, here's how to quickly perform basic Algorand operations using d
 
 1. First, retrieve wallet information:
    \`\`\`
-   use_tool: "get_wallet_account"
+   use_tool: "get_wallet_info"
    parameters: {}
    \`\`\`
 
@@ -148,7 +148,7 @@ As an LLM agent, here's how to quickly perform basic Algorand operations using d
 
 1. First, retrieve wallet information:
    \`\`\`
-   use_tool: "get_wallet_account"
+   use_tool: "get_wallet_info"
    parameters: {}
    \`\`\`
 
@@ -218,7 +218,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 1. Wallet Management Tools
    - Type: Wallet data retrieval
-   - Examples: \`get_wallet_address\`, \`get_wallet_account\`
+   - Examples: \`get_wallet_address\`, \`get_wallet_info\`
    - Purpose: Access configured wallet information
    - Note: Requires proper server configuration
 
@@ -248,7 +248,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
    - Parameters: None
    - Returns: Address of the configured wallet
 
-   - Tool: \`get_wallet_account\`
+   - Tool: \`get_wallet_info\`
    - Purpose: Get account information for the configured wallet
    - Parameters: None
    - Returns: Full account details including balance and assets
@@ -488,7 +488,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 1. Retrieve wallet information:
    \`\`\`
-   use_tool: get_wallet_account
+   use_tool: get_wallet_info
    parameters: {}
    \`\`\`
 
@@ -533,7 +533,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 1. Retrieve wallet information:
    \`\`\`
-   use_tool: get_wallet_account
+   use_tool: get_wallet_info
    parameters: {}
    \`\`\`
 
@@ -586,7 +586,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 1. Retrieve wallet information:
    \`\`\`
-   use_tool: get_wallet_account
+   use_tool: get_wallet_info
    parameters: {}
    \`\`\`
 
@@ -649,7 +649,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 1. Retrieve wallet information:
    \`\`\`
-   use_tool: get_wallet_account
+   use_tool: get_wallet_info
    parameters: {}
    \`\`\`
 
@@ -706,7 +706,7 @@ Note: For opt-out of asset, first get asset info and then use asset creator addr
 
 1. Retrieve wallet information:
    \`\`\`
-   use_tool: get_wallet_account
+   use_tool: get_wallet_info
    parameters: {}
    \`\`\`
 
@@ -816,7 +816,7 @@ If operations are not working properly, verify:
 
 1. **Wallet Configuration:**
    - Is wallet information retrievable with wallet tools?
-   - Does the \`get_wallet_account\` tool return valid information?
+   - Does the \`get_wallet_info\` tool return valid information?
    - If wallet tools return errors, suggest wallet configuration to the user
 
 2. **Network Configuration:**

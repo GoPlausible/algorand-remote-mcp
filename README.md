@@ -75,7 +75,7 @@ Algorand Remote MCP is built on the Model Context Protocol (MCP), which provides
 
 ### Wallet Management
 - `get_wallet_address`: Get the address for the configured wallet
-- `get_wallet_account`: Get account information for the configured wallet
+- `get_wallet_info`: Get account information for the configured wallet
 - `get_wallet_assets`: Get assets owned by the configured wallet
 - `get_wallet_publickey`: Get the public key for the configured wallet
 - `reset_wallet_account`: Reset the wallet account for the configured user
@@ -250,7 +250,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 15. `check_balance` - Check the balance of an Algorand account
 16. `get_wallet_publickey` - Get the public key for the configured wallet
 17. `get_wallet_address` - Get the address for the configured wallet
-18. `get_wallet_account` - Get the account information for the configured wallet
+18. `get_wallet_info` - Get the account information for the configured wallet
 19. `get_wallet_assets` - Get the assets for the configured wallet
 20. `reset_wallet_account` - Reset the wallet account for the configured user
 

@@ -273,4 +273,55 @@ export function registerAssetTransactionTools(server: McpServer,env: Env, props:
       }
     }
   );
+  
+  // Get asset verification status from Pera Wallet
+  server.tool(
+    'asset_verification_status',
+    'Get the verification status of an Algorand asset from Pera Wallet',
+    { 
+      assetId: z.number().int().min(0).max(9223372036854776000)
+        .describe('Asset ID to check verification status')
+    },
+    async ({ assetId }) => {
+      // Define the expected response type
+      interface AssetVerificationResponse {
+        asset_id: number;
+        verification_tier: "verified" | "unverified" | "suspicious";
+        explorer_url: string;
+      }
+      
+      try {
+        // Make API request to Pera Wallet
+        const response = await fetch(`https://mainnet.api.perawallet.app/v1/public/asset-verifications/${assetId}/`);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            return ResponseProcessor.processResponse({
+              asset_id: assetId,
+              verification_tier: "unverified" as const,
+              explorer_url: `https://explorer.perawallet.app/asset/${assetId}/`,
+              message: "Asset not found in Pera verification database"
+            });
+          }
+          
+          throw new Error(`API request failed with status: ${response.status}`);
+        }
+        
+        const data = await response.json() as AssetVerificationResponse;
+        
+        return ResponseProcessor.processResponse({
+          asset_id: data.asset_id,
+          verification_tier: data.verification_tier,
+          explorer_url: data.explorer_url
+        });
+      } catch (error: any) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Error checking asset verification status: ${error.message || 'Unknown error'}`
+          }]
+        };
+      }
+    }
+  );
 }
