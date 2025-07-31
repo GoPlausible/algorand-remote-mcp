@@ -68,6 +68,8 @@
     "ALGORAND_INDEXER_PORT": "",
     // "ALGORAND_TOKEN": "", // sent to secrets
     "NFD_API_URL": "https://api.nf.domains",
+    "PERA_WALLET_API_URL": "https://mainnet.api.perawallet.app/v1/public",
+    "PERA_EXPLORER_URL": "https://explorer.perawallet.app",
     "ITEMS_PER_PAGE": "10",
     "HCV_WORKER_URL": "https://hashicorp-vault-worker.emg110.workers.dev"
   }

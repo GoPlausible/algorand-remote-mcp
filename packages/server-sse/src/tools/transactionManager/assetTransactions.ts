@@ -290,16 +290,22 @@ export function registerAssetTransactionTools(server: McpServer,env: Env, props:
         explorer_url: string;
       }
       
+      // Get the Pera Wallet API URL from environment variables or use default
+      const peraWalletApiBaseUrl = env.PERA_WALLET_API_URL || 'https://mainnet.api.perawallet.app/v1/public';
+      const verificationEndpoint = `${peraWalletApiBaseUrl}/asset-verifications/${assetId}/`;
+      
       try {
         // Make API request to Pera Wallet
-        const response = await fetch(`https://mainnet.api.perawallet.app/v1/public/asset-verifications/${assetId}/`);
+        const response = await fetch(verificationEndpoint);
         
         if (!response.ok) {
           if (response.status === 404) {
+            // Get the Pera Explorer URL from environment variables or use default
+            const explorerBaseUrl = env.PERA_EXPLORER_URL || 'https://explorer.perawallet.app';
             return ResponseProcessor.processResponse({
               asset_id: assetId,
               verification_tier: "unverified" as const,
-              explorer_url: `https://explorer.perawallet.app/asset/${assetId}/`,
+              explorer_url: `${explorerBaseUrl}/asset/${assetId}/`,
               message: "Asset not found in Pera verification database"
             });
           }

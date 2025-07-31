@@ -467,6 +467,16 @@ PLAUSIBLE_AI?: R2Bucket;
   NFD_API_URL?: string;
   
   /**
+   * Pera Wallet API URL for asset verification
+   */
+  PERA_WALLET_API_URL?: string;
+  
+  /**
+   * Pera Explorer URL for asset links
+   */
+  PERA_EXPLORER_URL?: string;
+  
+  /**
    * API key for Algorand node access if required
    */
   ALGORAND_TOKEN?: string;
