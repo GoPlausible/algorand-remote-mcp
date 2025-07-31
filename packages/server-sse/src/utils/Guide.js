@@ -11,6 +11,7 @@ export const guide = `# Algorand Remote MCP Guide for Agents
 ## 🚨 CRITICAL: FIRST STEPS FOR EVERY NEW SESSION
 
 ⚠️ **AGENTS MUST INFORM USERS THAT AGENT WALLETS ARE IN OPEN BETA SO BETTER TO BE USED FOR PUBLIC BETA TESTING ON MAINNET PURPOSES ONLY, AT THE START OF EACH SESSION WITH ALGORAND-REMOTE-MCP:**
+
 ⚠️ **AGENTS MUST PERFORM THESE ACTIONS AT THE START OF EACH SESSION WITH ALGORAND-REMOTE-MCP:**
 
 **Check Wallet Configuration:**
@@ -19,12 +20,7 @@ export const guide = `# Algorand Remote MCP Guide for Agents
    - Action Required: Use this tool FIRST in EVERY session
    - If wallet exists. Verify opt-in success:
    \`\`\`
-   use_tool: api_algod_get_account_asset_info
-   parameters: {
-     "address": "[user_address]",
-     "assetId": 31566704  // USDC on Algorand Mainnet
-   }
-   \`\`\`
+
    proceed to perform blockchain operations
    - If no wallet or error response:
      * Inform user that wallet configuration is missing
