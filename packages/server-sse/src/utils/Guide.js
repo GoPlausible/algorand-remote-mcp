@@ -18,7 +18,6 @@ export const guide = `# Algorand Remote MCP Guide for Agents
    - Tool: \`get_wallet_info\`
    - Purpose: Verify wallet exists and is correctly configured
    - Action Required: Use this tool FIRST in EVERY session
-   - If wallet exists. Verify opt-in success:
    \`\`\`
 
    proceed to perform blockchain operations
