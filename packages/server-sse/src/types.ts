@@ -508,3 +508,40 @@ export interface VaultResponse {
   data?: any;
   error?: string;
 }
+
+/**
+ * Interface for Pera Wallet asset verification response
+ */
+export interface AssetVerificationResponse {
+  asset_id: number;
+  verification_tier: "verified" | "unverified" | "suspicious";
+  explorer_url: string;
+}
+
+/**
+ * Interface for Pera Wallet detailed asset information response
+ * Based on PublicAssetDetailSerializer.Response schema
+ */
+export interface AssetDetailsResponse {
+  // Required fields according to schema
+  asset_id: number;
+  fraction_decimals: number;
+  total_supply: number;
+  total_supply_as_str: string;
+  creator_address: string;
+  verification_tier: "verified" | "unverified" | "suspicious";
+  is_collectible: boolean;
+  circulating_supply: string;
+  
+  // Optional fields according to schema
+  name?: string | null;
+  unit_name?: string | null;
+  is_deleted?: string | null;
+  url?: string | null;
+  logo?: string | null;
+  usd_value?: string | null;
+  usd_value_24_hour_ago?: string | null;
+  verification_details?: Record<string, any> | null;
+  collectible?: Record<string, any> | null;
+  description?: string | null;
+}

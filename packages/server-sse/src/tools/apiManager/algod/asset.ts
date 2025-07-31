@@ -7,7 +7,7 @@ import algosdk from 'algosdk';
 import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ResponseProcessor } from '../../../utils';
-import { Env } from '../../../types';
+import { Env, AssetVerificationResponse, AssetDetailsResponse } from '../../../types';
 
 /**
  * Create and validate an Algorand client
@@ -162,13 +162,6 @@ export function registerAssetApiTools(server: McpServer,env: Env): void {
         .describe('Asset ID to check verification status')
     },
     async ({ assetId }) => {
-      // Define the expected response type
-      interface AssetVerificationResponse {
-        asset_id: number;
-        verification_tier: "verified" | "unverified" | "suspicious";
-        explorer_url: string;
-      }
-      
       // Get the Pera Wallet API URL from environment variables or use default
       const peraWalletApiBaseUrl = env.PERA_WALLET_API_URL || 'https://mainnet.api.perawallet.app/v1/public';
       const verificationEndpoint = `${peraWalletApiBaseUrl}/asset-verifications/${assetId}/`;
@@ -204,6 +197,50 @@ export function registerAssetApiTools(server: McpServer,env: Env): void {
           content: [{
             type: 'text',
             text: `Error checking asset verification status: ${error.message || 'Unknown error'}`
+          }]
+        };
+      }
+    }
+  );
+  
+  // Get detailed asset information from Pera Wallet
+  server.tool(
+    'asset_details_info',
+    'Get detailed information about an Algorand asset from Pera Wallet',
+    { 
+      assetId: z.number().int().min(0).max(9223372036854776000)
+        .describe('Asset ID to get detailed information')
+    },
+    async ({ assetId }) => {
+      // Get the Pera Wallet API URL from environment variables or use default
+      const peraWalletApiBaseUrl = env.PERA_WALLET_API_URL || 'https://mainnet.api.perawallet.app/v1/public';
+      const assetDetailsEndpoint = `${peraWalletApiBaseUrl}/assets/${assetId}/`;
+      
+      try {
+        // Make API request to Pera Wallet
+        const response = await fetch(assetDetailsEndpoint);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            return {
+              content: [{
+                type: 'text',
+                text: `Asset with ID ${assetId} not found in Pera Wallet database`
+              }]
+            };
+          }
+          
+          throw new Error(`API request failed with status: ${response.status}`);
+        }
+        
+        const data = await response.json() as AssetDetailsResponse;
+        
+        return ResponseProcessor.processResponse(data);
+      } catch (error: any) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Error fetching asset details: ${error.message || 'Unknown error'}`
           }]
         };
       }
