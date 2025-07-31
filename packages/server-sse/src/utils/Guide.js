@@ -372,6 +372,26 @@ Here are frequently used assets on Algorand Mainnet for reference:
      }
      \`\`\`
 
+   - Tool: \`asset_verification_status\`
+   - Purpose: Get the verification status of an Algorand asset from Pera Wallet
+   - Parameters:
+     \`\`\`
+     {
+       assetId: number
+     }
+     \`\`\`
+   - Returns: Verification tier (verified, unverified, or suspicious) and explorer URL
+
+   - Tool: \`asset_details_info\`
+   - Purpose: Get detailed information about an Algorand asset from Pera Wallet
+   - Parameters:
+     \`\`\`
+     {
+       assetId: number
+     }
+     \`\`\`
+   - Returns: Comprehensive asset information including name, supply, creator, USD value, etc.
+
 6. Application Management Tools
    - Tool: \`create_application\`
    - Purpose: Create smart contract
@@ -481,6 +501,9 @@ Here are frequently used assets on Algorand Mainnet for reference:
    - Always opt-in before receiving assets
    - Verify asset balances before transfers
    - Handle clawback operations carefully
+   - Check asset verification status using \`asset_verification_status\` to avoid scam tokens
+   - Get detailed asset information using \`asset_details_info\` before interacting with assets
+   - Pay attention to verification tier (verified, unverified, or suspicious) when working with assets
 
 ## Complete Workflow Examples for LLM Agents
 
@@ -592,7 +615,23 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 2. Get sender address from the response.
 
-3. Check sender's asset balance:
+3. Check asset verification status (recommended):
+   \`\`\`
+   use_tool: asset_verification_status
+   parameters: {
+     "assetId": 31566704  // USDC on Algorand Mainnet
+   }
+   \`\`\`
+
+4. Get detailed asset information (optional):
+   \`\`\`
+   use_tool: asset_details_info
+   parameters: {
+     "assetId": 31566704  // USDC on Algorand Mainnet
+   }
+   \`\`\`
+
+5. Check sender's asset balance:
    \`\`\`
    use_tool: api_algod_get_account_asset_info
    parameters: {
@@ -601,7 +640,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
    }
    \`\`\`
 
-4. Verify recipient has opted in:
+6. Verify recipient has opted in:
    \`\`\`
    use_tool: api_algod_get_account_asset_info
    parameters: {
@@ -610,7 +649,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
    }
    \`\`\`
 
-5. Create asset transfer transaction:
+7. Create asset transfer transaction:
    \`\`\`
    use_tool: transfer_asset
    parameters: {
@@ -621,27 +660,27 @@ Here are frequently used assets on Algorand Mainnet for reference:
    }
    \`\`\`
 
-6. Sign the transaction:
+8. Sign the transaction:
    \`\`\`
    use_tool: sign_transaction
    parameters: {
-     "encodedTxn": "[transaction_from_step_5]"
+     "encodedTxn": "[transaction_from_step_7]"
    }
    \`\`\`
 
-7. Submit the transaction:
+9. Submit the transaction:
    \`\`\`
    use_tool: submit_transaction
    parameters: {
-     "signedTxn": "[signed_transaction_from_step_7]"
+     "signedTxn": "[signed_transaction_from_step_8]"
    }
    \`\`\`
 
-8. Verify transfer success:
+10. Verify transfer success:
    \`\`\`
    use_tool: api_indexer_lookup_transaction_by_id
    parameters: {
-     "txid": "[transaction_id_from_step_8]"
+     "txid": "[transaction_id_from_step_9]"
    }
    \`\`\`
 
