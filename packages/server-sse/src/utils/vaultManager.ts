@@ -429,13 +429,6 @@ export async function ensureUserAccount(env: Env, email: string | undefined): Pr
     return null;
   }
 
-  // Check if user already has an account
-  // const accountType = await getUserAccountType(env, email);
-
-  // if (accountType) {
-  //   return accountType;
-  // }
-
 
   let entityId: string | null = null;
 
