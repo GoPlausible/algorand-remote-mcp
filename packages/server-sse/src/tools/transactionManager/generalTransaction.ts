@@ -13,9 +13,6 @@ import {
   Env, Props, VaultResponse,
 } from '../../types';
 import {
-  retrieveSecret,
-  storeSecret,
-  deleteSecret,
   getUserAccountType,
   getUserAddress,
   ensureUserAccount,

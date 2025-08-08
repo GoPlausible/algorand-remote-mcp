@@ -7,9 +7,6 @@ import algosdk from 'algosdk';
 import { Env, Props, VaultResponse } from '../../types';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { 
-  retrieveSecret, 
-  storeSecret, 
-  deleteSecret, 
   getUserAccountType, 
   getUserAddress, 
   getPublicKey, 
