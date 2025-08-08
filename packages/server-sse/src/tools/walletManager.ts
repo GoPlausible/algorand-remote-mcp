@@ -9,8 +9,6 @@ import { ResponseProcessor } from '../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Env, Props, VaultResponse } from '../types';
 import {
-  retrieveSecret,
-  deleteSecret,
   createKeypair,
   getPublicKey,
   getUserAccountType,
