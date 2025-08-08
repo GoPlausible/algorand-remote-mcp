@@ -549,3 +549,59 @@ export interface AssetDetailsResponse {
  * Account type enum
  */
 export type AccountType = 'vault' | null;
+
+/**
+ * Response from the create Keypair function
+ */
+export interface KeypairResponse {
+  success: boolean;
+  keyName: string;
+  error?: string;
+}
+
+/**
+ * Response from the getPublicKey function
+ */
+export interface PublicKeyResponse {
+  success: boolean;
+  publicKey?: string;
+  error?: string;
+}
+
+/**
+ * Response from the signWithTransit function
+ */
+export interface SignatureResponse {
+  success: boolean;
+  signature?: string;
+  error?: string;
+}
+
+/**
+ * Response from the verifySignature function
+ */
+export interface VerificationResponse {
+  success: boolean;
+  valid?: boolean;
+  error?: string;
+}
+
+/**
+ * Response from the createNewEntity function
+ */
+export interface EntityResponse {
+  success: boolean;
+  entityId?: string;
+  token?: string;
+  error?: string;
+}
+
+/**
+ * Response from the checkIdentityEntity function
+ */
+export interface EntityCheckResponse {
+  success: boolean;
+  exists: boolean;
+  entityDetails?: any;
+  error?: string;
+}
