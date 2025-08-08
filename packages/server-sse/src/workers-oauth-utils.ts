@@ -82,7 +82,7 @@ async function signWithVault(key: CryptoKey, data: string): Promise<string> {
  * @param data - The original data that was signed.
  * @returns A promise resolving to true if the signature is valid, false otherwise.
  */
-async function verifySignature(
+async function verifySignatureWithTransit(
 	key: CryptoKey,
 	signatureHex: string,
 	data: string,
@@ -130,7 +130,7 @@ async function getApprovedClientsFromCookie(
 	const payload = atob(base64Payload); // Assuming payload is base64 encoded JSON string
 
 	const key = await importKey(secret);
-	const isValid = await verifySignature(key, signatureHex, payload);
+	const isValid = await verifySignatureWithTransit(key, signatureHex, payload);
 
 	if (!isValid) {
 		console.warn("Cookie signature verification failed.");

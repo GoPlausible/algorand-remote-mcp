@@ -578,7 +578,7 @@ export interface SignatureResponse {
 }
 
 /**
- * Response from the verifySignature function
+ * Response from the verifySignatureWithTransit function
  */
 export interface VerificationResponse {
   success: boolean;

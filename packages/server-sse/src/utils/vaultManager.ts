@@ -268,7 +268,7 @@ export async function signWithTransit(env: Env, data: string, keyName: string): 
  * @param signature Base64-encoded signature to verify
  * @returns Promise resolving to verification result
  */
-export async function verifySignature(env: Env, data: string, signature: string, keyName: string): Promise<VerificationResponse> {
+export async function verifySignatureWithTransit(env: Env, data: string, signature: string, keyName: string): Promise<VerificationResponse> {
   if (!env.HCV_WORKER || !keyName) {
     console.error('Hashicorp Vault worker not configured');
     return { success: false, error: 'Hashicorp Vault worker not configured' };
