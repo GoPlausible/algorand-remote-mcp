@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { ResponseProcessor } from '../../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Env, Props } from '../../types';
-import { getUserAccountType, signWithTransit, signWithSecret, getPublicKey, ensureUserAccount } from '../../utils/vaultManager';
+import { getUserAccountType, signWithTransit, getPublicKey, ensureUserAccount } from '../../utils/vaultManager';
 import * as msgpack from "algo-msgpack-with-bigint";
 
 /**

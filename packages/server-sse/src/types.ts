@@ -545,3 +545,7 @@ export interface AssetDetailsResponse {
   collectible?: Record<string, any> | null;
   description?: string | null;
 }
+/**
+ * Account type enum
+ */
+export type AccountType = 'vault' | null;

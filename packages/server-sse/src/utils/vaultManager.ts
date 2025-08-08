@@ -4,13 +4,7 @@
  */
 
 import algosdk from 'algosdk';
-import { Env } from '../types';
-
-/**
- * Account type enum
- */
-export type AccountType = 'vault' | null;
-
+import { Env, AccountType } from '../types';
 
 
 /**

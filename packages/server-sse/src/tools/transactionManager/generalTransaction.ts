@@ -18,7 +18,6 @@ import {
   deleteSecret,
   getUserAccountType,
   getUserAddress,
-  signWithSecret,
   ensureUserAccount,
   getPublicKey,
   signWithTransit
