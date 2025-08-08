@@ -9,7 +9,7 @@ import { Env } from '../types';
 /**
  * Account type enum
  */
-export type AccountType = 'vault' | 'kv' | null;
+export type AccountType = 'vault' | null;
 
 
 
