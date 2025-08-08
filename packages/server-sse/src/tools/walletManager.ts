@@ -32,7 +32,7 @@ function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | nu
 }
 
 /**
- * Get account from mnemonic (for backward compatibility with KV-based accounts)
+ * Get account from mnemonic 
  */
 function getAccountFromMnemonic(mnemonic: string | undefined): algosdk.Account | null {
   if (!mnemonic) {
@@ -54,16 +54,13 @@ function getAccountFromMnemonic(mnemonic: string | undefined): algosdk.Account |
 export async function registerWalletTools(server: McpServer, env: Env, props: Props): Promise<void> {
   console.log('Registering wallet tools for Algorand Remote MCP');
 
-  // Ensure user has an account (either vault-based or KV-based)
+  // Ensure user has a vault-based account 
   try {
     const accountType = await ensureUserAccount(env, props.email);
     console.log(`User has a ${accountType}-based account`);
   } catch (error: any) {
     throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
   }
-
-  // For backward compatibility, check if there's a KV-based account
-  const ALGORAND_AGENT_WALLET = await getPublicKey(env, props.email);
   //Reset wallet account
   server.tool(
     'reset_wallet_account',
@@ -74,37 +71,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         // Check account type
         const accountType = await getUserAccountType(env, props.email);
 
-        if (accountType === 'kv') {
-          // For KV-based accounts, delete the old KV-based account and create a new vault-based account
-          console.log('Replacing KV-based account with vault-based account for user:', props.email);
-
-          // Delete the old KV-based account
-          await deleteSecret(env, props.email);
-
-          // Create a new vault-based account
-          const keypairResult = await createKeypair(env, props.email);
-
-          if (!keypairResult.success) {
-            throw new Error(keypairResult.error || 'Failed to create keypair in vault');
-          }
-
-          // Get the address from the public key
-          const publicKeyResult = await getPublicKey(env, props.email);
-
-          if (!publicKeyResult.success || !publicKeyResult.publicKey) {
-            throw new Error(publicKeyResult.error || 'Failed to get public key from vault');
-          }
-
-          // Convert the public key to an Algorand address
-          const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
-          const address = algosdk.encodeAddress(publicKeyBuffer);
-
-          return ResponseProcessor.processResponse({
-            address,
-            accountType: 'vault',
-            message: 'Your account has been upgraded to use the secure vault-based storage.'
-          });
-        } else if (accountType === 'vault') {
+        if (accountType === 'vault') {
           // For vault-based accounts, create a new keypair in the vault
           console.log('Creating new vault-based keypair for user:', props.email);
 
@@ -378,9 +345,6 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
         // Get account information
         const accountInfo = await algodClient.accountInformation(address).do();
-
-        // Check account type for migration suggestion
-        const accountType = await getUserAccountType(env, props.email);
 
         return ResponseProcessor.processResponse({
           assets: accountInfo.assets || [],

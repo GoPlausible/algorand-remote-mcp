@@ -337,13 +337,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
         let signatures: (string | null)[] = [];
         const accountType = await getUserAccountType(env, props.email || '');
         
-        if (accountType === 'kv') {
-          // For KV-based accounts, use signWithSecret
-          const signaturePromises = groupedEncodedTxns.map(txn =>
-            signWithSecret(env, props.email || keyName, txn)
-          );
-          signatures = await Promise.all(signaturePromises);
-        } else if (accountType === 'vault') {
+        if (accountType === 'vault') {
           // For vault-based accounts, use signWithTransit and process the response
           const signaturePromises = groupedEncodedTxns.map(async txn => {
             // Get the public key from the vault

@@ -52,15 +52,13 @@ function ConcatArrays(...arrs: ArrayLike<number>[]) {
  * Register general transaction management tools to the MCP server
  */
 export async function registerGeneralTransactionTools(server: McpServer, env: Env, props: Props): Promise<void> {
-  // Ensure user has an account (either vault-based or KV-based)
+  // Ensure user has a vault-based account
   try {
     const accountType = await ensureUserAccount(env, props.email);
     console.log(`User has a ${accountType}-based account`);
   } catch (error: any) {
     throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
   }
-
-  // For backward compatibility, check if there's a KV-based account
 
   // Create payment transaction tool
   server.tool(
@@ -153,33 +151,8 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         const accountType = await getUserAccountType(env, props.email || '');
         console.log(`Signing transaction with ${accountType}-based account`);
 
-        // For KV-based accounts, use the existing signWithSecret function
-        if (accountType === 'kv') {
-          const signature = await signWithSecret(env, props.email, encodedTxn);
-
-          if (!signature) {
-            return {
-              content: [{
-                type: 'text',
-                text: 'No active agent wallet configured or signing failed'
-              }]
-            };
-          }
-
-          // Decode transaction to get the txID
-          const txn = algosdk.decodeUnsignedTransaction(Buffer.from(encodedTxn, 'base64'));
-
-          return ResponseProcessor.processResponse({
-            txID: txn.txID(),
-            signedTxn: signature,
-            accountType: 'kv',
-            migrationAvailable: true,
-            migrationMessage: 'Your account is using legacy storage. Consider using migrate_to_vault tool for enhanced security.'
-          });
-        }
-
         // For vault-based accounts, we need to manually construct the signed transaction
-        else if (accountType === 'vault') {
+  
           // Get the public key from the vault
           const publicKeyResult = await getPublicKey(env, props.email);
 
@@ -257,7 +230,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
             txID: txn.txID(),
             signedTxn: Buffer.from(encodedSignedTxn).toString('base64')
           });
-        }
+        
 
         return {
           content: [{

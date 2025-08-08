@@ -12,15 +12,7 @@ import { custom } from 'zod';
  */
 export type AccountType = 'vault' | 'kv' | null;
 
-/**
- * Response from the migrateFromMnemonicToVault function
- */
-export interface MigrationResponse {
-  success: boolean;
-  oldAddress?: string;
-  newAddress?: string;
-  error?: string;
-}
+
 
 /**
  * Response from the create Keypair function
@@ -385,7 +377,7 @@ export async function getUserAccountType(env: Env, email: string | undefined): P
     console.error('No email provided for account type check');
     return null;
   }
-  
+
   //Check for vault-based account
   const publicKeyResult = await getPublicKey(env, email);
 
@@ -393,16 +385,6 @@ export async function getUserAccountType(env: Env, email: string | undefined): P
     return 'vault';
   }
   return null
-
-  // // Check for KV-based account
-  // const secret = await retrieveSecret(env, email);
-
-  // if (secret) {
-  //   return 'kv';
-  // }
-
-  // // No account found
-  // return null;
 }
 
 /**
@@ -425,49 +407,6 @@ export async function getUserAddress(env: Env, email: string | undefined): Promi
     return algosdk.encodeAddress(publicKeyBuffer);
   }
 
-  // Fall back to KV-based approach
-  // const secret = await retrieveSecret(env, email);
-
-  // if (secret) {
-  //   // User has a KV-based account
-  //   const account = algosdk.mnemonicToSecretKey(secret);
-  //   return account.addr;
-  // }
-
-  // No account found
-  return null;
-}
-
-/**
- * Sign data using user's credentials regardless of storage mechanism
- * @param env Environment with necessary bindings
- * @param email User email
- * @param data Data to sign
- * @returns Promise resolving to the signature or null if signing failed
- */
-export async function signWithSecret(env: Env, email: string | undefined, data: string): Promise<string | null> {
-  if (!email) {
-    console.error('No email provided for signing');
-    return null;
-  }
-
-  // Sign with Secrets KV-based approach
-  const secret = await retrieveSecret(env, email);
-
-  if (secret) {
-    // User has a KV-based account
-    try {
-      const account = algosdk.mnemonicToSecretKey(secret);
-      const txn = algosdk.decodeUnsignedTransaction(Buffer.from(data, 'base64'));
-      const signedTxn = txn.signTxn(account.sk);
-      return Buffer.from(signedTxn).toString('base64');
-    } catch (error) {
-      console.error('Error signing with KV-based account:', error);
-      return null;
-    }
-  }
-
-  // No account found or signing failed
   return null;
 }
 
@@ -553,6 +492,15 @@ export async function createNewEntity(env: Env, email: string): Promise<EntityRe
   }
 
   try {
+    // Check if the entity already exists
+    const existingEntityCheck = await checkIdentityEntity(env, email);
+    if (existingEntityCheck && existingEntityCheck.success && existingEntityCheck.entityDetails?.id) {
+      console.log(`Entity already exists for email: ${email}`);
+      if (env.VAULT_ENTITIES) {
+        await env.VAULT_ENTITIES.put(email, existingEntityCheck.entityDetails.id);
+      }
+      return { success: true, entityId: existingEntityCheck.entityDetails.id };
+    }
     console.log(`Creating new entity in vault for email: ${email}`);
     // Step 1: Create the Entity
     const createEntityResponse = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/v1/identity/entity`, {
@@ -661,7 +609,7 @@ export async function createNewEntity(env: Env, email: string): Promise<EntityRe
     // if (!token) {
     //   return { success: false, entityId, error: 'Token not found in response' };
     // }
-   
+
 
 
     return { success: true, entityId };

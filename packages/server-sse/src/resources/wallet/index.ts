@@ -49,7 +49,7 @@ function getAccountFromMnemonic(mnemonic: string | undefined): algosdk.Account |
  * Register wallet resources to the MCP server
  */
 export async function registerWalletResources(server: McpServer, env: Env, props: Props): Promise<void> {
-  // Ensure user has an account (either vault-based or KV-based)
+  // Ensure user has a vault-based account 
   try {
     const accountType = await ensureUserAccount(env, props.email);
     console.log(`User has a ${accountType}-based account`);
@@ -57,7 +57,6 @@ export async function registerWalletResources(server: McpServer, env: Env, props
     throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
   }
   
-  // For backward compatibility, check if there's a KV-based account
   // const ALGORAND_AGENT_WALLET = await retrieveSecret(env, props.email);
   const ALGORAND_AGENT_WALLET = await getPublicKey(env, props.email);
   // === Wallet Public Key ===
@@ -96,26 +95,10 @@ export async function registerWalletResources(server: McpServer, env: Env, props
           }]
         };
       } else {
-        // Get public key from KV-based account
         if (!ALGORAND_AGENT_WALLET) {
           throw new Error('Failed to retrieve secret from KV store');
         }
-        
-   
-        
-        // Add migration suggestion
-        return {
-          contents: [{
-            uri: uri.href,
-            text: JSON.stringify({
-              publicKey: ALGORAND_AGENT_WALLET?.publicKey ? Buffer.from(ALGORAND_AGENT_WALLET.publicKey, 'hex') : null,
-              format: 'hex',
-              accountType: 'kv',
-              migrationAvailable: true,
-              migrationMessage: 'Your account is using legacy storage. Consider using migrate_to_vault tool for enhanced security.'
-            }, null, 2)
-          }]
-        };
+     
       }
     } catch (error: any) {
       return {
@@ -146,7 +129,7 @@ export async function registerWalletResources(server: McpServer, env: Env, props
         };
       }
       
-      // Check account type for migration suggestion
+      // Check account type
       const accountType = await getUserAccountType(env, props.email);
       
       return {
@@ -154,11 +137,6 @@ export async function registerWalletResources(server: McpServer, env: Env, props
           uri: uri.href,
           text: JSON.stringify({
             address,
-            ...(accountType === 'kv' && {
-              accountType: 'kv',
-              migrationAvailable: true,
-              migrationMessage: 'Your account is using legacy storage. Consider using migrate_to_vault tool for enhanced security.'
-            })
           }, null, 2)
         }]
       };
@@ -211,7 +189,7 @@ export async function registerWalletResources(server: McpServer, env: Env, props
       // Get account information
       const accountInfo = await algodClient.accountInformation(address).do();
       
-      // Check account type for migration suggestion
+      // Check account type 
       const accountType = await getUserAccountType(env, props.email);
       
       return {
@@ -222,12 +200,7 @@ export async function registerWalletResources(server: McpServer, env: Env, props
               address,
               amount: accountInfo.amount,
               assets: accountInfo.assets || []
-            }],
-            ...(accountType === 'kv' && {
-              accountType: 'kv',
-              migrationAvailable: true,
-              migrationMessage: 'Your account is using legacy storage. Consider using migrate_to_vault tool for enhanced security.'
-            })
+            }]
           }, null, 2)
         }]
       };
@@ -280,19 +253,14 @@ export async function registerWalletResources(server: McpServer, env: Env, props
       // Get account information
       const accountInfo = await algodClient.accountInformation(address).do();
       
-      // Check account type for migration suggestion
+      // Check account type 
       const accountType = await getUserAccountType(env, props.email);
       
       return {
         contents: [{
           uri: uri.href,
           text: JSON.stringify({
-            assets: accountInfo.assets || [],
-            ...(accountType === 'kv' && {
-              accountType: 'kv',
-              migrationAvailable: true,
-              migrationMessage: 'Your account is using legacy storage. Consider using migrate_to_vault tool for enhanced security.'
-            })
+            assets: accountInfo.assets || []
           }, null, 2)
         }]
       };
