@@ -6,11 +6,6 @@
 import algosdk from 'algosdk';
 import { Env, AccountType, KeypairResponse,PublicKeyResponse,SignatureResponse,VerificationResponse,EntityCheckResponse, EntityResponse } from '../types';
 
-
-
-
-
-
 /**
  * Store a secret in the vault for a given email
  * @param env Environment with HCV_WORKER binding
