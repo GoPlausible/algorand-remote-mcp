@@ -5,7 +5,6 @@
 
 import algosdk from 'algosdk';
 import { Env } from '../types';
-import { custom } from 'zod';
 
 /**
  * Account type enum
