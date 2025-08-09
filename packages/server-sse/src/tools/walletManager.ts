@@ -236,7 +236,6 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
     {},
     async () => {
       try {
-        // Get address using the unified approach
         const entityId = await env.VAULT_ENTITIES.get(props.email);
         console.log(`Entity ID for ${props.email} from KV store:`, entityId);
         let roleId = null;
@@ -284,6 +283,12 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           }]
         };
       }
+      const entityId = await env.VAULT_ENTITIES.get(props.email);
+      console.log(`Entity ID for ${props.email} from KV store:`, entityId);
+      let roleId = null;
+      if (entityId) {
+        roleId = await env.VAULT_ENTITIES.get(entityId);
+      }
 
       try {
         // Get address using the unified approach
@@ -312,6 +317,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
             address,
             amount: accountInfo.amount,
             assets: accountInfo.assets || [],
+            role_id: roleId
           }]
         });
       } catch (error: any) {
