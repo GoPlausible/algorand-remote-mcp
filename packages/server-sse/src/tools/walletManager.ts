@@ -96,7 +96,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           console.log(`Entity ID for ${props.email} from KV store:`, entityId);
           let roleId = null;
           if (entityId) {
-            roleId = await env.VAULT_ENTITIES.get([entityId]);
+            roleId = await env.VAULT_ENTITIES.get(entityId);
             console.log(`Role ID for ${entityId} from KV store:`, roleId);
           }
 
@@ -127,7 +127,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           console.log(`Entity ID for ${props.email} from KV store:`, entityId);
           let roleId = null;
           if (entityId) {
-            roleId = await env.VAULT_ENTITIES.get([entityId]);
+            roleId = await env.VAULT_ENTITIES.get(entityId);
             console.log(`Role ID for ${entityId} from KV store:`, roleId);
           }
 
@@ -167,7 +167,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         console.log(`Entity ID for ${props.email} from KV store:`, entityId);
         let roleId = null;
         if (entityId) {
-          roleId = await env.VAULT_ENTITIES.get([entityId]);
+          roleId = await env.VAULT_ENTITIES.get(entityId);
           console.log(`Role ID for ${entityId} from KV store:`, roleId);
         }
         return ResponseProcessor.processResponse({
