@@ -102,7 +102,6 @@ export async function registerWalletResources(server: McpServer, env: Env, props
     try {
       // Get address using the unified approach
       const address = await getUserAddress(env, props.email);
-
       if (!address) {
         return {
           contents: [{
@@ -113,9 +112,6 @@ export async function registerWalletResources(server: McpServer, env: Env, props
           }]
         };
       }
-
-      // Check account type
-      const accountType = await getUserAccountType(env, props.email);
 
       return {
         contents: [{
