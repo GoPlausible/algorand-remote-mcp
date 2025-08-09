@@ -545,10 +545,6 @@ export interface AssetDetailsResponse {
   collectible?: Record<string, any> | null;
   description?: string | null;
 }
-/**
- * Account type enum
- */
-export type AccountType = 'vault' | null;
 
 /**
  * Response from the create Keypair function

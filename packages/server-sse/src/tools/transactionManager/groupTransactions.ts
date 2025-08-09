@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { ResponseProcessor } from '../../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Env, Props } from '../../types';
-import { getUserAccountType, signWithTransit, getPublicKey, ensureUserAccount } from '../../utils/vaultManager';
+import { signWithTransit, getPublicKey, ensureUserAccount } from '../../utils/vaultManager';
 import * as msgpack from "algo-msgpack-with-bigint";
 
 /**
@@ -46,8 +46,8 @@ function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | nu
  * @returns Transaction object
  */
 async function buildTransaction(
-  type: string, 
-  params: any, 
+  type: string,
+  params: any,
   suggestedParams: algosdk.SuggestedParams
 ): Promise<algosdk.Transaction> {
   // Process optional note if provided
@@ -273,7 +273,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
         const groupedTxns = algosdk.assignGroupID(txns);
 
         // Encode transactions
-        const encodedTxns = groupedTxns.map(txn => 
+        const encodedTxns = groupedTxns.map(txn =>
           Buffer.from(algosdk.encodeUnsignedTransaction(txn)).toString('base64')
         );
 
@@ -335,9 +335,9 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
 
         // Sign each transaction with the same key
         let signatures: (string | null)[] = [];
-        const accountType = await getUserAccountType(env, props.email || '');
-        
-        if (accountType === 'vault') {
+        const publicKeyResult = await getPublicKey(env, props.email);
+
+        if (publicKeyResult.success && !publicKeyResult.error) {
           // For vault-based accounts, use signWithTransit and process the response
           const signaturePromises = groupedEncodedTxns.map(async txn => {
             // Get the public key from the vault
@@ -408,14 +408,14 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
             const encodedSignedTxn: Uint8Array = new Uint8Array(msgpack.encode(signedTxn, { sortKeys: true, ignoreUndefined: true }))
             console.log('Encoded signed transaction:', encodedSignedTxn);
             console.log('TXN ID:', decodedTxn.txID());
-            
+
             // Return the base64 encoded signed transaction
             return Buffer.from(encodedSignedTxn).toString('base64');
           });
-          
+
           signatures = await Promise.all(signaturePromises);
         } else {
-          throw new Error('No valid account type found for signing');
+          throw new Error('No valid account found for signing');
         }
 
 
@@ -446,7 +446,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
   server.tool(
     'submit_atomic_group',
     'Submit a signed atomic transaction group to the Algorand network',
-    { 
+    {
       signedTxns: z.array(z.string()).describe('Array of base64-encoded signed transactions')
     },
     async ({ signedTxns }) => {
@@ -469,11 +469,11 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
         // Decode and submit transactions
         const decodedTxns = signedTxns.map(txn => new Uint8Array(Buffer.from(txn, 'base64')));
         console.log('Submitting group of', decodedTxns.length, 'transactions');
-        
+
         // Submit the transaction group
         const response = await algodClient.sendRawTransaction(decodedTxns).do();
         console.log('Transaction ID:', response.txId);
-        
+
         // Wait for confirmation
         const confirmedTxn = await algosdk.waitForConfirmation(algodClient, response.txId, 4);
         console.log('Confirmed transaction:', confirmedTxn);

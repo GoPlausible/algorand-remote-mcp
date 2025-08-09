@@ -13,7 +13,6 @@ import {
   Env, Props, VaultResponse,
 } from '../../types';
 import {
-  getUserAccountType,
   getUserAddress,
   ensureUserAccount,
   getPublicKey,
@@ -50,8 +49,8 @@ function ConcatArrays(...arrs: ArrayLike<number>[]) {
 export async function registerGeneralTransactionTools(server: McpServer, env: Env, props: Props): Promise<void> {
   // Ensure user has a vault-based account
   try {
-    const accountType = await ensureUserAccount(env, props.email);
-    console.log(`User has a ${accountType}-based account`);
+    const accType = await ensureUserAccount(env, props.email);
+    console.log(`User has a ${accType}-based account`);
   } catch (error: any) {
     throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
   }
@@ -143,90 +142,86 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         // Ensure user has an account
         await ensureUserAccount(env, props.email || '');
 
-        // Get account type to determine signing approach
-        const accountType = await getUserAccountType(env, props.email || '');
-        console.log(`Signing transaction with ${accountType}-based account`);
-
         // For vault-based accounts, we need to manually construct the signed transaction
-  
-          // Get the public key from the vault
-          const publicKeyResult = await getPublicKey(env, props.email);
 
-          if (!publicKeyResult.success || !publicKeyResult.publicKey) {
-            throw new Error('Failed to get public key from vault');
-          }
-          console.log('Public key from vault:', publicKeyResult.publicKey);
+        // Get the public key from the vault
+        const publicKeyResult = await getPublicKey(env, props.email);
 
-          // Get the raw signature from the vault
-          const TAG: Buffer = Buffer.from("TX");
-          console.log('TAG:', Buffer.from("TX"));
-          console.log('Encoded transaction buffer signing:', new Uint8Array(Buffer.from(encodedTxn, 'base64')));
-          const finalEncodedTxn = new Uint8Array(Buffer.from(encodedTxn, 'base64'));
-          const finalEncodedTxnTagged = ConcatArrays(TAG, finalEncodedTxn);
-          console.log('Final encoded transaction:', finalEncodedTxnTagged);
-          const finalEncodedTxnBase64 = Buffer.from(finalEncodedTxnTagged).toString('base64');
-          const signatureResult = await signWithTransit(env,finalEncodedTxnBase64, props.email);
+        if (!publicKeyResult.success || !publicKeyResult.publicKey) {
+          throw new Error('Failed to get public key from vault');
+        }
+        console.log('Public key from vault:', publicKeyResult.publicKey);
 
-
-          if (!signatureResult.success || !signatureResult.signature) {
-            throw new Error('Failed to get signature from vault');
-          }
+        // Get the raw signature from the vault
+        const TAG: Buffer = Buffer.from("TX");
+        console.log('TAG:', Buffer.from("TX"));
+        console.log('Encoded transaction buffer signing:', new Uint8Array(Buffer.from(encodedTxn, 'base64')));
+        const finalEncodedTxn = new Uint8Array(Buffer.from(encodedTxn, 'base64'));
+        const finalEncodedTxnTagged = ConcatArrays(TAG, finalEncodedTxn);
+        console.log('Final encoded transaction:', finalEncodedTxnTagged);
+        const finalEncodedTxnBase64 = Buffer.from(finalEncodedTxnTagged).toString('base64');
+        const signatureResult = await signWithTransit(env, finalEncodedTxnBase64, props.email);
 
 
-          // Decode the transaction
-          const txn = algosdk.decodeUnsignedTransaction(Buffer.from(encodedTxn, 'base64'));
-          console.log('Decoded transaction:', txn);
-
-          // Convert the base64 signature to Uint8Array
-          const signature = Buffer.from(signatureResult.signature, 'base64');
-          console.log('Signature:', signature);
+        if (!signatureResult.success || !signatureResult.signature) {
+          throw new Error('Failed to get signature from vault');
+        }
 
 
-          // Convert the base64 public key to Uint8Array
-          const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
-          console.log('Public key buffer:', publicKeyBuffer);
+        // Decode the transaction
+        const txn = algosdk.decodeUnsignedTransaction(Buffer.from(encodedTxn, 'base64'));
+        console.log('Decoded transaction:', txn);
 
-          // Get the address from the public key
-          const signerAddr = algosdk.encodeAddress(publicKeyBuffer);
-          console.log('Signer address:', signerAddr);
-          const txnObj = txn.get_obj_for_encoding();
-          console.log('Transaction object for encoding:', txnObj);
+        // Convert the base64 signature to Uint8Array
+        const signature = Buffer.from(signatureResult.signature, 'base64');
+        console.log('Signature:', signature);
 
-          // Create a Map for the signed transaction
-          const signedTxn: object = {
-            txn: txnObj,
-            sig: signature,
-          };
-          console.log('Signed transaction map:', signedTxn);
 
-          // Add AuthAddr if signing with a different key than From indicates
-          // Compare the actual bytes of the public keys, not their string representations
-          const fromPubKey = txn.from.publicKey;
-          let keysMatch = fromPubKey.length === publicKeyBuffer.length;
-          if (keysMatch) {
-            for (let i = 0; i < fromPubKey.length; i++) {
-              if (fromPubKey[i] !== publicKeyBuffer[i]) {
-                keysMatch = false;
-                break;
-              }
+        // Convert the base64 public key to Uint8Array
+        const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
+        console.log('Public key buffer:', publicKeyBuffer);
+
+        // Get the address from the public key
+        const signerAddr = algosdk.encodeAddress(publicKeyBuffer);
+        console.log('Signer address:', signerAddr);
+        const txnObj = txn.get_obj_for_encoding();
+        console.log('Transaction object for encoding:', txnObj);
+
+        // Create a Map for the signed transaction
+        const signedTxn: object = {
+          txn: txnObj,
+          sig: signature,
+        };
+        console.log('Signed transaction map:', signedTxn);
+
+        // Add AuthAddr if signing with a different key than From indicates
+        // Compare the actual bytes of the public keys, not their string representations
+        const fromPubKey = txn.from.publicKey;
+        let keysMatch = fromPubKey.length === publicKeyBuffer.length;
+        if (keysMatch) {
+          for (let i = 0; i < fromPubKey.length; i++) {
+            if (fromPubKey[i] !== publicKeyBuffer[i]) {
+              keysMatch = false;
+              break;
             }
           }
+        }
 
-          if (!keysMatch) {
-            // Only add sgnr if the keys are actually different
-            signedTxn.sgnr = algosdk.decodeAddress(signerAddr);
-          }
+        if (!keysMatch) {
+          // Only add sgnr if the keys are actually different
+          signedTxn.sgnr = algosdk.decodeAddress(signerAddr);
+        }
 
-          // Encode the signed transaction using MessagePack
-          const encodedSignedTxn: Uint8Array = new Uint8Array(msgpack.encode(signedTxn, { sortKeys: true, ignoreUndefined: true }))
-          console.log('Encoded signed transaction:', encodedSignedTxn);
-          console.log('TXN ID:', txn.txID());
-          // Return the base64 encoded signed transaction
-          return ResponseProcessor.processResponse({
-            txID: txn.txID(),
-            signedTxn: Buffer.from(encodedSignedTxn).toString('base64')
-          });
-        
+        // Encode the signed transaction using MessagePack
+        const encodedSignedTxn: Uint8Array = new Uint8Array(msgpack.encode(signedTxn, { sortKeys: true, ignoreUndefined: true }))
+        console.log('Encoded signed transaction:', encodedSignedTxn);
+        console.log('TXN ID:', txn.txID());
+        // Return the base64 encoded signed transaction
+        return ResponseProcessor.processResponse({
+          txID: txn.txID(),
+          signedTxn: Buffer.from(encodedSignedTxn).toString('base64')
+        });
+
 
         return {
           content: [{

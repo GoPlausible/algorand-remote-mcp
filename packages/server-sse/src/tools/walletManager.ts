@@ -11,7 +11,6 @@ import { Env, Props, VaultResponse } from '../types';
 import {
   createKeypair,
   getPublicKey,
-  getUserAccountType,
   getUserAddress,
   ensureUserAccount,
   deleteKeypair
@@ -54,8 +53,8 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
   // Ensure user has a vault-based account 
   try {
-    const accountType = await ensureUserAccount(env, props.email);
-    console.log(`User has a ${accountType}-based account`);
+    const accType = await ensureUserAccount(env, props.email);
+    console.log(`User has a ${accType}-based account`);
   } catch (error: any) {
     throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
   }
@@ -66,10 +65,8 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
     {},
     async () => {
       try {
-        // Check account type
-        const accountType = await getUserAccountType(env, props.email);
-
-        if (accountType === 'vault') {
+        const publicKeyResult = await getPublicKey(env, props.email);
+        if (publicKeyResult.success && !publicKeyResult.error) {
           // For vault-based accounts, create a new keypair in the vault
           console.log('Creating new vault-based keypair for user:', props.email);
 
@@ -95,9 +92,17 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
           const address = algosdk.encodeAddress(publicKeyBuffer);
 
+          const entityId = await env.VAULT_ENTITIES.get(props.email);
+          console.log(`Entity ID for ${props.email} from KV store:`, entityId);
+          let roleId = null;
+          if (entityId) {
+            roleId = await env.VAULT_ENTITIES.get([entityId]);
+            console.log(`Role ID for ${entityId} from KV store:`, roleId);
+          }
+
           return ResponseProcessor.processResponse({
             address,
-            accountType: 'vault'
+            role_id: roleId
           });
         } else {
           // No account found, create a new vault-based account
@@ -118,10 +123,17 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           // Convert the public key to an Algorand address
           const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
           const address = algosdk.encodeAddress(publicKeyBuffer);
+          const entityId = await env.VAULT_ENTITIES.get(props.email);
+          console.log(`Entity ID for ${props.email} from KV store:`, entityId);
+          let roleId = null;
+          if (entityId) {
+            roleId = await env.VAULT_ENTITIES.get([entityId]);
+            console.log(`Role ID for ${entityId} from KV store:`, roleId);
+          }
 
           return ResponseProcessor.processResponse({
             address,
-            accountType: 'vault'
+            role_id: roleId
           });
         }
       } catch (error: any) {
@@ -142,9 +154,8 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
     async () => {
       try {
         // Check account type
-        const accountType = await getUserAccountType(env, props.email);
-
-        if (accountType === null) {
+        const publicKeyResult = await getPublicKey(env, props.email);
+        if (!publicKeyResult.success || publicKeyResult.error) {
           return {
             content: [{
               type: 'text',
@@ -152,19 +163,18 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
             }]
           };
         }
-
-        // Get public key from vault
-          const publicKeyResult = await getPublicKey(env, props.email);
-
-          if (!publicKeyResult.success || !publicKeyResult.publicKey) {
-            throw new Error(publicKeyResult.error || 'Failed to get public key from vault');
-          }
-
-          return ResponseProcessor.processResponse({
-            publicKey: publicKeyResult.publicKey,
-            format: 'base64',
-            accountType: 'vault'
-          }); 
+        const entityId = await env.VAULT_ENTITIES.get(props.email);
+        console.log(`Entity ID for ${props.email} from KV store:`, entityId);
+        let roleId = null;
+        if (entityId) {
+          roleId = await env.VAULT_ENTITIES.get([entityId]);
+          console.log(`Role ID for ${entityId} from KV store:`, roleId);
+        }
+        return ResponseProcessor.processResponse({
+          publicKey: publicKeyResult.publicKey,
+          format: 'base64',
+          role_id: roleId
+        });
       } catch (error: any) {
         return {
           content: [{
@@ -197,7 +207,11 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
         const entityId = await env.VAULT_ENTITIES.get(props.email);
         console.log(`Entity ID for ${props.email} from KV store:`, entityId);
-        const roleId = await env.VAULT_ENTITIES.get(entityId);
+
+        let roleId = null;
+        if (entityId) {
+          roleId = await env.VAULT_ENTITIES.get(entityId);
+        }
         console.log(`Role ID for ${entityId} from KV store:`, roleId);
 
         return ResponseProcessor.processResponse({
@@ -225,7 +239,11 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         // Get address using the unified approach
         const entityId = await env.VAULT_ENTITIES.get(props.email);
         console.log(`Entity ID for ${props.email} from KV store:`, entityId);
-        const roleId = await env.VAULT_ENTITIES.get(entityId);
+        let roleId = null;
+        if (entityId) {
+          roleId = await env.VAULT_ENTITIES.get(entityId);
+        }
+
         console.log(`Role ID for ${entityId} from KV store:`, roleId);
 
         if (!entityId) {
@@ -239,7 +257,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
         return ResponseProcessor.processResponse({
           role_id: roleId,
-       
+
         });
       } catch (error: any) {
         return {
@@ -346,7 +364,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
         return ResponseProcessor.processResponse({
           assets: accountInfo.assets || [],
-    
+
         });
       } catch (error: any) {
         return {

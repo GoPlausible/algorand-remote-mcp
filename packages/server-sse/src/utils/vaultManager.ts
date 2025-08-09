@@ -4,7 +4,7 @@
  */
 
 import algosdk from 'algosdk';
-import { Env, AccountType, KeypairResponse,PublicKeyResponse,SignatureResponse,VerificationResponse,EntityCheckResponse, EntityResponse } from '../types';
+import { Env, KeypairResponse,PublicKeyResponse,SignatureResponse,VerificationResponse,EntityCheckResponse, EntityResponse } from '../types';
 
 /**
  * Create a new Ed25519 keypair in the vault
@@ -187,26 +187,7 @@ export async function verifySignatureWithTransit(env: Env, data: string, signatu
   }
 }
 
-/**
- * Check if user has an account and determine its type
- * @param env Environment with necessary bindings
- * @param email User email
- * @returns Promise resolving to account type or null if no account found
- */
-export async function getUserAccountType(env: Env, email: string | undefined): Promise<AccountType> {
-  if (!email) {
-    console.error('No email provided for account type check');
-    return null;
-  }
 
-  //Check for vault-based account
-  const publicKeyResult = await getPublicKey(env, email);
-
-  if (publicKeyResult.success) {
-    return 'vault';
-  }
-  return null
-}
 
 /**
  * Get user's address regardless of storage mechanism
@@ -238,7 +219,7 @@ export async function getUserAddress(env: Env, email: string | undefined): Promi
  * @param email User email
  * @returns Promise resolving to account type
  */
-export async function ensureUserAccount(env: Env, email: string | undefined): Promise<AccountType> {
+export async function ensureUserAccount(env: Env, email: string | undefined): Promise<any> {
   console.log('Ensuring user account for email:', email);
   if (!email || email === '') {
     console.error('No email provided for account creation');

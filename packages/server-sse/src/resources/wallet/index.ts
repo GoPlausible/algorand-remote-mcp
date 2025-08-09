@@ -7,7 +7,6 @@ import algosdk from 'algosdk';
 import { Env, Props, VaultResponse } from '../../types';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
-  getUserAccountType,
   getUserAddress,
   getPublicKey,
   ensureUserAccount
@@ -48,8 +47,8 @@ function getAccountFromMnemonic(mnemonic: string | undefined): algosdk.Account |
 export async function registerWalletResources(server: McpServer, env: Env, props: Props): Promise<void> {
   // Ensure user has a vault-based account 
   try {
-    const accountType = await ensureUserAccount(env, props.email);
-    console.log(`User has a ${accountType}-based account`);
+    const accType = await ensureUserAccount(env, props.email);
+    console.log(`User has a ${accType}-based account`);
   } catch (error: any) {
     throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
   }
@@ -73,6 +72,14 @@ export async function registerWalletResources(server: McpServer, env: Env, props
       if (!publicKeyResult.success || !publicKeyResult.publicKey) {
         throw new Error(publicKeyResult.error || 'Failed to get public key from vault');
       }
+      // Get address using the unified approach
+      const entityId = await env.VAULT_ENTITIES.get(props.email);
+      console.log(`Entity ID for ${props.email} from KV store:`, entityId);
+      let roleId = null;
+      if (entityId) {
+        roleId = await env.VAULT_ENTITIES.get([entityId]);
+        console.log(`Role ID for ${entityId} from KV store:`, roleId);
+      }
 
       return {
         contents: [{
@@ -80,7 +87,7 @@ export async function registerWalletResources(server: McpServer, env: Env, props
           text: JSON.stringify({
             publicKey: publicKeyResult.publicKey,
             format: 'base64',
-            accountType: 'vault'
+            role_id: roleId
           }, null, 2)
         }]
       };
@@ -170,9 +177,6 @@ export async function registerWalletResources(server: McpServer, env: Env, props
       // Get account information
       const accountInfo = await algodClient.accountInformation(address).do();
 
-      // Check account type 
-      const accountType = await getUserAccountType(env, props.email);
-
       return {
         contents: [{
           uri: uri.href,
@@ -233,9 +237,6 @@ export async function registerWalletResources(server: McpServer, env: Env, props
 
       // Get account information
       const accountInfo = await algodClient.accountInformation(address).do();
-
-      // Check account type 
-      const accountType = await getUserAccountType(env, props.email);
 
       return {
         contents: [{
