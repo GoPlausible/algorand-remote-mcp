@@ -53,8 +53,6 @@ export async function registerWalletResources(server: McpServer, env: Env, props
   } catch (error: any) {
     throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
   }
-
-  const ALGORAND_AGENT_WALLET = await getPublicKey(env, props.email);
   // === Wallet Public Key ===
   server.resource("Wallet Account Public Key", "algorand://wallet/publickey", async (uri) => {
     try {
