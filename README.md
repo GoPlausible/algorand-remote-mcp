@@ -6,7 +6,7 @@ A Model Context Protocol (MCP) server implementation that provides tools and res
 
 Algorand Remote MCP bridges the gap between AI agents and the Algorand blockchain ecosystem. It serves as a middleware layer that enables AI systems to interact with blockchain technology through a standardized interface, without requiring deep blockchain expertise.
 
-The server is designed to run on Cloudflare Workers and provides a comprehensive set of tools and resources for blockchain operations, including wallet management, transaction creation and submission, API integration, and knowledge access.
+The server is designed to run on Cloudflare Workers and provides a comprehensive set of tools and resources for blockchain operations, including wallet management, transaction creation and submission, API integration, and knowledge access. This is a remote MCP implementation only, focused on providing server-side functionality for AI agents to interact with the Algorand blockchain.
 
 ## Features
 
