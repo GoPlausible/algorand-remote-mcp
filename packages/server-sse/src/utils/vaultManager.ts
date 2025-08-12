@@ -4,7 +4,7 @@
  */
 
 import algosdk from 'algosdk';
-import { Env, KeypairResponse,PublicKeyResponse,SignatureResponse,VerificationResponse,EntityCheckResponse, EntityResponse } from '../types';
+import { Env, KeypairResponse, PublicKeyResponse, SignatureResponse, VerificationResponse, EntityCheckResponse, EntityResponse } from '../types';
 
 /**
  * Create a new Ed25519 keypair in the vault
@@ -256,14 +256,19 @@ export async function ensureUserAccount(env: Env, email: string | undefined): Pr
       console.log(`Created new entity with ID: ${entityId}`);
     }
   }
+  const publicKeyResult = await getPublicKey(env, email);
 
-  // Create a new vault-based account
-  console.log(`Creating new keypair for ${email}`);
-  const keypairResult = await createKeypair(env, email);
+  if (!publicKeyResult.success || publicKeyResult.error) {
+    // Create a new vault-based account
+    console.log(`Creating new keypair for ${email}`);
+    const keypairResult = await createKeypair(env, email);
 
-  if (!keypairResult.success) {
-    throw new Error(keypairResult.error || 'Failed to create keypair in vault');
+    if (!keypairResult.success) {
+      throw new Error(keypairResult.error || 'Failed to create keypair in vault');
+    }
+
   }
+
 
   return 'vault';
 }
