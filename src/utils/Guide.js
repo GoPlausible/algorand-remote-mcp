@@ -213,13 +213,13 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 1. Wallet Management Tools
    - Type: Wallet data retrieval
-   - Examples: \`get_wallet_address\`, \`get_wallet_info\`
+   - Examples: \`get_wallet_address\`, \`get_wallet_info\` and \`get_wallet_balance\`
    - Purpose: Access configured wallet information
    - Note: Requires proper server configuration
 
 2. Account Information Tools
    - Type: Account data retrieval
-   - Examples: \`api_algod_get_account_info\`, \`check_balance\`
+   - Examples: \`api_algod_get_account_info\`, \`check_account_balance\`
    - Purpose: Access account information
    - Note: Requires valid Algorand address
 
@@ -276,7 +276,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 2. Account Information Tools
    - Tool: \`api_algod_get_account_info\`
-   - Purpose: Get detailed account information
+   - Purpose: Get detailed information for a given Algorand account address
    - Parameters: \`{ address: string }\`
    - Returns: Account data including balance, status, apps, and assets
 

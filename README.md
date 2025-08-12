@@ -71,7 +71,7 @@ Algorand Remote MCP is built on the Model Context Protocol (MCP), which provides
 ### Account Management
 - `create_account`: Create a new Algorand account
 - `mnemonic_to_address`: View the address associated with a mnemonic (without storing the private key)
-- `check_balance`: Check the balance of an Algorand account
+- `check_account_balance`: Check the balance of an Algorand account
 
 ### Wallet Management
 - `get_wallet_address`: Get the address for the configured wallet
@@ -244,7 +244,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ### Account Management
 13. `create_account` - Create a new Algorand account
 14. `mnemonic_to_address` - View the address associated with a mnemonic (without storing the private key)
-15. `check_balance` - Check the balance of an Algorand account
+15. `check_account_balance` - Check the balance of an Algorand account
 16. `get_wallet_publickey` - Get the public key for the configured wallet
 17. `get_wallet_address` - Get the address for the configured wallet
 18. `get_wallet_info` - Get the account information for the configured wallet
