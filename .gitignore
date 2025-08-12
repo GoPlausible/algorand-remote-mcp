@@ -3,6 +3,8 @@
 logs
 _.log
 .clin*
+.vscode
+.vscode/*
 npm-debug.log_
 yarn-debug.log*
 yarn-error.log*
