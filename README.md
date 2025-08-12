@@ -179,32 +179,29 @@ HCV_WORKER_URL=https://your-hashicorp-vault-worker.workers.dev
 ## Project Structure
 
 ```
-packages/
-├── server-sse/
-│   ├── src/
-│   │   ├── index.ts                # Main entry point
-│   │   ├── types.ts                # Type definitions
-│   │   ├── oauth-handler.ts        # OAuth authentication handler
-│   │   ├── workers-oauth-utils.ts  # OAuth utilities
-│   │   ├── resources/              # Resource providers
-│   │   │   ├── guide/              # Guide resources
-│   │   │   ├── knowledge/          # Knowledge resources
-│   │   │   └── wallet/             # Wallet resources
-│   │   ├── tools/                  # Tool managers
-│   │   │   ├── accountManager.ts   # Account management tools
-│   │   │   ├── algodManager.ts     # Algorand node tools
-│   │   │   ├── arc26Manager.ts     # ARC-26 tools
-│   │   │   ├── knowledgeManager.ts # Knowledge tools
-│   │   │   ├── utilityManager.ts   # Utility tools
-│   │   │   ├── walletManager.ts    # Wallet management tools
-│   │   │   ├── apiManager/         # API integration tools
-│   │   │   └── transactionManager/ # Transaction tools
-│   │   └── utils/                  # Utilities
-│   │       ├── Guide.js            # Guide content
-│   │       ├── oauth-utils.ts      # OAuth utilities
-│   │       ├── vaultManager.ts     # HashiCorp Vault utilities for secret storage and cryptographic operations
-│   │       └── responseProcessor.ts # Response formatting
-└── client-sse/                     # Client implementation
+├── src/                          # Source code directory
+│   ├── index.ts                  # Main entry point
+│   ├── types.ts                  # Type definitions
+│   ├── oauth-handler.ts          # OAuth authentication handler
+│   ├── workers-oauth-utils.ts    # OAuth utilities
+│   ├── resources/                # Resource providers
+│   │   ├── guide/                # Guide resources
+│   │   ├── knowledge/            # Knowledge resources
+│   │   └── wallet/               # Wallet resources
+│   ├── tools/                    # Tool managers
+│   │   ├── accountManager.ts     # Account management tools
+│   │   ├── algodManager.ts       # Algorand node tools
+│   │   ├── arc26Manager.ts       # ARC-26 tools
+│   │   ├── knowledgeManager.ts   # Knowledge tools
+│   │   ├── utilityManager.ts     # Utility tools
+│   │   ├── walletManager.ts      # Wallet management tools
+│   │   ├── apiManager/           # API integration tools
+│   │   └── transactionManager/   # Transaction tools
+│   └── utils/                    # Utilities
+│       ├── Guide.js              # Guide content
+│       ├── oauth-utils.ts        # OAuth utilities
+│       ├── vaultManager.ts       # HashiCorp Vault utilities for secret storage and cryptographic operations
+│       └── responseProcessor.ts  # Response formatting
 ```
 
 ## Contributing
