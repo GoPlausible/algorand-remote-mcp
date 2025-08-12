@@ -577,3 +577,4 @@ export async function deleteSecret(env: Env, email: string): Promise<boolean> {
     return false;
   }
 }
+
