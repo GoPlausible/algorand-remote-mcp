@@ -358,6 +358,20 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
             color: #555;
           }
           
+          .server-links {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+          }
+          
+          .server-links a {
+            color: var(--primary-color);
+            text-decoration: none;
+          }
+          
+          .server-links a:hover {
+            text-decoration: underline;
+          }
+          
           .client-info {
             border: 1px solid var(--border-color);
             border-radius: 6px;
@@ -429,6 +443,22 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
             color: var(--text-color);
           }
           
+          .powered-by {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.8rem;
+            color: #666;
+          }
+          
+          .powered-by a {
+            color: var(--primary-color);
+            text-decoration: none;
+          }
+          
+          .powered-by a:hover {
+            text-decoration: underline;
+          }
+          
           /* Responsive adjustments */
           @media (max-width: 640px) {
             .container {
@@ -468,6 +498,10 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
             </div>
             
             ${serverDescription ? `<p class="description">${serverDescription}</p>` : ""}
+            <div class="server-links">
+              <a href="https://goplausible.xyz/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a> | 
+              <a href="https://goplausible.xyz/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+            </div>
           </div>
             
           <div class="card">
@@ -547,7 +581,7 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
 		}
             </div>
             
-            <p>This MCP Client is requesting to be authorized on ${serverName}. If you approve, you will be redirected to complete authentication.</p>
+            <p>This MCP Client is requesting to be authorized on ${serverName}. If you approve, you will be redirected to Google to complete authentication.</p>
             
             <form method="post" action="${new URL(request.url).pathname}">
               <input type="hidden" name="state" value="${encodedState}">
@@ -557,6 +591,9 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
                 <button type="submit" class="button button-primary">Approve</button>
               </div>
             </form>
+          </div>
+          <div class="powered-by">
+            Powered by <a href="https://algorand.co" target="_blank" rel="noopener noreferrer">Algorand</a>
           </div>
         </div>
       </body>
