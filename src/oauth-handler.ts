@@ -23,7 +23,7 @@ app.get("/authorize", async (c) => {
 		await clientIdAlreadyApproved(c.req.raw, oauthReqInfo.clientId, c.env.COOKIE_ENCRYPTION_KEY)
 	) {
 		console.log(`Client ID ${clientId} already approved, redirecting to Google`);
-		return redirectToGoogle(c, oauthReqInfo);	
+		return redirectToGoogle(c, oauthReqInfo);
 	}
 	console.log(`Client ID ${clientId} not approved yet, rendering approval dialog`);
 	return renderApprovalDialog(c.req.raw, {
@@ -49,6 +49,7 @@ async function redirectToGoogle(
 	oauthReqInfo: AuthRequest,
 	headers: Record<string, string> = {},
 ) {
+	console.log("Redirecting to Google for OAuth authorization");
 	return new Response(null, {
 		headers: {
 			...headers,
@@ -79,6 +80,7 @@ app.get("/callback", async (c) => {
 	if (!oauthReqInfo.clientId) {
 		return c.text("Invalid state", 400);
 	}
+	console.log("OAuth callback received with state:", oauthReqInfo);
 
 	// Exchange the code for an access token
 	const code = c.req.query("code");
@@ -95,8 +97,10 @@ app.get("/callback", async (c) => {
 		upstreamUrl: "https://accounts.google.com/o/oauth2/token",
 	});
 	if (googleErrResponse) {
+		console.error("Failed to fetch access token from Google:", googleErrResponse);
 		return googleErrResponse;
 	}
+	console.log("Successfully fetched access token from Google");
 
 	// Fetch the user info from Google
 	const userResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
@@ -105,6 +109,7 @@ app.get("/callback", async (c) => {
 		},
 	});
 	if (!userResponse.ok) {
+		console.error("Failed to fetch user info from Google:", await userResponse.text());
 		return c.text(`Failed to fetch user info: ${await userResponse.text()}`, 500);
 	}
 
@@ -113,7 +118,7 @@ app.get("/callback", async (c) => {
 		name: string;
 		email: string;
 	};
-
+	console.log("Successfully fetched user info from Google: ", { id, name, email });
 	// Return back to the MCP client a new token
 	const { redirectTo } = await c.env.OAUTH_PROVIDER.completeAuthorization({
 		metadata: {
