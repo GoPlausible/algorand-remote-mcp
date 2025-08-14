@@ -39,8 +39,11 @@ app.get("/authorize", async (c) => {
 app.post("/authorize", async (c) => {
 	const { state, headers } = await parseRedirectApproval(c.req.raw, c.env.COOKIE_ENCRYPTION_KEY);
 	if (!state.oauthReqInfo) {
+		console.error("Invalid state in OAuth approval request");
 		return c.text("Invalid request", 400);
 	}
+	console.log("Processing OAuth approval request with state:", state.oauthReqInfo);
+	console.log("Redirect to Google");
 	return redirectToGoogle(c, state.oauthReqInfo, headers);
 });
 
@@ -76,6 +79,7 @@ async function redirectToGoogle(
  */
 app.get("/callback", async (c) => {
 	// Get the oathReqInfo out of KV
+	console.log("Received OAuth callback request");
 	const oauthReqInfo = JSON.parse(atob(c.req.query("state") as string)) as AuthRequest;
 	if (!oauthReqInfo.clientId) {
 		return c.text("Invalid state", 400);
