@@ -72,6 +72,7 @@
     "ITEMS_PER_PAGE": "10",
     "HCV_WORKER_URL": "https://hashicorp-vault-worker.emg110.workers.dev"
   }
+  
   /* Secrets */
   // "secrets": {
   //   "ALGORAND_TOKEN": "your_algorand_token_here",

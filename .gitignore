@@ -176,3 +176,4 @@ dist
 .dev.vars
 .wrangler/
 src/.DS_Store
+.DS_Store

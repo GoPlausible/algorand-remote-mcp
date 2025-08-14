@@ -221,7 +221,7 @@ export async function getUserAddress(env: Env, email: string | undefined): Promi
  */
 export async function ensureUserAccount(env: Env, email: string | undefined): Promise<any> {
   console.log('Ensuring user account for email:', email);
-  if (!email || email === '') {
+  if (!email || email === '' || !env.VAULT_ENTITIES) {
     console.error('No email provided for account creation');
     return null;
   }
@@ -231,17 +231,14 @@ export async function ensureUserAccount(env: Env, email: string | undefined): Pr
     return null;
   }
 
-
   let entityId: string | null = null;
 
-  if (env.VAULT_ENTITIES) {
-    console.log(`Checking for existing entity in VAULT_ENTITIES for email: ${email}`);
-    try {
-      entityId = await env.VAULT_ENTITIES.get(email);
-      console.log(`Entity ID for ${email} from KV store:`, entityId);
-    } catch (error) {
-      console.error('Error getting entity ID from KV store:', error);
-    }
+  console.log(`Checking for existing entity in VAULT_ENTITIES for email: ${email}`);
+  try {
+    entityId = await env.VAULT_ENTITIES.get(email);
+    console.log(`Entity ID for ${email} from KV store:`, entityId);
+  } catch (error) {
+    console.error('Error getting entity ID from KV store:', error);
   }
 
   // If no entity exists, create one
@@ -259,17 +256,14 @@ export async function ensureUserAccount(env: Env, email: string | undefined): Pr
   const publicKeyResult = await getPublicKey(env, email);
 
   if (!publicKeyResult.success || publicKeyResult.error) {
+    console.error('Failed to get public key from vault:', publicKeyResult.error);
     // Create a new vault-based account
     console.log(`Creating new keypair for ${email}`);
     const keypairResult = await createKeypair(env, email);
-
     if (!keypairResult.success) {
       throw new Error(keypairResult.error || 'Failed to create keypair in vault');
     }
-
   }
-
-
   return 'vault';
 }
 

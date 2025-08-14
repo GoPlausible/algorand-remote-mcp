@@ -10,23 +10,27 @@ import {
 const app = new Hono<{ Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers } }>();
 
 app.get("/authorize", async (c) => {
+	console.log("Received OAuth authorization request");
 	const oauthReqInfo = await c.env.OAUTH_PROVIDER.parseAuthRequest(c.req.raw);
 	const { clientId } = oauthReqInfo;
 	if (!clientId) {
+		console.error("Invalid OAuth request: missing clientId");
 		return c.text("Invalid request", 400);
 	}
+	console.log("Parsed OAuth request info:", oauthReqInfo);
 
 	if (
 		await clientIdAlreadyApproved(c.req.raw, oauthReqInfo.clientId, c.env.COOKIE_ENCRYPTION_KEY)
 	) {
-		return redirectToGoogle(c, oauthReqInfo);
+		console.log(`Client ID ${clientId} already approved, redirecting to Google`);
+		return redirectToGoogle(c, oauthReqInfo);	
 	}
-
+	console.log(`Client ID ${clientId} not approved yet, rendering approval dialog`);
 	return renderApprovalDialog(c.req.raw, {
 		client: await c.env.OAUTH_PROVIDER.lookupClient(clientId),
 		server: {
-			description: "Algorand MCP Remote Server OAuth 2.1, by GoPlausible!",
-			name: "GoPlausible OAuth Google",
+			description: "Algorand MCP Remote Server OAuth for Google, by GoPlausible!",
+			name: "GoPlausible Google OAuth",
 		},
 		state: { oauthReqInfo },
 	});

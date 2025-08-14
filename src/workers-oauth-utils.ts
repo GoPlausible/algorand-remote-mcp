@@ -50,6 +50,7 @@ async function importKey(secret: string): Promise<CryptoKey> {
 			"COOKIE_SECRET is not defined. A secret key is required for signing cookies.",
 		);
 	}
+	console.log("Importing key for HMAC-SHA256 signing: ", secret); // Log first 10 chars for brevity
 	const enc = new TextEncoder();
 	return crypto.subtle.importKey(
 		"raw",
@@ -66,7 +67,7 @@ async function importKey(secret: string): Promise<CryptoKey> {
  * @param data - The string data to sign.
  * @returns A promise resolving to the signature as a hex string.
  */
-async function signWithVault(key: CryptoKey, data: string): Promise<string> {
+async function signWithHmacSha256(key: CryptoKey, data: string): Promise<string> {
 	const enc = new TextEncoder();
 	const signatureBuffer = await crypto.subtle.sign("HMAC", key, enc.encode(data));
 	// Convert ArrayBuffer to hex string
@@ -82,7 +83,7 @@ async function signWithVault(key: CryptoKey, data: string): Promise<string> {
  * @param data - The original data that was signed.
  * @returns A promise resolving to true if the signature is valid, false otherwise.
  */
-async function verifySignatureWithTransit(
+async function verifyHmacSha256Signature(
 	key: CryptoKey,
 	signatureHex: string,
 	data: string,
@@ -130,7 +131,7 @@ async function getApprovedClientsFromCookie(
 	const payload = atob(base64Payload); // Assuming payload is base64 encoded JSON string
 
 	const key = await importKey(secret);
-	const isValid = await verifySignatureWithTransit(key, signatureHex, payload);
+	const isValid = await verifyHmacSha256Signature(key, signatureHex, payload);
 
 	if (!isValid) {
 		console.warn("Cookie signature verification failed.");
@@ -171,9 +172,11 @@ export async function clientIdAlreadyApproved(
 	clientId: string,
 	cookieSecret: string,
 ): Promise<boolean> {
+	console.log("Checking if client ID is already approved:", clientId);
 	if (!clientId) return false;
 	const cookieHeader = request.headers.get("Cookie");
 	const approvedClients = await getApprovedClientsFromCookie(cookieHeader, cookieSecret);
+	console.log("Approved clients from cookie:", approvedClients);
 
 	return approvedClients?.includes(clientId) ?? false;
 }
@@ -238,32 +241,43 @@ export interface ApprovalDialogOptions {
  */
 export function renderApprovalDialog(request: Request, options: ApprovalDialogOptions): Response {
 	const { client, server, state } = options;
+	console.log("Rendering approval dialog with options:", options);
 
 	// Encode state for form submission
 	const encodedState = btoa(JSON.stringify(state));
 
 	// Sanitize any untrusted content
 	const serverName = sanitizeHtml(server.name);
+	console.log("Sanitized server name:", serverName);
 	const clientName = client?.clientName ? sanitizeHtml(client.clientName) : "Unknown MCP Client";
+	console.log("Sanitized client name:", clientName);
 	const serverDescription = server.description ? sanitizeHtml(server.description) : "";
 
 	// Safe URLs
 	const logoUrl = server.logo ? sanitizeHtml(server.logo) : "";
+	console.log("Sanitized logo URL:", logoUrl.substring(0, 100)); // Log first 100 chars for brevity
 	const clientUri = client?.clientUri ? sanitizeHtml(client.clientUri) : "";
+	console.log("Sanitized client URI:", clientUri.substring(0, 100)); // Log first 100 chars for brevity
 	const policyUri = client?.policyUri ? sanitizeHtml(client.policyUri) : "";
+	console.log("Sanitized policy URI:", policyUri.substring(0, 100)); // Log first 100 chars for brevity
 	const tosUri = client?.tosUri ? sanitizeHtml(client.tosUri) : "";
+	console.log("Sanitized TOS URI:", tosUri.substring(0, 100)); // Log first 100 chars for brevity
 
 	// Client contacts
+	console.log("Sanitizing client contacts");
 	const contacts =
 		client?.contacts && client.contacts.length > 0
 			? sanitizeHtml(client.contacts.join(", "))
 			: "";
+	console.log("Sanitized contacts:", contacts.substring(0, 100)); // Log first 100 chars for brevity
 
 	// Get redirect URIs
+	console.log("Sanitizing redirect URIs");
 	const redirectUris =
 		client?.redirectUris && client.redirectUris.length > 0
 			? client.redirectUris.map((uri) => sanitizeHtml(uri))
 			: [];
+	console.log("Sanitized redirect URIs:", redirectUris.slice(0, 3)); // Log first 3 for brevity
 
 	// Generate HTML for the approval dialog
 	const htmlContent = `
@@ -470,9 +484,8 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
                 </div>
               </div>
               
-              ${
-					clientUri
-						? `
+              ${clientUri
+			? `
                 <div class="client-detail">
                   <div class="detail-label">Website:</div>
                   <div class="detail-value small">
@@ -482,12 +495,11 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
                   </div>
                 </div>
               `
-						: ""
-				}
+			: ""
+		}
               
-              ${
-					policyUri
-						? `
+              ${policyUri
+			? `
                 <div class="client-detail">
                   <div class="detail-label">Privacy Policy:</div>
                   <div class="detail-value">
@@ -497,12 +509,11 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
                   </div>
                 </div>
               `
-						: ""
-				}
+			: ""
+		}
               
-              ${
-					tosUri
-						? `
+              ${tosUri
+			? `
                 <div class="client-detail">
                   <div class="detail-label">Terms of Service:</div>
                   <div class="detail-value">
@@ -512,12 +523,11 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
                   </div>
                 </div>
               `
-						: ""
-				}
+			: ""
+		}
               
-              ${
-					redirectUris.length > 0
-						? `
+              ${redirectUris.length > 0
+			? `
                 <div class="client-detail">
                   <div class="detail-label">Redirect URIs:</div>
                   <div class="detail-value small">
@@ -525,19 +535,18 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
                   </div>
                 </div>
               `
-						: ""
-				}
+			: ""
+		}
               
-              ${
-					contacts
-						? `
+              ${contacts
+			? `
                 <div class="client-detail">
                   <div class="detail-label">Contact:</div>
                   <div class="detail-value">${contacts}</div>
                 </div>
               `
-						: ""
-				}
+			: ""
+		}
             </div>
             
             <p>This MCP Client is requesting to be authorized on ${serverName}. If you approve, you will be redirected to complete authentication.</p>
@@ -555,7 +564,7 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
       </body>
     </html>
   `;
-
+	console.log("Generated HTML content for approval dialog");
 	return new Response(htmlContent, {
 		headers: {
 			"Content-Type": "text/html; charset=utf-8",
@@ -626,7 +635,7 @@ export async function parseRedirectApproval(
 	// Sign the updated list
 	const payload = JSON.stringify(updatedApprovedClients);
 	const key = await importKey(cookieSecret);
-	const signature = await signWithVault(key, payload);
+	const signature = await signWithHmacSha256(key, payload);
 	const newCookieValue = `${signature}.${btoa(payload)}`; // signature.base64(payload)
 
 	// Generate Set-Cookie header
