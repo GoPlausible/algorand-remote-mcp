@@ -328,17 +328,15 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
           }
           
           .header {
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            text-align: center;
             margin-bottom: 1.5rem;
           }
           
           .logo {
-            width: 48px;
-            height: 48px;
-            margin-right: 1rem;
-            border-radius: 8px;
+            width: 200px;
+            height: auto;
+            margin: 0 auto 1.5rem;
+            display: block;
             object-fit: contain;
           }
           
@@ -466,7 +464,7 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
           <div class="precard">
             <div class="header">
               ${logoUrl ? `<img src="${logoUrl}" alt="${serverName} Logo" class="logo">` : ""}
-            <h1 class="title"><strong>${serverName}</strong></h1>
+              <h1 class="title"><strong>${serverName}</strong></h1>
             </div>
             
             ${serverDescription ? `<p class="description">${serverDescription}</p>` : ""}
