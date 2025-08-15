@@ -29,8 +29,8 @@ app.get("/authorize", async (c) => {
 	return renderApprovalDialog(c.req.raw, {
 		client: await c.env.OAUTH_PROVIDER.lookupClient(clientId),
 		server: {
-			description: "Algorand MCP Remote Server OAuth for Google, by GoPlausible!",
-			name: "GoPlausible's OAuth",
+			description: "Algorand MCP Remote Server Authentication using OAuth 2 protocol",
+			name: "Algorand Remote MCP OAuth",
 			// Using the GoPlausible logo as a base64 data URL
 			// To generate this data URL:
 			// 1. Use a tool like https://www.base64-image.de/ to convert your logo to base64
