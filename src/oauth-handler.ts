@@ -1,4 +1,4 @@
-import type { AuthRequest, OAuthHelpers } from "@cloudflare/workers-oauth-provider";
+import type { AuthRequest, OAuthHelpers } from "./oauth-provider";
 import { type Context, Hono } from "hono";
 import { fetchUpstreamAuthToken, getUpstreamAuthorizeUrl, type Props } from "./utils/oauth-utils";
 import {

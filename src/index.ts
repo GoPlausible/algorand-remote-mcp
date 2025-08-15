@@ -3,7 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { Env, State, Props, VaultResponse } from './types';
 import { ResponseProcessor } from './utils';
-import OAuthProvider from "@cloudflare/workers-oauth-provider";
+import OAuthProvider from "./oauth-provider";
 import { OauthHandler } from "./oauth-handler";
 // import algosdk from 'algosdk';
 import {
