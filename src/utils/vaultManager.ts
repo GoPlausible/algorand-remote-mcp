@@ -219,21 +219,20 @@ export async function getUserAddress(env: Env, email: string | undefined): Promi
  * @param email User email
  * @returns Promise resolving to account type
  */
-export async function ensureUserAccount(env: Env, email: string | undefined): Promise<any> {
+export async function ensureUserAccount(env: Env, email: string | undefined, provider: string | undefined): Promise<any> {
   console.log('Ensuring user account for email:', email);
-  if (!email || email === '' || !env.VAULT_ENTITIES) {
-    console.error('No email provided for account creation');
+  if (!email || email === '' || !env.VAULT_ENTITIES || !provider) {
+    console.error('No email provided for account ensurance');
     return null;
   }
 
   if (!env) {
-    console.error('Environment not provided for account creation');
+    console.error('Environment not provided for account ensurance');
     return null;
   }
+  console.log(`Checking for existing entity in VAULT_ENTITIES for email: ${email} provider: ${provider}`);
 
   let entityId: string | null = null;
-
-  console.log(`Checking for existing entity in VAULT_ENTITIES for email: ${email}`);
   try {
     entityId = await env.VAULT_ENTITIES.get(email);
     console.log(`Entity ID for ${email} from KV store:`, entityId);
@@ -244,7 +243,7 @@ export async function ensureUserAccount(env: Env, email: string | undefined): Pr
   // If no entity exists, create one
   if (!entityId) {
     console.log(`Creating new entity for ${email}`);
-    const entityResult = await createNewEntity(env, email);
+    const entityResult = await createNewEntity(env, email, provider);
 
     if (!entityResult.success) {
       console.error('Failed to create entity:', entityResult.error);
@@ -279,7 +278,7 @@ export async function ensureUserAccount(env: Env, email: string | undefined): Pr
  * @param email User email to use as entity name and for metadata
  * @returns Promise resolving to entity creation status and token
  */
-export async function createNewEntity(env: Env, email: string): Promise<EntityResponse> {
+export async function createNewEntity(env: Env, email: string, provider: string): Promise<EntityResponse> {
   if (!env.HCV_WORKER || !email) {
     console.error('Hashicorp Vault worker not configured or email not provided');
     return { success: false, error: 'Hashicorp Vault worker not configured or email not provided' };
@@ -287,7 +286,7 @@ export async function createNewEntity(env: Env, email: string): Promise<EntityRe
 
   try {
     // Check if the entity already exists
-    const existingEntityCheck = await checkIdentityEntity(env, email);
+    const existingEntityCheck = await checkIdentityEntity(env, email, provider);
     if (existingEntityCheck && existingEntityCheck.success && existingEntityCheck.entityDetails?.id) {
       console.log(`Entity already exists for email: ${email}`);
       if (env.VAULT_ENTITIES) {
@@ -297,7 +296,7 @@ export async function createNewEntity(env: Env, email: string): Promise<EntityRe
     }
     console.log(`Creating new entity in vault for email: ${email}`);
     // Step 1: Create the Entity
-    const createEntityResponse = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/v1/identity/entity`, {
+    const createEntityResponse = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/${provider}/v1/identity/entity`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -420,7 +419,7 @@ export async function createNewEntity(env: Env, email: string): Promise<EntityRe
  * @param entityId ID of the entity to check
  * @returns Promise resolving to entity check status and details if it exists
  */
-export async function checkIdentityEntity(env: Env, entityId: string): Promise<EntityCheckResponse> {
+export async function checkIdentityEntity(env: Env, entityId: string, provider: string): Promise<EntityCheckResponse> {
   if (!env.HCV_WORKER || !entityId) {
     console.error('Hashicorp Vault worker not configured or entity ID not provided');
     return { success: false, exists: false, error: 'Hashicorp Vault worker not configured or entity ID not provided' };
@@ -428,7 +427,7 @@ export async function checkIdentityEntity(env: Env, entityId: string): Promise<E
 
   try {
     // Make a GET request to the entity endpoint with the provided ID
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/v1/identity/entity/id/${entityId}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/${provider}/v1/identity/entity/id/${entityId}`, {
       method: 'GET'
     });
 

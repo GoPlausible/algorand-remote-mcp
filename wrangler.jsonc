@@ -77,9 +77,11 @@
   // "secrets": {
   //   "ALGORAND_TOKEN": "your_algorand_token_here",
   //   "VAULT_OIDC_ACCESSOR": "your_vault_oidc_accessor_here",
-  //   "HCV_TOKEN": "your_hashicorp_vault_token_here"
+  //   "HCV_TOKEN": "your_hashicorp_vault_token_here",
   //   "GOOGLE_CLIENT_SECRET": "your_google_client_secret_here",
-  //   "GOOGLE_CLIENT_ID": "your_google_client_id_here"
+  //   "GOOGLE_CLIENT_ID": "your_google_client_id_here",
+  //   "GITHUB_CLIENT_SECRET": "your_github_client_secret_here",
+  //   "GITHUB_CLIENT_ID": "your_github_client_id_here",
   //   "COOKIE_ENCRYPTION_KEY": "your_cookie_encryption_key_here"
 
   /**

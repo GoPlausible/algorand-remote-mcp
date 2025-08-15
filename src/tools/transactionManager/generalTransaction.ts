@@ -49,7 +49,7 @@ function ConcatArrays(...arrs: ArrayLike<number>[]) {
 export async function registerGeneralTransactionTools(server: McpServer, env: Env, props: Props): Promise<void> {
   // Ensure user has a vault-based account
   try {
-    const accType = await ensureUserAccount(env, props.email);
+    const accType = await ensureUserAccount(env, props.email, props.provider || 'google');
     console.log(`User has a ${accType}-based account`);
   } catch (error: any) {
     throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
@@ -140,7 +140,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
       try {
 
         // Ensure user has an account
-        await ensureUserAccount(env, props.email || '');
+        await ensureUserAccount(env, props.email || '', props.provider || 'google');
 
         // For vault-based accounts, we need to manually construct the signed transaction
 

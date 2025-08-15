@@ -47,7 +47,7 @@ function getAccountFromMnemonic(mnemonic: string | undefined): algosdk.Account |
 export async function registerWalletResources(server: McpServer, env: Env, props: Props): Promise<void> {
   // Ensure user has a vault-based account 
   try {
-    const accType = await ensureUserAccount(env, props.email);
+    const accType = await ensureUserAccount(env, props.email, props.provider || 'google');
     console.log(`User has a ${accType}-based account`);
   } catch (error: any) {
     throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);

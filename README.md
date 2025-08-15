@@ -199,7 +199,6 @@ HCV_WORKER_URL=https://your-hashicorp-vault-worker.workers.dev
 │   │   └── transactionManager/   # Transaction tools
 │   └── utils/                    # Utilities
 │       ├── Guide.js              # Guide content
-│       ├── oauth-utils.ts        # OAuth utilities
 │       ├── vaultManager.ts       # HashiCorp Vault utilities for secret storage and cryptographic operations
 │       └── responseProcessor.ts  # Response formatting
 ```

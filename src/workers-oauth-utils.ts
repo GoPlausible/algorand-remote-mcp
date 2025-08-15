@@ -159,26 +159,52 @@ async function getApprovedClientsFromCookie(
 // --- Exported Functions ---
 
 /**
+ * Result of checking if a client ID has already been approved
+ */
+export interface ApprovalCheckResult {
+	/** Whether the client ID has been approved */
+	approved: boolean;
+	/** The preferred provider for this client, if available */
+	provider?: string;
+}
+
+/**
  * Checks if a given client ID has already been approved by the user,
  * based on a signed cookie.
  *
  * @param request - The incoming Request object to read cookies from.
  * @param clientId - The OAuth client ID to check approval for.
  * @param cookieSecret - The secret key used to sign/verify the approval cookie.
- * @returns A promise resolving to true if the client ID is in the list of approved clients in a valid cookie, false otherwise.
+ * @returns A promise resolving to an object containing approval status and provider preference.
  */
 export async function clientIdAlreadyApproved(
 	request: Request,
 	clientId: string,
 	cookieSecret: string,
-): Promise<boolean> {
+): Promise<ApprovalCheckResult> {
 	console.log("Checking if client ID is already approved:", clientId);
-	if (!clientId) return false;
+	if (!clientId) return { approved: false };
+	
 	const cookieHeader = request.headers.get("Cookie");
 	const approvedClients = await getApprovedClientsFromCookie(cookieHeader, cookieSecret);
 	console.log("Approved clients from cookie:", approvedClients);
-
-	return approvedClients?.includes(clientId) ?? false;
+	
+	// Check for provider preference cookie
+	let provider = "google"; // Default provider
+	try {
+		const cookies = cookieHeader ? cookieHeader.split(';').map(c => c.trim()) : [];
+		const providerCookie = cookies.find(c => c.startsWith('mcp-provider-preference='));
+		if (providerCookie) {
+			provider = providerCookie.split('=')[1];
+		}
+	} catch (error) {
+		console.error("Error reading provider preference cookie:", error);
+	}
+	
+	return {
+		approved: approvedClients?.includes(clientId) ?? false,
+		provider
+	};
 }
 
 /**
@@ -676,22 +702,23 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
             
             <form method="post" action="${new URL(request.url).pathname}">
               <input type="hidden" name="state" value="${encodedState}">
+              <!-- Add a hidden field to store the provider preference in the approval form -->
+              <input type="hidden" name="provider_preference" id="provider_preference" value="google">
               
               <div class="auth-providers">
-                <button type="submit" class="provider-button" style="background-color: #f8f9fa; border-color: #dadce0; color: #3c4043; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
+                <button type="submit" class="provider-button" style="background-color: #f8f9fa; border-color: #dadce0; color: #3c4043; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);" name="provider" value="google" onclick="document.getElementById('provider_preference').value='google';">
                   <img src="https://www.gstatic.com/marketing-cms/assets/images/d5/dc/cfe9ce8b4425b410b49b7f2dd3f3/g.webp" alt="Google Logo" class="provider-logo">
                   <span>Continue with Google</span>
+                </button>
+                
+                <button type="submit" class="provider-button" style="background-color: #ffffff; border-color: #e1e4e8; color: #24292e; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);" name="provider" value="github" onclick="document.getElementById('provider_preference').value='github';">
+                  <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub Logo" class="provider-logo">
+                  <span>Continue with GitHub</span>
                 </button>
                 
                 <button type="button" class="provider-button disabled" disabled>
                   <img src="https://about.twitter.com/content/dam/about-twitter/x/brand-toolkit/logo-black.png.twimg.1920.png" alt="X Logo" class="provider-logo">
                   <span>Continue with X</span>
-                  <span class="coming-soon">Coming soon</span>
-                </button>
-                
-                <button type="button" class="provider-button disabled" disabled>
-                  <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub Logo" class="provider-logo">
-                  <span>Continue with GitHub</span>
                   <span class="coming-soon">Coming soon</span>
                 </button>
                 
@@ -755,6 +782,7 @@ export async function parseRedirectApproval(
 	try {
 		const formData = await request.formData();
 		const encodedState = formData.get("state");
+		const providerPreference = formData.get("provider_preference") || "google";
 
 		if (typeof encodedState !== "string" || !encodedState) {
 			throw new Error("Missing or invalid 'state' in form data.");
@@ -766,6 +794,9 @@ export async function parseRedirectApproval(
 		if (!clientId) {
 			throw new Error("Could not extract clientId from state object.");
 		}
+		
+		// Add the provider preference to the state for use in the GET handler
+		state.providerPreference = providerPreference;
 	} catch (e) {
 		console.error("Error processing form submission:", e);
 		// Rethrow or handle as appropriate, maybe return a specific error response
@@ -788,10 +819,18 @@ export async function parseRedirectApproval(
 	const signature = await signWithHmacSha256(key, payload);
 	const newCookieValue = `${signature}.${btoa(payload)}`; // signature.base64(payload)
 
-	// Generate Set-Cookie header
+	// Generate Set-Cookie headers
 	const headers: Record<string, string> = {
 		"Set-Cookie": `${COOKIE_NAME}=${newCookieValue}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${ONE_YEAR_IN_SECONDS}`,
 	};
+	
+	// Add provider preference cookie
+	if (state.providerPreference) {
+		headers["Set-Cookie"] = [
+			headers["Set-Cookie"],
+			`mcp-provider-preference=${state.providerPreference}; Secure; Path=/; SameSite=Lax; Max-Age=${ONE_YEAR_IN_SECONDS}`
+		].join(", ");
+	}
 
 	return { headers, state };
 }
@@ -809,3 +848,131 @@ function sanitizeHtml(unsafe: string): string {
 		.replace(/"/g, "&quot;")
 		.replace(/'/g, "&#039;");
 }
+
+/**
+ * Constructs an authorization URL for an upstream service.
+ *
+ * @param {Object} options
+ * @param {string} options.upstream_url - The base URL of the upstream service.
+ * @param {string} options.client_id - The client ID of the application.
+ * @param {string} options.redirect_uri - The redirect URI of the application.
+ * @param {string} [options.state] - The state parameter.
+ * @param {string} [options.hosted_domain] - The hosted domain parameter.
+ *
+ * @returns {string} The authorization URL.
+ */
+export function getUpstreamAuthorizeUrl({
+	upstreamUrl,
+	clientId,
+	scope,
+	redirectUri,
+	state,
+	hostedDomain,
+}: {
+	upstreamUrl: string;
+	clientId: string;
+	scope: string;
+	redirectUri: string;
+	state?: string;
+	hostedDomain?: string;
+}) {
+	const upstream = new URL(upstreamUrl);
+	upstream.searchParams.set("client_id", clientId);
+	upstream.searchParams.set("redirect_uri", redirectUri);
+	upstream.searchParams.set("scope", scope);
+	upstream.searchParams.set("response_type", "code");
+	if (state) upstream.searchParams.set("state", state);
+	if (hostedDomain) upstream.searchParams.set("hd", hostedDomain);
+	return upstream.href;
+}
+
+/**
+ * Fetches an authorization token from an upstream service.
+ *
+ * @param {Object} options
+ * @param {string} options.client_id - The client ID of the application.
+ * @param {string} options.client_secret - The client secret of the application.
+ * @param {string} options.code - The authorization code.
+ * @param {string} options.redirect_uri - The redirect URI of the application.
+ * @param {string} options.upstream_url - The token endpoint URL of the upstream service.
+ * @param {string} options.grant_type - The grant type.
+ *
+ * @returns {Promise<[string, null] | [null, Response]>} A promise that resolves to an array containing the access token or an error response.
+ */
+export async function fetchUpstreamAuthToken({
+	clientId,
+	clientSecret,
+	code,
+	redirectUri,
+	upstreamUrl,
+	grantType,
+}: {
+	code: string | undefined;
+	upstreamUrl: string;
+	clientSecret: string;
+	redirectUri: string;
+	clientId: string;
+	grantType: string;
+}): Promise<[string, null] | [null, Response]> {
+	if (!code) {
+		return [null, new Response("Missing code", { status: 400 })];
+	}
+
+	// Determine if this is a GitHub request based on the URL
+	const isGitHub = upstreamUrl.includes('github.com');
+	
+	// Create appropriate parameters based on the provider
+	const params: Record<string, string> = isGitHub ? {
+		// GitHub uses standard OAuth parameter names
+		client_id: clientId,
+		client_secret: clientSecret,
+		code,
+		redirect_uri: redirectUri
+	} : {
+		// Google uses our custom parameter names
+		clientId,
+		clientSecret,
+		code,
+		grantType,
+		redirectUri,
+	};
+
+	const headers: Record<string, string> = {
+		"Content-Type": "application/x-www-form-urlencoded"
+	};
+	
+	// GitHub requires Accept header for JSON response
+	if (isGitHub) {
+		headers["Accept"] = "application/json";
+	}
+
+	const resp = await fetch(upstreamUrl, {
+		body: new URLSearchParams(params).toString(),
+		headers,
+		method: "POST",
+	});
+	
+	if (!resp.ok) {
+		console.error(`Failed to fetch access token: ${await resp.text()}`);
+		return [null, new Response("Failed to fetch access token", { status: 500 })];
+	}
+
+	interface authTokenResponse {
+		access_token: string;
+	}
+
+	const body = (await resp.json()) as authTokenResponse;
+	if (!body.access_token) {
+		return [null, new Response("Missing access token", { status: 400 })];
+	}
+	return [body.access_token, null];
+}
+
+// Context from the auth process, encrypted & stored in the auth token
+// and provided to the AlgorandRemoteMCP as this.props
+export type Props = {
+	name: string;
+	email: string;
+	accessToken: string;
+	provider: string; // 'google' or 'github' or 'twitter' or 'linkedin'
+};

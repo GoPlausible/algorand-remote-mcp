@@ -499,6 +499,7 @@ export interface Props extends Record<string, unknown> {
 	name: string;
 	email: string;
 	accessToken: string;
+  provider: string; // 'google' or 'github' or 'twitter' or 'linkedin'
 }
 /**
  * Interface for Vault API responses

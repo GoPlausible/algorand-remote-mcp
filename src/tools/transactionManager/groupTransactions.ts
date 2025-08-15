@@ -307,7 +307,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
       try {
         // Ensure user has an account
         try {
-          await ensureUserAccount(env, props.email || '');
+          await ensureUserAccount(env, props.email || '', props.provider || 'google');
           console.log(`Ensured user account for ${props.email || keyName}`);
         } catch (error: any) {
           throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
