@@ -325,8 +325,9 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
           .card {
             background-color: var(--background-color);
             border-radius: 8px;
-            box-shadow: var(--card-shadow);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
             padding: 2rem;
+            border: 1px solid #e0e0e0;
           }
           
           .header {
@@ -375,10 +376,12 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
           }
           
           .client-info {
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 1rem 1rem 0.5rem;
-            margin-bottom: 1.5rem;
+            border: 1px solid #d0d0d0;
+            border-radius: 8px;
+            padding: 1.25rem 1.25rem 0.75rem;
+            margin-bottom: 2rem;
+            background-color: #fafafa;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
           }
           
           .client-name {
@@ -426,12 +429,19 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
           }
           
           .button {
-            padding: 0.75rem 1.5rem;
-            border-radius: 6px;
+            padding: 0.9rem 1.75rem;
+            border-radius: 8px;
             font-weight: 500;
             cursor: pointer;
             border: none;
             font-size: 1rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+          }
+          
+          .button:hover {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            transform: translateY(-1px);
           }
           
           .button-primary {
@@ -440,43 +450,57 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
           }
           
           .button-secondary {
-            background-color: transparent;
-            border: 1px solid var(--border-color);
+            background-color: #f5f5f5;
+            border: 1px solid #d0d0d0;
             color: var(--text-color);
+          }
+          
+          .button-secondary:hover {
+            background-color: #ebebeb;
           }
           
           .auth-providers {
             display: flex;
             flex-direction: column;
             gap: 1rem;
-            margin-bottom: 1.5rem;
+            margin: 1.5rem 0 2rem;
+            padding: 1.25rem;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
           }
           
           .provider-button {
             display: flex;
             align-items: center;
-            padding: 0.75rem 1rem;
-            border-radius: 6px;
-            border: 1px solid var(--border-color);
+            padding: 1rem 1.25rem;
+            border-radius: 8px;
+            border: 1px solid #d0d0d0;
             background-color: white;
             cursor: pointer;
-            transition: background-color 0.2s, box-shadow 0.2s;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-bottom: 0.5rem;
+            font-weight: 500;
           }
           
           .provider-button:hover {
             background-color: #f9fafb;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transform: translateY(-1px);
           }
           
           .provider-button.disabled {
-            opacity: 0.6;
+            opacity: 0.7;
             cursor: not-allowed;
             position: relative;
+            background-color: #f9f9f9;
           }
           
           .provider-button.disabled:hover {
-            background-color: white;
-            box-shadow: none;
+            background-color: #f9f9f9;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            transform: none;
           }
           
           .coming-soon {
@@ -490,9 +514,9 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
           }
           
           .provider-logo {
-            width: 24px;
-            height: 24px;
-            margin-right: 1rem;
+            width: 28px;
+            height: 28px;
+            margin-right: 1.25rem;
             object-fit: contain;
           }
           
@@ -654,8 +678,8 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
               <input type="hidden" name="state" value="${encodedState}">
               
               <div class="auth-providers">
-                <button type="submit" class="provider-button">
-                  <img src="https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png" alt="Google Logo" class="provider-logo">
+                <button type="submit" class="provider-button" style="background-color: #f8f9fa; border-color: #dadce0; color: #3c4043; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
+                  <img src="https://www.gstatic.com/marketing-cms/assets/images/d5/dc/cfe9ce8b4425b410b49b7f2dd3f3/g.webp" alt="Google Logo" class="provider-logo">
                   <span>Continue with Google</span>
                 </button>
                 
