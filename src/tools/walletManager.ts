@@ -66,7 +66,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
     async () => {
       try {
         const publicKeyResult = await getPublicKey(env, props.email);
-        await env.PUBLIC_KEY_CACHE.delete(props.email); // Clear cache for the user
+        
         if (publicKeyResult.success && !publicKeyResult.error) {
           // For vault-based accounts, create a new keypair in the vault
           console.log('Creating new vault-based keypair for user:', props.email);
@@ -76,6 +76,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
           // Create new keypair
           await deleteKeypair(env, props.email);
+          await env.PUBLIC_KEY_CACHE.delete(props.email); // Clear cache for the user
           const keypairResult = await createKeypair(env, props.email);
 
           if (!keypairResult.success) {
