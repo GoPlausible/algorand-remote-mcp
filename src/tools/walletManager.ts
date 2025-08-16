@@ -389,24 +389,17 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
   server.tool(
     'logout',
     'Logout from the OAuth provider and clear authentication cookies',
-    {
-      revokeToken: z.boolean().optional().describe('Whether to revoke the upstream token (default: true)'),
-      redirectUrl: z.string().optional().describe('URL to redirect to after logout')
-    },
-    async ({ revokeToken = true, redirectUrl }) => {
+    {},
+    async () => {
       try {
         // Build the logout URL with the base URL from the environment or a default
-        const baseUrl = new URL(env.ALGORAND_ALGOD || 'https://algorandmcp.goplausible.xyz');
+        const baseUrl = new URL( 'https://algorandmcp.goplausible.xyz');
         const logoutUrl = new URL('/logout', baseUrl.origin);
         
-        // Add query parameters
-        if (revokeToken && props?.accessToken && props?.provider) {
+        // Add query parameters - always revoke token if available
+        if (props?.accessToken && props?.provider) {
           logoutUrl.searchParams.set('token', props.accessToken);
           logoutUrl.searchParams.set('provider', props.provider);
-        }
-        
-        if (redirectUrl) {
-          logoutUrl.searchParams.set('redirect', redirectUrl);
         }
         
         console.log(`Calling logout endpoint: ${logoutUrl.toString()}`);
@@ -419,11 +412,12 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         if (!response.ok) {
           throw new Error(`Logout failed with status: ${response.status}`);
         }
+        await env.PUBLIC_KEY_CACHE.delete(props.email); // Clear cache for the user
         
+        // Return response without redirectUrl
         return ResponseProcessor.processResponse({
           success: true,
-          message: 'Successfully logged out',
-          redirectUrl: redirectUrl || '/authorize?force=1'
+          message: 'Successfully logged out'
         });
       } catch (error: any) {
         return {
