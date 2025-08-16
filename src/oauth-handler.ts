@@ -484,25 +484,45 @@ app.all("/logout", async (c) => {
   const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : undefined;
   const token = url.searchParams.get("token") || bearer || undefined;
 
-  // If we can parse the client, surgically remove it, else nuke cookie.
-  let setCookieHeaders: Record<string, string>;
-  try {
-    const { clientId } = await c.env.OAUTH_PROVIDER.parseAuthRequest(c.req.raw);
-    setCookieHeaders = await removeClientFromApprovedCookie(c.req.raw, c.env.COOKIE_ENCRYPTION_KEY || "", clientId);
-  } catch {
-    setCookieHeaders = clearApprovedClientsCookie();
+  console.log("Logout request:", { provider, hasToken: !!token, auth: !!auth, bearer: !!bearer });
+
+  // Always clear the approved clients cookie to ensure the consent screen appears
+  const setCookieHeaders = clearApprovedClientsCookie();
+
+  // Only attempt token revocation if we have both provider and token
+  if (revoke && provider && token) {
+    try {
+      const ok = await revokeUpstreamToken(provider, token, c.env, { allGrants: true });
+      console.log("Upstream revocation:", ok ? "ok" : "failed");
+    } catch (error) {
+      console.error("Token revocation error:", error);
+    }
+  } else {
+    console.log("Skipping token revocation:", { 
+      revoke: !!revoke, 
+      provider: provider || "missing", 
+      token: token ? "present" : "missing" 
+    });
   }
 
-  if (revoke && provider && token) {
-    const ok = await revokeUpstreamToken(provider, token, c.env, { allGrants: true });
-    console.log("Upstream revocation:", ok ? "ok" : "failed");
-  }
+  // Also clear the provider preference cookie
+  const providerPreferenceCookie = "mcp-provider-preference=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0";
+  
+  // Combine all cookie headers
+  const allCookieHeaders = {
+    "Set-Cookie": setCookieHeaders["Set-Cookie"] 
+      ? [setCookieHeaders["Set-Cookie"], providerPreferenceCookie].join(", ")
+      : providerPreferenceCookie
+  };
 
   // Return a success response without redirecting
-  return new Response(JSON.stringify({ success: true }), {
+  return new Response(JSON.stringify({ 
+    success: true,
+    message: "Successfully logged out"
+  }), {
     status: 200,
     headers: { 
-      ...setCookieHeaders,
+      ...allCookieHeaders,
       "Content-Type": "application/json"
     }
   });
