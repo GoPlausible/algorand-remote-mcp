@@ -744,10 +744,9 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
                   <span class="coming-soon">Coming soon</span>
                 </button>
                 
-                <button type="button" class="provider-button disabled" disabled>
+                <button type="submit" class="provider-button" style="background-color: #0077b5; border-color: #0077b5; color: #ffffff; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);" name="provider" value="linkedin" onclick="document.getElementById('provider_preference').value='linkedin';">
                   <img src="https://content.linkedin.com/content/dam/me/business/en-us/amp/brand-site/v2/bg/LI-Bug.svg.original.svg" alt="LinkedIn Logo" class="provider-logo">
                   <span>Continue with LinkedIn</span>
-                  <span class="coming-soon">Coming soon</span>
                 </button>
               </div>
               

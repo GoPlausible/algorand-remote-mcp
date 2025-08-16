@@ -261,8 +261,12 @@ app.get("/callback", async (c) => {
 	}
 	interface LinkedInUser {
 		id: string;
-		firstName: string;
-		lastName: string;
+		firstName: {
+			localized?: Record<string, string>;
+		} | string;
+		lastName: {
+			localized?: Record<string, string>;
+		} | string;
 		emailAddress?: string;
 	}
 
@@ -315,8 +319,52 @@ app.get("/callback", async (c) => {
 	} else if (provider === "linkedin") {
 		const linkedInUser = userData as LinkedInUser;
 		id = linkedInUser.id;
-		name = `${linkedInUser.firstName} ${linkedInUser.lastName}`;
-		email = linkedInUser.emailAddress || ""; // LinkedIn API may not return email by default
+		
+		// LinkedIn API returns name in a nested structure
+		let firstName = "";
+		let lastName = "";
+		
+		// Handle the different possible response formats
+		if (linkedInUser.firstName && typeof linkedInUser.firstName === 'object' && 'localized' in linkedInUser.firstName && linkedInUser.firstName.localized) {
+			// New API format with localized names
+			const locales = Object.keys(linkedInUser.firstName.localized);
+			if (locales.length > 0) {
+				firstName = linkedInUser.firstName.localized[locales[0]];
+			}
+		} else if (typeof linkedInUser.firstName === 'string') {
+			// Simple string format
+			firstName = linkedInUser.firstName;
+		}
+		
+		if (linkedInUser.lastName && typeof linkedInUser.lastName === 'object' && 'localized' in linkedInUser.lastName && linkedInUser.lastName.localized) {
+			// New API format with localized names
+			const locales = Object.keys(linkedInUser.lastName.localized);
+			if (locales.length > 0) {
+				lastName = linkedInUser.lastName.localized[locales[0]];
+			}
+		} else if (typeof linkedInUser.lastName === 'string') {
+			// Simple string format
+			lastName = linkedInUser.lastName;
+		}
+		
+		name = `${firstName} ${lastName}`.trim();
+		
+		// LinkedIn API doesn't return email in the basic profile
+		// We need to make a separate request to get the email
+		const emailResponse = await fetch("https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))", {
+			headers: {
+				"Authorization": `Bearer ${accessToken}`,
+				"X-Restli-Protocol-Version": "2.0.0"
+			}
+		});
+		
+		if (emailResponse.ok) {
+			const emailData = await emailResponse.json() as any;
+			email = emailData.elements?.[0]?.["handle~"]?.emailAddress || "";
+		} else {
+			console.error("Failed to fetch LinkedIn email:", await emailResponse.text());
+			email = "";
+		}
 	}
 	else {
 		// Google format
@@ -400,8 +448,19 @@ async function revokeUpstreamToken(
         });
         return resp.ok;
       }
-      // Add LinkedIn if needed:
-      // case "linkedin": { ... }
+      case "linkedin": {
+        // LinkedIn OAuth 2.0 token revocation
+        const resp = await fetch("https://www.linkedin.com/oauth/v2/revoke", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            token,
+            client_id: env.LINKEDIN_CLIENT_ID,
+            client_secret: env.LINKEDIN_CLIENT_SECRET
+          })
+        });
+        return resp.ok || resp.status === 200;
+      }
       default:
         return false;
     }
@@ -444,16 +503,6 @@ app.all("/logout", async (c) => {
   });
 });
 
-// ---- /revoke (optional standalone API) ----
-// POST { provider, token, allGrants?: boolean }
-app.post("/revoke", async (c) => {
-  const body = await c.req.json().catch(() => ({}));
-  const provider = body.provider as string;
-  const token = body.token as string;
-  const allGrants = body.allGrants !== false;
-  if (!provider || !token) return c.text("Missing provider/token", 400);
-  const ok = await revokeUpstreamToken(provider, token, c.env, { allGrants });
-  return c.json({ ok });
-});
+
 
 export { app as OauthHandler };
