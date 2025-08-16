@@ -498,10 +498,13 @@ app.all("/logout", async (c) => {
     console.log("Upstream revocation:", ok ? "ok" : "failed");
   }
 
-  // After logout, bounce to /authorize?force=1 so user picks a new provider
-  return new Response(null, {
-    status: 302,
-    headers: { ...setCookieHeaders, Location: `/authorize?force=1` }
+  // Return a success response without redirecting
+  return new Response(JSON.stringify({ success: true }), {
+    status: 200,
+    headers: { 
+      ...setCookieHeaders,
+      "Content-Type": "application/json"
+    }
   });
 });
 
