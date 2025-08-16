@@ -66,6 +66,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
     async () => {
       try {
         const publicKeyResult = await getPublicKey(env, props.email);
+        await env.PUBLIC_KEY_CACHE.delete(props.email); // Clear cache for the user
         if (publicKeyResult.success && !publicKeyResult.error) {
           // For vault-based accounts, create a new keypair in the vault
           console.log('Creating new vault-based keypair for user:', props.email);
@@ -428,63 +429,6 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           content: [{
             type: 'text',
             text: `Error during logout: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
-
-  // Revoke token with upstream provider
-  server.tool(
-    'revoke_token',
-    'Revoke an OAuth token with the upstream provider',
-    {
-      token: z.string().optional().describe('The token to revoke (defaults to current user token)'),
-      provider: z.string().optional().describe('The provider (google, github, twitter) - defaults to current user provider'),
-      allGrants: z.boolean().optional().describe('Whether to revoke all grants (default: true)')
-    },
-    async ({ token, provider, allGrants = true }) => {
-      try {
-        // Use current user token and provider if not specified
-        const tokenToRevoke = token || props?.accessToken;
-        const providerToUse = provider || props?.provider;
-        
-        if (!tokenToRevoke || !providerToUse || !env.ALGORAND_ALGOD) {
-          throw new Error('No token or provider specified, and no authenticated user session available');
-        }
-        
-        // Build the revoke URL with the base URL from the environment or a default
-        const baseUrl = new URL(env.ALGORAND_ALGOD);
-        const revokeUrl = new URL('/revoke', baseUrl.origin);
-        
-        // Call the revoke endpoint
-        const response = await fetch(revokeUrl.toString(), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            token: tokenToRevoke,
-            provider: providerToUse,
-            allGrants
-          })
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Token revocation failed with status: ${response.status}`);
-        }
-        
-        const result = await response.json() as { ok: boolean };
-        
-        return ResponseProcessor.processResponse({
-          success: result.ok,
-          message: result.ok ? 'Token successfully revoked' : 'Token revocation failed'
-        });
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error revoking token: ${error.message || 'Unknown error'}`
           }]
         };
       }

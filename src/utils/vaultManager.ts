@@ -83,9 +83,15 @@ export async function deleteKeypair(env: Env, keyName: string): Promise<KeypairR
  * @returns Promise resolving to the public key
  */
 export async function getPublicKey(env: Env, keyName: string): Promise<PublicKeyResponse> {
-  if (!env.HCV_WORKER || !keyName) {
+  if (!env.HCV_WORKER || !keyName || !env.PUBLIC_KEY_CACHE) {
     console.error('Hashicorp Vault worker not configured');
     return { success: false, error: 'Hashicorp Vault worker not configured' };
+  }
+  // Check if the public key is cached
+  const cachedKey = await env.PUBLIC_KEY_CACHE.get(keyName);
+  if (cachedKey) {
+    console.log('Public key retrieved from cache:', cachedKey);
+    return { success: true, publicKey: cachedKey };
   }
 
   try {
@@ -101,6 +107,11 @@ export async function getPublicKey(env: Env, keyName: string): Promise<PublicKey
 
     const result = await response.json();
     console.log('Public key retrieved successfully:', result);
+    if (!cachedKey){
+      // Cache the public key for future use
+      await env.PUBLIC_KEY_CACHE.put(keyName, result.public_key/* , { expirationTtl: 3600 } */); // Cache for 1 hour
+      console.log('Public key cached successfully');
+    }
     return { success: true, publicKey: result.public_key };
   } catch (error: any) {
     console.error('Error getting public key from vault:', error.message || 'Unknown error');

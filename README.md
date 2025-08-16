@@ -83,7 +83,6 @@ Algorand Remote MCP is built on the Model Context Protocol (MCP), which provides
 - `get_wallet_publickey`: Get the public key for the configured wallet
 - `reset_wallet_account`: Reset the wallet account for the configured user
 - `logout`: Logout from the OAuth provider and clear authentication cookies
-- `revoke_token`: Revoke an OAuth token with the upstream provider
 
 ### Transaction Management
 - `create_payment_transaction`: Create a payment transaction
@@ -259,7 +258,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 19. `get_wallet_assets` - Get the assets for the configured wallet
 20. `reset_wallet_account` - Reset the wallet account for the configured user
 21. `logout` - Logout from the OAuth provider and clear authentication cookies
-22. `revoke_token` - Revoke an OAuth token with the upstream provider
 
 ### Transaction Operations
 23. `create_payment_transaction` - Create a payment transaction on Algorand

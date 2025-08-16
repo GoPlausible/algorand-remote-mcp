@@ -49,6 +49,10 @@
     {
       "binding": "VAULT_ENTITIES",
       "id": "eb58182f525a4260a51927f03d6b42a8"
+    },
+    {
+      "binding": "PUBLIC_KEY_CACHE",
+      "id": "1638f9e52fd24353a1006929ea34ec65"
     }
   ],
   "observability": {
