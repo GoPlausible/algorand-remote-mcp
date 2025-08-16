@@ -728,7 +728,7 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
               <input type="hidden" name="provider_preference" id="provider_preference" value="google">
               
               <div class="auth-providers">
-                <button type="submit" class="provider-button" style="background-color: #f8f9fa; border-color: #dadce0; color: #3c4043; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);" name="provider" value="google" onclick="document.getElementById('provider_preference').value='google';">
+                <button type="submit" class="provider-button" style="background-color: #ffffff; border-color: #e1e4e8; color: #24292e; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);" name="provider" value="google" onclick="document.getElementById('provider_preference').value='google';">
                   <img src="https://www.gstatic.com/marketing-cms/assets/images/d5/dc/cfe9ce8b4425b410b49b7f2dd3f3/g.webp" alt="Google Logo" class="provider-logo">
                   <span>Continue with Google</span>
                 </button>
@@ -739,12 +739,12 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
                 </button>
                 
                 <button type="button" class="provider-button disabled" disabled>
-                  <img src="https://about.twitter.com/content/dam/about-twitter/x/brand-toolkit/logo-black.png.twimg.1920.png" alt="X Logo" class="provider-logo">
+                  <img src="https://about.x.com/content/dam/about-twitter/x/brand-toolkit/logo-black.png.twimg.1920.png" alt="X Logo" class="provider-logo">
                   <span>Continue with X</span>
                   <span class="coming-soon">Coming soon</span>
                 </button>
                 
-                <button type="submit" class="provider-button" style="background-color: #0077b5; border-color: #0077b5; color: #ffffff; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);" name="provider" value="linkedin" onclick="document.getElementById('provider_preference').value='linkedin';">
+                <button type="submit" class="provider-button" style="background-color: #ffffff; border-color: #e1e4e8; color: #24292e; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);" name="provider" value="linkedin" onclick="document.getElementById('provider_preference').value='linkedin';">
                   <img src="https://content.linkedin.com/content/dam/me/business/en-us/amp/brand-site/v2/bg/LI-Bug.svg.original.svg" alt="LinkedIn Logo" class="provider-logo">
                   <span>Continue with LinkedIn</span>
                 </button>

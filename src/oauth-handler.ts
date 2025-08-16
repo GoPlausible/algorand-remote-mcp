@@ -316,7 +316,7 @@ app.get("/callback", async (c) => {
 		name = twitterUser.username;
 		// Twitter API does not return email by default, so we generate a synthetic email
 		// using the Twitter username to ensure compatibility with the vault-based account system
-		email = `${twitterUser.username}@twitter.com`;
+		email = `${twitterUser.username}`;
 
 	} else if (provider === "linkedin") {
 		const linkedInUser = userData as LinkedInUser;
@@ -440,7 +440,7 @@ async function revokeUpstreamToken(
           token_type_hint: "access_token",
           client_id: env.TWITTER_CLIENT_ID // harmless extra for some implementations
         });
-        const resp = await fetch("https://api.twitter.com/2/oauth2/revoke", {
+        const resp = await fetch("https://api.x.com/2/oauth2/revoke", {
           method: "POST",
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
