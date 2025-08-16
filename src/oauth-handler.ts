@@ -314,7 +314,9 @@ app.get("/callback", async (c) => {
 		const twitterUser = userData as TwitterUser;
 		id = twitterUser.id;
 		name = twitterUser.username;
-		email = ""; // Twitter API does not return email by default
+		// Twitter API does not return email by default, so we generate a synthetic email
+		// using the Twitter username to ensure compatibility with the vault-based account system
+		email = `${twitterUser.username}@twitter.com`;
 
 	} else if (provider === "linkedin") {
 		const linkedInUser = userData as LinkedInUser;
