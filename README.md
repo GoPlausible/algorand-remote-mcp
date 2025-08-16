@@ -18,7 +18,10 @@ The server is designed to run on Cloudflare Workers and provides a comprehensive
 - **Comprehensive Transaction Support**: Create, sign, and submit various transaction types (payments, assets, applications)
 - **API Integration**: Access Algorand node, indexer, and NFD APIs through standardized interfaces
 - **Knowledge Resources**: Access documentation and guides for Algorand development
-- **Google OAuth Authentication**: Secure user authentication through Google OAuth
+- **Multi-Provider OAuth Authentication**: 
+  - Secure user authentication through multiple providers (Google, GitHub, Twitter, LinkedIn)
+  - Complete authentication lifecycle with login, session management, and logout
+  - Token revocation capabilities for enhanced security
 - **Pagination Support**: Handle large datasets with built-in pagination
 - **Standardized Response Formatting**: Consistent response formatting for AI agent consumption
 - **Wallet Reset Capability**: Users can reset their wallet and generate a new one if needed
@@ -79,6 +82,8 @@ Algorand Remote MCP is built on the Model Context Protocol (MCP), which provides
 - `get_wallet_assets`: Get assets owned by the configured wallet
 - `get_wallet_publickey`: Get the public key for the configured wallet
 - `reset_wallet_account`: Reset the wallet account for the configured user
+- `logout`: Logout from the OAuth provider and clear authentication cookies
+- `revoke_token`: Revoke an OAuth token with the upstream provider
 
 ### Transaction Management
 - `create_payment_transaction`: Create a payment transaction
@@ -157,9 +162,11 @@ HCV_WORKER_URL=https://your-hashicorp-vault-worker.workers.dev
 ## Usage
 
 ### Authentication Flow for users
-1. User authenticates through Google OAuth
+1. User authenticates through their preferred OAuth provider (Google, GitHub, Twitter, LinkedIn)
 2. Server creates or retrieves wallet credentials from HashiCorp Vault
 3. User can now access tools and resources through the MCP interface
+4. When finished, user can logout using the `logout` tool, which clears authentication cookies
+5. If needed, tokens can be revoked with the upstream provider using the `revoke_token` tool
 
 ### Transaction Flow for Agents
 
@@ -244,11 +251,15 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 13. `create_account` - Create a new Algorand account
 14. `mnemonic_to_address` - View the address associated with a mnemonic (without storing the private key)
 15. `check_account_balance` - Check the balance of an Algorand account
+
+### Wallet Management
 16. `get_wallet_publickey` - Get the public key for the configured wallet
 17. `get_wallet_address` - Get the address for the configured wallet
 18. `get_wallet_info` - Get the account information for the configured wallet
 19. `get_wallet_assets` - Get the assets for the configured wallet
 20. `reset_wallet_account` - Reset the wallet account for the configured user
+21. `logout` - Logout from the OAuth provider and clear authentication cookies
+22. `revoke_token` - Revoke an OAuth token with the upstream provider
 
 ### Transaction Operations
 23. `create_payment_transaction` - Create a payment transaction on Algorand

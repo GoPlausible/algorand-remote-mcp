@@ -82,6 +82,8 @@
   //   "GOOGLE_CLIENT_ID": "your_google_client_id_here",
   //   "GITHUB_CLIENT_SECRET": "your_github_client_secret_here",
   //   "GITHUB_CLIENT_ID": "your_github_client_id_here",
+  //   "LINKEDIN_CLIENT_SECRET": "your_linkedin_client_secret_here",
+  //   "LINKEDIN_CLIENT_ID": "your_linkedin_client_id_here",
   //   "COOKIE_ENCRYPTION_KEY": "your_cookie_encryption_key_here"
 
   /**

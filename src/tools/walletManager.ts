@@ -92,11 +92,11 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
           const address = algosdk.encodeAddress(publicKeyBuffer);
 
-          const entityId = await env.VAULT_ENTITIES.get(props.email);
+          const entityId = await env.VAULT_ENTITIES?.get(props.email);
           console.log(`Entity ID for ${props.email} from KV store:`, entityId);
           let roleId = null;
           if (entityId) {
-            roleId = await env.VAULT_ENTITIES.get(entityId);
+            roleId = await env.VAULT_ENTITIES?.get(entityId);
             console.log(`Role ID for ${entityId} from KV store:`, roleId);
           }
 
@@ -123,11 +123,11 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           // Convert the public key to an Algorand address
           const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
           const address = algosdk.encodeAddress(publicKeyBuffer);
-          const entityId = await env.VAULT_ENTITIES.get(props.email);
+          const entityId = await env.VAULT_ENTITIES?.get(props.email);
           console.log(`Entity ID for ${props.email} from KV store:`, entityId);
           let roleId = null;
           if (entityId) {
-            roleId = await env.VAULT_ENTITIES.get(entityId);
+            roleId = await env.VAULT_ENTITIES?.get(entityId);
             console.log(`Role ID for ${entityId} from KV store:`, roleId);
           }
 
@@ -163,11 +163,11 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
             }]
           };
         }
-        const entityId = await env.VAULT_ENTITIES.get(props.email);
+        const entityId = await env.VAULT_ENTITIES?.get(props.email);
         console.log(`Entity ID for ${props.email} from KV store:`, entityId);
         let roleId = null;
         if (entityId) {
-          roleId = await env.VAULT_ENTITIES.get(entityId);
+          roleId = await env.VAULT_ENTITIES?.get(entityId);
           console.log(`Role ID for ${entityId} from KV store:`, roleId);
         }
         return ResponseProcessor.processResponse({
@@ -205,12 +205,12 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           };
         }
 
-        const entityId = await env.VAULT_ENTITIES.get(props.email);
+        const entityId = await env.VAULT_ENTITIES?.get(props.email);
         console.log(`Entity ID for ${props.email} from KV store:`, entityId);
 
         let roleId = null;
         if (entityId) {
-          roleId = await env.VAULT_ENTITIES.get(entityId);
+          roleId = await env.VAULT_ENTITIES?.get(entityId);
         }
         console.log(`Role ID for ${entityId} from KV store:`, roleId);
 
@@ -236,11 +236,11 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
     {},
     async () => {
       try {
-        const entityId = await env.VAULT_ENTITIES.get(props.email);
+        const entityId = await env.VAULT_ENTITIES?.get(props.email);
         console.log(`Entity ID for ${props.email} from KV store:`, entityId);
         let roleId = null;
         if (entityId) {
-          roleId = await env.VAULT_ENTITIES.get(entityId);
+          roleId = await env.VAULT_ENTITIES?.get(entityId);
         }
 
         console.log(`Role ID for ${entityId} from KV store:`, roleId);
@@ -283,11 +283,11 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           }]
         };
       }
-      const entityId = await env.VAULT_ENTITIES.get(props.email);
+      const entityId = await env.VAULT_ENTITIES?.get(props.email);
       console.log(`Entity ID for ${props.email} from KV store:`, entityId);
       let roleId = null;
       if (entityId) {
-        roleId = await env.VAULT_ENTITIES.get(entityId);
+        roleId = await env.VAULT_ENTITIES?.get(entityId);
       }
 
       try {
@@ -377,6 +377,114 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           content: [{
             type: 'text',
             text: `Failed to get asset info: ${error.message || 'Unknown error'}`
+          }]
+        };
+      }
+    }
+  );
+
+  // Logout from OAuth provider
+  server.tool(
+    'logout',
+    'Logout from the OAuth provider and clear authentication cookies',
+    {
+      revokeToken: z.boolean().optional().describe('Whether to revoke the upstream token (default: true)'),
+      redirectUrl: z.string().optional().describe('URL to redirect to after logout')
+    },
+    async ({ revokeToken = true, redirectUrl }) => {
+      try {
+        // Build the logout URL with the base URL from the environment or a default
+        const baseUrl = new URL(env.ALGORAND_ALGOD || 'https://algorandmcp.goplausible.xyz');
+        const logoutUrl = new URL('/logout', baseUrl.origin);
+        
+        // Add query parameters
+        if (revokeToken && props?.accessToken && props?.provider) {
+          logoutUrl.searchParams.set('token', props.accessToken);
+          logoutUrl.searchParams.set('provider', props.provider);
+        }
+        
+        if (redirectUrl) {
+          logoutUrl.searchParams.set('redirect', redirectUrl);
+        }
+        
+        console.log(`Calling logout endpoint: ${logoutUrl.toString()}`);
+        
+        // Call the logout endpoint
+        const response = await fetch(logoutUrl.toString(), {
+          method: 'GET'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Logout failed with status: ${response.status}`);
+        }
+        
+        return ResponseProcessor.processResponse({
+          success: true,
+          message: 'Successfully logged out',
+          redirectUrl: redirectUrl || '/authorize?force=1'
+        });
+      } catch (error: any) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Error during logout: ${error.message || 'Unknown error'}`
+          }]
+        };
+      }
+    }
+  );
+
+  // Revoke token with upstream provider
+  server.tool(
+    'revoke_token',
+    'Revoke an OAuth token with the upstream provider',
+    {
+      token: z.string().optional().describe('The token to revoke (defaults to current user token)'),
+      provider: z.string().optional().describe('The provider (google, github, twitter) - defaults to current user provider'),
+      allGrants: z.boolean().optional().describe('Whether to revoke all grants (default: true)')
+    },
+    async ({ token, provider, allGrants = true }) => {
+      try {
+        // Use current user token and provider if not specified
+        const tokenToRevoke = token || props?.accessToken;
+        const providerToUse = provider || props?.provider;
+        
+        if (!tokenToRevoke || !providerToUse || !env.ALGORAND_ALGOD) {
+          throw new Error('No token or provider specified, and no authenticated user session available');
+        }
+        
+        // Build the revoke URL with the base URL from the environment or a default
+        const baseUrl = new URL(env.ALGORAND_ALGOD);
+        const revokeUrl = new URL('/revoke', baseUrl.origin);
+        
+        // Call the revoke endpoint
+        const response = await fetch(revokeUrl.toString(), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            token: tokenToRevoke,
+            provider: providerToUse,
+            allGrants
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Token revocation failed with status: ${response.status}`);
+        }
+        
+        const result = await response.json() as { ok: boolean };
+        
+        return ResponseProcessor.processResponse({
+          success: result.ok,
+          message: result.ok ? 'Token successfully revoked' : 'Token revocation failed'
+        });
+      } catch (error: any) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Error revoking token: ${error.message || 'Unknown error'}`
           }]
         };
       }

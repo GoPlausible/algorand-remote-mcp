@@ -6,7 +6,7 @@ import {
 	clientIdAlreadyApproved,
 	parseRedirectApproval,
 	renderApprovalDialog,
-	fetchUpstreamAuthToken, getUpstreamAuthorizeUrl, type Props
+	fetchUpstreamAuthToken, getUpstreamAuthorizeUrl,removeClientFromApprovedCookie,clearApprovedClientsCookie, type Props
 } from "./workers-oauth-utils";
 
 // Extend the Env type to include our OAuth configuration
@@ -346,6 +346,114 @@ app.get("/callback", async (c) => {
 	});
 
 	return Response.redirect(redirectTo);
+});
+
+async function revokeUpstreamToken(
+  provider: string,
+  token: string,
+  env: any,
+  { allGrants = true }: { allGrants?: boolean } = {}
+): Promise<boolean> {
+  try {
+    switch (provider) {
+      case "google": {
+        const resp = await fetch("https://oauth2.googleapis.com/revoke", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ token })
+        });
+        return resp.ok || resp.status === 200;
+      }
+      case "github": {
+        // Revoke the whole grant (kills refresh + access), or just this token
+        // Requires Basic auth with client_id:client_secret
+        const basic = btoa(`${env.GITHUB_CLIENT_ID}:${env.GITHUB_CLIENT_SECRET}`);
+        const endpoint = allGrants
+          ? `https://api.github.com/applications/${env.GITHUB_CLIENT_ID}/grant`
+          : `https://api.github.com/applications/${env.GITHUB_CLIENT_ID}/token`;
+        const resp = await fetch(endpoint, {
+          method: "DELETE",
+          headers: {
+            "Authorization": `Basic ${basic}`,
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "goplausible-remote-mcp"
+          },
+          body: JSON.stringify({ access_token: token })
+        });
+        return resp.status === 204 || resp.status === 200;
+      }
+      case "twitter": {
+        // OAuth 2.0 token revocation (X)
+        const basic = btoa(`${env.TWITTER_CLIENT_ID}:${env.TWITTER_CLIENT_SECRET}`);
+        const body = new URLSearchParams({
+          token,
+          token_type_hint: "access_token",
+          client_id: env.TWITTER_CLIENT_ID // harmless extra for some implementations
+        });
+        const resp = await fetch("https://api.twitter.com/2/oauth2/revoke", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Authorization": `Basic ${basic}`
+          },
+          body
+        });
+        return resp.ok;
+      }
+      // Add LinkedIn if needed:
+      // case "linkedin": { ... }
+      default:
+        return false;
+    }
+  } catch (e) {
+    console.error("Token revocation error:", e);
+    return false;
+  }
+}
+// ---- /logout ----
+// Clears approval cookie so /authorize shows provider picker again.
+// Optionally revokes upstream token if the agent includes it.
+app.all("/logout", async (c) => {
+  const url = new URL(c.req.raw.url);
+  const revoke = 1
+  const provider = url.searchParams.get("provider") || undefined;
+
+  // Try to get access token from Authorization header or query param for convenience.
+  const auth = c.req.header("authorization") || "";
+  const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : undefined;
+  const token = url.searchParams.get("token") || bearer || undefined;
+
+  // If we can parse the client, surgically remove it, else nuke cookie.
+  let setCookieHeaders: Record<string, string>;
+  try {
+    const { clientId } = await c.env.OAUTH_PROVIDER.parseAuthRequest(c.req.raw);
+    setCookieHeaders = await removeClientFromApprovedCookie(c.req.raw, c.env.COOKIE_ENCRYPTION_KEY || "", clientId);
+  } catch {
+    setCookieHeaders = clearApprovedClientsCookie();
+  }
+
+  if (revoke && provider && token) {
+    const ok = await revokeUpstreamToken(provider, token, c.env, { allGrants: true });
+    console.log("Upstream revocation:", ok ? "ok" : "failed");
+  }
+
+  // After logout, bounce to /authorize?force=1 so user picks a new provider
+  return new Response(null, {
+    status: 302,
+    headers: { ...setCookieHeaders, Location: `/authorize?force=1` }
+  });
+});
+
+// ---- /revoke (optional standalone API) ----
+// POST { provider, token, allGrants?: boolean }
+app.post("/revoke", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const provider = body.provider as string;
+  const token = body.token as string;
+  const allGrants = body.allGrants !== false;
+  if (!provider || !token) return c.text("Missing provider/token", 400);
+  const ok = await revokeUpstreamToken(provider, token, c.env, { allGrants });
+  return c.json({ ok });
 });
 
 export { app as OauthHandler };
