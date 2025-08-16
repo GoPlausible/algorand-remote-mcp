@@ -21,7 +21,6 @@ The server is designed to run on Cloudflare Workers and provides a comprehensive
 - **Multi-Provider OAuth Authentication**: 
   - Secure user authentication through multiple providers (Google, GitHub, Twitter, LinkedIn)
   - Complete authentication lifecycle with login, session management, and logout
-  - Token revocation capabilities for enhanced security
 - **Pagination Support**: Handle large datasets with built-in pagination
 - **Standardized Response Formatting**: Consistent response formatting for AI agent consumption
 - **Wallet Reset Capability**: Users can reset their wallet and generate a new one if needed
@@ -165,7 +164,6 @@ HCV_WORKER_URL=https://your-hashicorp-vault-worker.workers.dev
 2. Server creates or retrieves wallet credentials from HashiCorp Vault
 3. User can now access tools and resources through the MCP interface
 4. When finished, user can logout using the `logout` tool, which clears authentication cookies
-5. If needed, tokens can be revoked with the upstream provider using the `revoke_token` tool
 
 ### Transaction Flow for Agents
 
