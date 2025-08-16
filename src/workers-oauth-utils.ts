@@ -186,7 +186,7 @@ export interface ApprovalCheckResult {
 	/** Whether the client ID has been approved */
 	approved: boolean;
 	/** The preferred provider for this client, if available */
-	provider?: string;
+  provider: string;
 }
 
 /**
@@ -204,14 +204,14 @@ export async function clientIdAlreadyApproved(
 	cookieSecret: string,
 ): Promise<ApprovalCheckResult> {
 	console.log("Checking if client ID is already approved:", clientId);
-	if (!clientId) return { approved: false };
+	if (!clientId) return { approved: false, provider: '' };
 	
 	const cookieHeader = request.headers.get("Cookie");
 	const approvedClients = await getApprovedClientsFromCookie(cookieHeader, cookieSecret);
 	console.log("Approved clients from cookie:", approvedClients);
 	
 	// Check for provider preference cookie
-	let provider = "google"; // Default provider
+	let provider = null // Default provider
 	try {
 		const cookies = cookieHeader ? cookieHeader.split(';').map(c => c.trim()) : [];
 		const providerCookie = cookies.find(c => c.startsWith('mcp-provider-preference='));
@@ -224,7 +224,7 @@ export async function clientIdAlreadyApproved(
 	
 	return {
 		approved: approvedClients?.includes(clientId) ?? false,
-		provider
+		provider: provider || null, // Default to Google if no preference set
 	};
 }
 
@@ -904,6 +904,7 @@ export function getUpstreamAuthorizeUrl({
 	upstream.searchParams.set("response_type", "code");
 	if (state) upstream.searchParams.set("state", state);
 	if (hostedDomain) upstream.searchParams.set("hd", hostedDomain);
+  console.log(`Constructed upstream authorization URL: ${upstream.href}`);
 	return upstream.href;
 }
 
