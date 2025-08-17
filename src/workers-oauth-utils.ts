@@ -38,28 +38,7 @@ function decodeState<T = any>(encoded: string): T {
 		throw new Error("Could not decode state");
 	}
 }
-export function clearApprovedClientsCookie(): Record<string, string> {
-  // expire immediately
-  return {
-    "Set-Cookie": `${COOKIE_NAME}=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0`
-  };
-}
 
-export async function removeClientFromApprovedCookie(
-  request: Request,
-  cookieSecret: string,
-  clientId: string
-): Promise<Record<string, string>> {
-  const existing = await getApprovedClientsFromCookie(request.headers.get("Cookie"), cookieSecret) || [];
-  const next = existing.filter(id => id !== clientId);
-  const payload = JSON.stringify(next);
-  const key = await importKey(cookieSecret);
-  const signature = await signWithHmacSha256(key, payload);
-  const value = `${signature}.${btoa(payload)}`;
-  return {
-    "Set-Cookie": `${COOKIE_NAME}=${value}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${ONE_YEAR_IN_SECONDS}`
-  };
-}
 /**
  * Imports a secret key string for HMAC-SHA256 signing.
  * @param secret - The raw secret key string.
@@ -224,7 +203,7 @@ export async function clientIdAlreadyApproved(
 	
 	return {
 		approved: approvedClients?.includes(clientId) ?? false,
-		provider: provider || null, // Default to Google if no preference set
+		provider: provider || null,
 	};
 }
 

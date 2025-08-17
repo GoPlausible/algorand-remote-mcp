@@ -395,6 +395,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         // Build the logout URL with the base URL from the environment or a default
         const baseUrl = new URL('https://algorandmcp.goplausible.xyz');
         const logoutUrl = new URL('/logout', baseUrl.origin);
+        console.log(`Calling Logout URL: ${logoutUrl.toString()}`);
         
         // Add query parameters - always revoke token if available
         if (props?.accessToken && props?.provider) {

@@ -6,7 +6,7 @@ import {
 	clientIdAlreadyApproved,
 	parseRedirectApproval,
 	renderApprovalDialog,
-	fetchUpstreamAuthToken, getUpstreamAuthorizeUrl,removeClientFromApprovedCookie,clearApprovedClientsCookie, type Props
+	fetchUpstreamAuthToken, getUpstreamAuthorizeUrl, type Props
 } from "./workers-oauth-utils";
 
 // Extend the Env type to include our OAuth configuration
@@ -577,11 +577,10 @@ app.all("/logout", async (c) => {
     bearer: !!bearer 
   });
 
-  // Always clear the approved clients cookie to ensure the consent screen appears
-  const setCookieHeaders = clearApprovedClientsCookie();
+
 
   // Only attempt token revocation if we have both provider and token
-  if (revoke && provider && token) {
+  if (provider && token) {
     console.log("About to call revokeUpstreamToken with:", {
       provider,
       tokenLength: token.length,
@@ -603,17 +602,7 @@ app.all("/logout", async (c) => {
     });
   }
 
-  // Clear all cookies related to authentication
-  const cookiesToClear = [
-    // Clear the approved clients cookie
-    clearApprovedClientsCookie()["Set-Cookie"],
-    // Clear the provider preference cookie
-    "mcp-provider-preference=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0",
-    // Clear any session cookies
-    "mcp-session=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0",
-    // Clear any other cookies that might be used for authentication
-    "mcp-auth=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0"
-  ];
+  
   
   // Return a success response with all cookies cleared
   return new Response(JSON.stringify({ 
@@ -623,12 +612,7 @@ app.all("/logout", async (c) => {
   }), {
     status: 200,
     headers: { 
-      "Set-Cookie": cookiesToClear.join(", "),
       "Content-Type": "application/json",
-      // Add cache control headers to prevent caching
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      "Pragma": "no-cache",
-      "Expires": "0"
     }
   });
 });
