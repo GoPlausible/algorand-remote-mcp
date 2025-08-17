@@ -784,7 +784,7 @@ export async function parseRedirectApproval(
 	try {
 		const formData = await request.formData();
 		const encodedState = formData.get("state");
-		const providerPreference = formData.get("provider_preference") || "google";
+		const providerPreference = formData.get("provider_preference");
 
 		if (typeof encodedState !== "string" || !encodedState) {
 			throw new Error("Missing or invalid 'state' in form data.");
