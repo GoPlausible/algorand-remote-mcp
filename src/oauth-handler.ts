@@ -169,7 +169,7 @@ app.get("/callback", async (c) => {
 			clientId = c.env.LINKEDIN_CLIENT_ID || '';
 			clientSecret = c.env.LINKEDIN_CLIENT_SECRET || '';
 			tokenUrl = "https://www.linkedin.com/oauth/v2/accessToken";
-			userInfoUrl = "https://api.linkedin.com/v2/me";
+			userInfoUrl = "https://api.linkedin.com/v2/userinfo";
 			redirectUri = new URL("/callback", c.req.url).href;
 			break;
 		case "google":
@@ -210,14 +210,14 @@ app.get("/callback", async (c) => {
 		headers["Authorization"] = `Bearer ${accessToken}`;
 	} else if (provider === "linkedin") {
 		headers["Authorization"] = `Bearer ${accessToken}`;
-		headers["X-Restli-Protocol-Version"] = "2.0.0";
 	}
 
 	const userResponse = await fetch(userInfoUrl, { headers });
 
 	if (!userResponse.ok) {
-		console.error(`[OAUTH_HANDLER] Failed to fetch user info from ${provider}:`, await userResponse.text());
-		return c.text(`Failed to fetch user info: ${await userResponse.text()}`, 500);
+		let resText = await userResponse.text()
+		console.error(`[OAUTH_HANDLER] Failed to fetch user info from ${provider}: ${resText}`,);
+		return c.text(`Failed to fetch user info: ${resText}`, 500);
 	}
 
 	// Type the user data based on the provider
@@ -239,14 +239,9 @@ app.get("/callback", async (c) => {
 		username: string;
 	}
 	interface LinkedInUser {
-		id: string;
-		firstName: {
-			localized?: Record<string, string>;
-		} | string;
-		lastName: {
-			localized?: Record<string, string>;
-		} | string;
-		emailAddress?: string;
+		sub: string;
+		name: string;
+		email?: string;
 	}
 
 	interface GoogleUser {
@@ -303,52 +298,9 @@ app.get("/callback", async (c) => {
 
 	} else if (provider === "linkedin") {
 		const linkedInUser = userData as LinkedInUser;
-		id = linkedInUser.id;
-
-		// LinkedIn API returns name in a nested structure
-		let firstName = "";
-		let lastName = "";
-
-		// Handle the different possible response formats
-		if (linkedInUser.firstName && typeof linkedInUser.firstName === 'object' && 'localized' in linkedInUser.firstName && linkedInUser.firstName.localized) {
-			// New API format with localized names
-			const locales = Object.keys(linkedInUser.firstName.localized);
-			if (locales.length > 0) {
-				firstName = linkedInUser.firstName.localized[locales[0]];
-			}
-		} else if (typeof linkedInUser.firstName === 'string') {
-			// Simple string format
-			firstName = linkedInUser.firstName;
-		}
-
-		if (linkedInUser.lastName && typeof linkedInUser.lastName === 'object' && 'localized' in linkedInUser.lastName && linkedInUser.lastName.localized) {
-			// New API format with localized names
-			const locales = Object.keys(linkedInUser.lastName.localized);
-			if (locales.length > 0) {
-				lastName = linkedInUser.lastName.localized[locales[0]];
-			}
-		} else if (typeof linkedInUser.lastName === 'string') {
-			// Simple string format
-			lastName = linkedInUser.lastName;
-		}
-
-		name = `${firstName} ${lastName}`.trim();
-
-		// LinkedIn API doesn't return email in the basic profile
-		const emailResponse = await fetch("https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))", {
-			headers: {
-				"Authorization": `Bearer ${accessToken}`,
-				"X-Restli-Protocol-Version": "2.0.0"
-			}
-		});
-
-		if (emailResponse.ok) {
-			const emailData = await emailResponse.json() as any;
-			email = emailData.elements?.[0]?.["handle~"]?.emailAddress || "";
-		} else {
-			console.error("[OAUTH_HANDLER] Failed to fetch LinkedIn email:", await emailResponse.text());
-			email = "";
-		}
+		id = linkedInUser.sub;
+		name = linkedInUser.name;
+		email = `${linkedInUser.email}`;
 	} else {
 		// Google format
 		const googleUser = userData as GoogleUser;
@@ -393,7 +345,7 @@ app.all("/logout", async (c) => {
 	const userId = url.searchParams.get("userId") || undefined;
 	const email = url.searchParams.get("email") || undefined;
 
-	if (!provider || !clientId || !userId || !email) {
+	if (!provider || !clientId || !email) {
 		return c.text("Missing provider, clientId or userId", 400);
 	}
 	console.log("[OAUTH_HANDLER] Received logout request:", {
@@ -404,26 +356,26 @@ app.all("/logout", async (c) => {
 	});
 	await c.env.OAUTH_KV.delete(`client:${clientId}`);
 	console.log("[OAUTH_HANDLER] Deleted client from OAUTH_KV:", clientId);
-	// Delete all tokens for this user and client
-	let tokenList = await c.env.OAUTH_KV.list({ prefix: `token:${userId}` });
-	console.log("[OAUTH_HANDLER] token list:", tokenList);
-	if (tokenList.keys && tokenList.keys.length > 0) {
-		for (const key of tokenList.keys) {
-			console.log("[OAUTH_HANDLER] Deleting token key:", key.name);
-			await c.env.OAUTH_KV.delete(key.name);
+	if (userId) {
+		const grantsList = await c.env.OAUTH_KV.list({ prefix: `grant:${userId}` });
+		console.log("[OAUTH_HANDLER] grants list:", grantsList);
+		if (grantsList.keys && grantsList.keys.length > 0) {
+			for (const key of grantsList.keys) {
+				console.log("[OAUTH_HANDLER] Deleting grant key:", key.name);
+				await c.env.OAUTH_KV.delete(key.name);
+			}
+			console.log("[OAUTH_HANDLER] All grants deleted for user:", userId);
 		}
-		console.log("[OAUTH_HANDLER] Deleted all tokens for user:", userId, "and client:", clientId);
-	}
-
-	
-	const grantsList = await c.env.OAUTH_KV.list({ prefix: `grant:${userId}` });
-	console.log("[OAUTH_HANDLER] grants list:", grantsList);
-	if (grantsList.keys && grantsList.keys.length > 0) {
-		for (const key of grantsList.keys) {
-			console.log("[OAUTH_HANDLER] Deleting grant key:", key.name);
-			await c.env.OAUTH_KV.delete(key.name);
+		// Delete all tokens for this user and client
+		let tokenList = await c.env.OAUTH_KV.list({ prefix: `token:${userId}` });
+		console.log("[OAUTH_HANDLER] token list:", tokenList);
+		if (tokenList.keys && tokenList.keys.length > 0) {
+			for (const key of tokenList.keys) {
+				console.log("[OAUTH_HANDLER] Deleting token key:", key.name);
+				await c.env.OAUTH_KV.delete(key.name);
+			}
+			console.log("[OAUTH_HANDLER] Deleted all tokens for user:", userId, "and client:", clientId);
 		}
-		console.log("[OAUTH_HANDLER] All grants deleted for user:", userId);
 	}
 
 	// Try to get access token from Authorization header or query param for convenience.
