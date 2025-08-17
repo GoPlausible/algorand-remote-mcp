@@ -7,7 +7,8 @@ import {
 	parseRedirectApproval,
 	renderApprovalDialog,
 	redirectToProvider,
-	fetchUpstreamAuthToken, getUpstreamAuthorizeUrl, type Props
+	revokeUpstreamToken,
+	fetchUpstreamAuthToken, type Props
 } from "./workers-oauth-utils";
 
 // Extend the Env type to include our OAuth configuration
@@ -27,6 +28,7 @@ interface OAuthEnv {
 
 const app = new Hono<{ Bindings: Env & OAuthEnv }>();
 
+// Middleware to check if the request is authenticated
 app.get("/authorize", async (c) => {
 	console.log("Received OAuth authorization request");
 	const oauthReqInfo = await c.env.OAUTH_PROVIDER.parseAuthRequest(c.req.raw);
@@ -37,7 +39,6 @@ app.get("/authorize", async (c) => {
 	}
 	console.log("Parsed OAuth request info:", oauthReqInfo);
 
-	// Check if client is already approved and get provider preference
 	const { approved, provider } = await clientIdAlreadyApproved(
 		c.req.raw,
 		oauthReqInfo.clientId,
@@ -63,16 +64,19 @@ app.get("/authorize", async (c) => {
 	});
 });
 
+/**
+ * OAuth Authorization Endpoint
+ *
+ * This route handles the initial authorization request from the client.
+ * It checks if the client ID is already approved and redirects to the
+ * appropriate provider or renders the approval dialog.
+ */
 app.post("/authorize", async (c) => {
-	// Clone the request before passing it to parseRedirectApproval
 	const clonedReq = c.req.raw.clone();
-
-	// Get the selected provider from the form data first
 	const formData = await c.req.formData();
 	const provider = formData.get("provider");
 	console.log(`Selected provider: ${provider}`);
 
-	// Now parse the redirect approval using the cloned request
 	const { state, headers } = await parseRedirectApproval(clonedReq, c.env.COOKIE_ENCRYPTION_KEY || '');
 	if (!state.oauthReqInfo) {
 		console.error("Invalid state in OAuth approval request");
@@ -82,8 +86,6 @@ app.post("/authorize", async (c) => {
 
 	return redirectToProvider(c, provider as string, state.oauthReqInfo, headers);
 });
-
-
 
 /**
  * OAuth Callback Endpoint
@@ -142,13 +144,13 @@ app.get("/callback", async (c) => {
 			redirectUri = new URL("/callback", c.req.url).href;
 			break;
 		case "google":
-		default:
 			clientId = c.env.GOOGLE_CLIENT_ID || '';
 			clientSecret = c.env.GOOGLE_CLIENT_SECRET || '';
 			tokenUrl = "https://accounts.google.com/o/oauth2/token";
 			userInfoUrl = "https://www.googleapis.com/oauth2/v2/userinfo";
 			redirectUri = new URL("/callback", c.req.url).href;
 			break;
+		
 	}
 
 	const [accessToken, errorResponse] = await fetchUpstreamAuthToken({
@@ -244,7 +246,6 @@ app.get("/callback", async (c) => {
 		id = githubUser.id.toString();
 		name = githubUser.name || githubUser.login;
 
-		// GitHub doesn't always return email in the user profile
 		// If email is null or not present, we need to make an additional request
 		if (!githubUser.email) {
 			const emailsResponse = await fetch("https://api.github.com/user/emails", {
@@ -305,7 +306,6 @@ app.get("/callback", async (c) => {
 		name = `${firstName} ${lastName}`.trim();
 
 		// LinkedIn API doesn't return email in the basic profile
-		// We need to make a separate request to get the email
 		const emailResponse = await fetch("https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))", {
 			headers: {
 				"Authorization": `Bearer ${accessToken}`,
@@ -351,147 +351,10 @@ app.get("/callback", async (c) => {
 	return Response.redirect(redirectTo);
 });
 
-async function revokeUpstreamToken(
-	provider: string,
-	token: string,
-	env: any,
-
-): Promise<boolean> {
-	try {
-		console.log(`Attempting to revoke token for provider: ${provider}, token length: ${token.length}`);
-
-		switch (provider) {
-			case "google": {
-				console.log("Using Google revocation endpoint");
-				try {
-					const params = new URLSearchParams({ token });
-					console.log(`Request params: ${params.toString()}`);
-
-					const resp = await fetch("https://oauth2.googleapis.com/revoke", {
-						method: "POST",
-						headers: {
-							"Content-Type": "application/x-www-form-urlencoded"
-						},
-						body: params
-					});
-
-					const responseText = await resp.text();
-					console.log(`Google revocation response: status=${resp.status}, body=${responseText}`);
-
-					return resp.ok || resp.status === 200;
-				} catch (error) {
-					console.error("Error in Google token revocation:", error);
-					return false;
-				}
-			}
-			case "github": {
-				// GitHub token revocation - use the correct endpoint for token revocation
-				console.log("Using GitHub revocation endpoint");
-				const basic = btoa(`${env.GITHUB_CLIENT_ID}:${env.GITHUB_CLIENT_SECRET}`);
-
-				// Use the token endpoint directly instead of the grant endpoint
-				const endpoint = `https://api.github.com/applications/${env.GITHUB_CLIENT_ID}/token`;
-				const endpointGrant = `https://api.github.com/applications/${env.GITHUB_CLIENT_ID}/grant`;
-
-				console.log(`GitHub endpoint: ${endpoint}`);
-
-				try {
-					const resp = await fetch(endpoint, {
-						method: "DELETE",
-						headers: {
-							"Authorization": `Basic ${basic}`,
-							"Accept": "application/vnd.github+json",
-							"User-Agent": "goplausible-remote-mcp"
-						},
-						body: JSON.stringify({ access_token: token })
-					});
-
-					const responseText = await resp.text();
-					console.log(`GitHub token revocation response: status=${resp.status}, body=${responseText}`);
-
-					///////////
-
-					const respGrant = await fetch(endpointGrant, {
-						method: "DELETE",
-						headers: {
-							"Authorization": `Basic ${basic}`,
-							"Accept": "application/vnd.github+json",
-							"User-Agent": "goplausible-remote-mcp"
-						},
-						body: JSON.stringify({ access_token: token })
-					});
-
-					const responseTextGrant = await respGrant.text();
-					console.log(`GitHub grant revocation response: status=${respGrant.status}, body=${responseTextGrant}`);
-
-					// GitHub returns 204 No Content for successful revocation
-					return (resp.status === 204 || resp.status === 200 || resp.status === 404) &&
-						(respGrant.status === 204 || respGrant.status === 200 || respGrant.status === 404);
-				} catch (error) {
-					console.error("Error in GitHub token revocation:", error);
-					return false;
-				}
-			}
-			case "twitter": {
-				// OAuth 2.0 token revocation (X)
-				console.log("Using Twitter revocation endpoint");
-				const basic = btoa(`${env.TWITTER_CLIENT_ID}:${env.TWITTER_CLIENT_SECRET}`);
-				const body = new URLSearchParams({
-					token,
-					token_type_hint: "access_token",
-					client_id: env.TWITTER_CLIENT_ID // harmless extra for some implementations
-				});
-
-				console.log(`Twitter request params: ${body.toString()}`);
-
-				const resp = await fetch("https://api.x.com/2/oauth2/revoke", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/x-www-form-urlencoded",
-						"Authorization": `Basic ${basic}`
-					},
-					body
-				});
-
-				const responseText = await resp.text();
-				console.log(`Twitter revocation response: status=${resp.status}, body=${responseText}`);
-
-				return resp.ok;
-			}
-			case "linkedin": {
-				// LinkedIn OAuth 2.0 token revocation
-				console.log("Using LinkedIn revocation endpoint");
-				const params = new URLSearchParams({
-					token,
-					client_id: env.LINKEDIN_CLIENT_ID,
-					client_secret: env.LINKEDIN_CLIENT_SECRET
-				});
-
-				console.log(`LinkedIn request params: ${params.toString()}`);
-
-				const resp = await fetch("https://www.linkedin.com/oauth/v2/revoke", {
-					method: "POST",
-					headers: { "Content-Type": "application/x-www-form-urlencoded" },
-					body: params
-				});
-
-				const responseText = await resp.text();
-				console.log(`LinkedIn revocation response: status=${resp.status}, body=${responseText}`);
-
-				return resp.ok || resp.status === 200;
-			}
-			default:
-				console.log(`Unknown provider: ${provider}`);
-				return false;
-		}
-	} catch (e) {
-		console.error("Token revocation error:", e);
-		return false;
-	}
-}
-// ---- /logout ----
-// Clears approval cookie so /authorize shows provider picker again.
-// Optionally revokes upstream token if the agent includes it.
+/**
+ * Logout endpoint to clear cookies and revoke tokens
+ * This endpoint is used to log out the user from the OAuth provider
+ */
 app.all("/logout", async (c) => {
 	const url = new URL(c.req.raw.url);
 	const revoke = 1
@@ -530,11 +393,7 @@ app.all("/logout", async (c) => {
 			console.error("Token revocation error:", error);
 		}
 	} else {
-		console.log("Skipping token revocation:", {
-			revoke: !!revoke,
-			provider: provider || "missing",
-			token: token ? "present" : "missing"
-		});
+		return c.text("No provider or no token specified", 400);
 	}
 
 
@@ -551,7 +410,5 @@ app.all("/logout", async (c) => {
 		}
 	});
 });
-
-
 
 export { app as OauthHandler };
