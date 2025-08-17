@@ -404,7 +404,16 @@ app.all("/logout", async (c) => {
 	});
 	await c.env.OAUTH_KV.delete(`client:${clientId}`);
 	console.log("[OAUTH_HANDLER] Deleted client from OAUTH_KV:", clientId);
-	const grantsList = await c.env.OAUTH_KV.list({ prefix: `grants:${userId}` });
+	// Delete all tokens for this user and client
+	let tokenList = await c.env.OAUTH_KV.list({prefix: `token:${userId}:${clientId}`});
+	for (const key of tokenList.keys) {
+		console.log("[OAUTH_HANDLER] Deleting token key:", key.name);
+		await c.env.OAUTH_KV.delete(key.name);
+	}
+	console.log("[OAUTH_HANDLER] Deleted tokens for user:", userId, "and client:", clientId);
+	// Delete the client from OAUTH_KV
+	console.log("[OAUTH_HANDLER] Deleted client from OAUTH_KV:", clientId);
+	const grantsList = await c.env.OAUTH_KV.list({ prefix: `grant:${userId}` });
 	if (!grantsList.keys || grantsList.keys.length === 0) {
 		for (const key of grantsList.keys) {
 			console.log("[OAUTH_HANDLER] Deleting grant key:", key.name);
