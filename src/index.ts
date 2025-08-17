@@ -43,7 +43,7 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 		console.log("Current state:", this.state);
 		console.log("Props name:", this.props?.name);
 		console.log("Props email:", this.props?.email);
-		console.log("Props User ID:", this.props?.userId);
+		console.log("Props User ID:", this.props?.id);
 		console.log("Props clientId:", this.props?.clientId);
 		// Set default page size or use from state if available
 		const itemsPerPage = this.state?.items_per_page || 10;

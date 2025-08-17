@@ -19,7 +19,7 @@ function _encodeState(data: any): string {
     // For complex binary data, a Buffer/Uint8Array approach might be better
     return btoa(jsonString);
   } catch (e) {
-    console.error("Error encoding state:", e);
+    console.error("[WORKER_OAUTH_UTILS] Error encoding state:", e);
     throw new Error("Could not encode state");
   }
 }
@@ -34,7 +34,7 @@ function decodeState<T = any>(encoded: string): T {
     const jsonString = atob(encoded);
     return JSON.parse(jsonString);
   } catch (e) {
-    console.error("Error decoding state:", e);
+    console.error("[WORKER_OAUTH_UTILS] Error decoding state:", e);
     throw new Error("Could not decode state");
   }
 }
@@ -50,7 +50,7 @@ async function importKey(secret: string): Promise<CryptoKey> {
       "COOKIE_SECRET is not defined. A secret key is required for signing cookies.",
     );
   }
-  console.log("Importing key for HMAC-SHA256 signing: ", secret); // Log first 10 chars for brevity
+  console.log("[WORKER_OAUTH_UTILS] Importing key for HMAC-SHA256 signing: ", secret); // Log first 10 chars for brevity
   const enc = new TextEncoder();
   return crypto.subtle.importKey(
     "raw",
@@ -97,7 +97,7 @@ async function verifyHmacSha256Signature(
     return await crypto.subtle.verify("HMAC", key, signatureBytes.buffer, enc.encode(data));
   } catch (e) {
     // Handle errors during hex parsing or verification
-    console.error("Error verifying signature:", e);
+    console.error("[WORKER_OAUTH_UTILS] Error verifying signature:", e);
     return false;
   }
 }
@@ -123,7 +123,7 @@ async function getApprovedClientsFromCookie(
   const parts = cookieValue.split(".");
 
   if (parts.length !== 2) {
-    console.warn("Invalid cookie format received.");
+    console.warn("[WORKER_OAUTH_UTILS] Invalid cookie format received.");
     return null; // Invalid format
   }
 
@@ -134,24 +134,24 @@ async function getApprovedClientsFromCookie(
   const isValid = await verifyHmacSha256Signature(key, signatureHex, payload);
 
   if (!isValid) {
-    console.warn("Cookie signature verification failed.");
+    console.warn("[WORKER_OAUTH_UTILS] Cookie signature verification failed.");
     return null; // Signature invalid
   }
 
   try {
     const approvedClients = JSON.parse(payload);
     if (!Array.isArray(approvedClients)) {
-      console.warn("Cookie payload is not an array.");
+      console.warn("[WORKER_OAUTH_UTILS] Cookie payload is not an array.");
       return null; // Payload isn't an array
     }
     // Ensure all elements are strings
     if (!approvedClients.every((item) => typeof item === "string")) {
-      console.warn("Cookie payload contains non-string elements.");
+      console.warn("[WORKER_OAUTH_UTILS] Cookie payload contains non-string elements.");
       return null;
     }
     return approvedClients as string[];
   } catch (e) {
-    console.error("Error parsing cookie payload:", e);
+    console.error("[WORKER_OAUTH_UTILS] Error parsing cookie payload:", e);
     return null; // JSON parsing failed
   }
 }
@@ -182,12 +182,12 @@ export async function clientIdAlreadyApproved(
   clientId: string,
   cookieSecret: string,
 ): Promise<ApprovalCheckResult> {
-  console.log("Checking if client ID is already approved:", clientId);
+  console.log("[WORKER_OAUTH_UTILS] Checking if client ID is already approved:", clientId);
   if (!clientId) return { approved: false, provider: '' };
 
   const cookieHeader = request.headers.get("Cookie");
   const approvedClients = await getApprovedClientsFromCookie(cookieHeader, cookieSecret);
-  console.log("Approved clients from cookie:", approvedClients);
+  console.log("[WORKER_OAUTH_UTILS] Approved clients from cookie:", approvedClients);
 
   // Check for provider preference cookie
   let provider = null // Default provider
@@ -198,7 +198,7 @@ export async function clientIdAlreadyApproved(
       provider = providerCookie.split('=')[1];
     }
   } catch (error) {
-    console.error("Error reading provider preference cookie:", error);
+    console.error("[WORKER_OAUTH_UTILS] Error reading provider preference cookie:", error);
   }
 
   return {
@@ -268,40 +268,40 @@ export interface ApprovalDialogOptions {
  */
 export function renderApprovalDialog(request: Request, options: ApprovalDialogOptions): Response {
   const { client, server, state } = options;
-  console.log("Rendering approval dialog with options:", options);
+  console.log("[WORKER_OAUTH_UTILS] Rendering approval dialog with options:", options);
 
   // Encode state for form submission
   const encodedState = btoa(JSON.stringify(state));
 
   // Sanitize any untrusted content
   const serverName = sanitizeHtml(server.name);
-  console.log("Sanitized server name:", serverName);
+  console.log("[WORKER_OAUTH_UTILS] Sanitized server name:", serverName);
   const clientName = client?.clientName ? sanitizeHtml(client.clientName) : "Unknown MCP Client";
-  console.log("Sanitized client name:", clientName);
+  console.log("[WORKER_OAUTH_UTILS] Sanitized client name:", clientName);
   const serverDescription = server.description ? sanitizeHtml(server.description) : "";
 
   // Safe URLs
   const logoUrl = server.logo ? sanitizeHtml(server.logo) : "";
-  console.log("Sanitized logo URL:", logoUrl.substring(0, 100)); // Log first 100 chars for brevity
+  console.log("[WORKER_OAUTH_UTILS] Sanitized logo URL:", logoUrl.substring(0, 100)); // Log first 100 chars for brevity
   // const clientUri = client?.clientUri ? sanitizeHtml(client.clientUri) : "";
   const clientUri = "https://algorandmcp.goplausible.xyz"; // Default to GoPlausible MCP URL
-  console.log("Sanitized client URI:", clientUri.substring(0, 100)); // Log first 100 chars for brevity
+  console.log("[WORKER_OAUTH_UTILS] Sanitized client URI:", clientUri.substring(0, 100)); // Log first 100 chars for brevity
   // const policyUri = client?.policyUri ? sanitizeHtml(client.policyUri) : "http://goplausible.com/policy";
   const policyUri = "http://goplausible.com/policy";
-  console.log("Sanitized policy URI:", policyUri.substring(0, 100)); // Log first 100 chars for brevity
+  console.log("[WORKER_OAUTH_UTILS] Sanitized policy URI:", policyUri.substring(0, 100)); // Log first 100 chars for brevity
   const tosUri = client?.tosUri ? sanitizeHtml(client.tosUri) : "";
-  console.log("Sanitized TOS URI:", tosUri.substring(0, 100)); // Log first 100 chars for brevity
+  console.log("[WORKER_OAUTH_UTILS] Sanitized TOS URI:", tosUri.substring(0, 100)); // Log first 100 chars for brevity
 
   // Client contacts
-  console.log("Sanitizing client contacts");
+  console.log("[WORKER_OAUTH_UTILS] Sanitizing client contacts");
   const contacts =
     client?.contacts && client.contacts.length > 0
       ? sanitizeHtml(client.contacts.join(", "))
       : "";
-  console.log("Sanitized contacts:", contacts.substring(0, 100)); // Log first 100 chars for brevity
+  console.log("[WORKER_OAUTH_UTILS] Sanitized contacts:", contacts.substring(0, 100)); // Log first 100 chars for brevity
 
   // Get redirect URIs
-  console.log("Sanitizing redirect URIs");
+  console.log("[WORKER_OAUTH_UTILS] Sanitizing redirect URIs");
   const redirectUris =
     client?.redirectUris && client.redirectUris.length > 0
       ? client.redirectUris.map((uri) => sanitizeHtml(uri))
@@ -743,7 +743,7 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
       </body>
     </html>
   `;
-  console.log("Generated HTML content for approval dialog");
+  console.log("[WORKER_OAUTH_UTILS] Generated HTML content for approval dialog");
   return new Response(htmlContent, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
@@ -767,11 +767,11 @@ export async function revokeUpstreamToken(
 
 ): Promise<boolean> {
 	try {
-		console.log(`Attempting to revoke token for provider: ${provider}, token length: ${token.length}`);
+		console.log(`[WORKER_OAUTH_UTILS] Attempting to revoke token for provider: ${provider}, token length: ${token.length}`);
 
 		switch (provider) {
 			case "google": {
-				console.log("Using Google revocation endpoint");
+				console.log("[WORKER_OAUTH_UTILS] Using Google revocation endpoint");
 				try {
 					const params = new URLSearchParams({ token });
 
@@ -784,24 +784,24 @@ export async function revokeUpstreamToken(
 					});
 
 					const responseText = await resp.text();
-					console.log(`Google revocation response: status=${resp.status}, body=${responseText}`);
+					console.log(`[WORKER_OAUTH_UTILS] Google revocation response: status=${resp.status}, body=${responseText}`);
 
 					return resp.ok || resp.status === 200;
 				} catch (error) {
-					console.error("Error in Google token revocation:", error);
+					console.error("[WORKER_OAUTH_UTILS] Error in Google token revocation:", error);
 					return false;
 				}
 			}
 			case "github": {
 				// GitHub token revocation - use the correct endpoint for token revocation
-				console.log("Using GitHub revocation endpoint");
+				console.log("[WORKER_OAUTH_UTILS] Using GitHub revocation endpoint");
 				const basic = btoa(`${env.GITHUB_CLIENT_ID}:${env.GITHUB_CLIENT_SECRET}`);
 
 				// Use the token endpoint directly instead of the grant endpoint
 				const endpoint = `https://api.github.com/applications/${env.GITHUB_CLIENT_ID}/token`;
 				const endpointGrant = `https://api.github.com/applications/${env.GITHUB_CLIENT_ID}/grant`;
 
-				console.log(`GitHub endpoint: ${endpoint}`);
+				console.log(`[WORKER_OAUTH_UTILS] GitHub endpoint: ${endpoint}`);
 
 				try {
 					const resp = await fetch(endpoint, {
@@ -815,7 +815,7 @@ export async function revokeUpstreamToken(
 					});
 
 					const responseText = await resp.text();
-					console.log(`GitHub token revocation response: status=${resp.status}, body=${responseText}`);
+					console.log(`[WORKER_OAUTH_UTILS] GitHub token revocation response: status=${resp.status}, body=${responseText}`);
 
 					///////////
 
@@ -830,19 +830,19 @@ export async function revokeUpstreamToken(
 					});
 
 					const responseTextGrant = await respGrant.text();
-					console.log(`GitHub grant revocation response: status=${respGrant.status}, body=${responseTextGrant}`);
+					console.log(`[WORKER_OAUTH_UTILS] GitHub grant revocation response: status=${respGrant.status}, body=${responseTextGrant}`);
 
 					// GitHub returns 204 No Content for successful revocation
 					return (resp.status === 204 || resp.status === 200 || resp.status === 404) &&
 						(respGrant.status === 204 || respGrant.status === 200 || respGrant.status === 404);
 				} catch (error) {
-					console.error("Error in GitHub token revocation:", error);
+					console.error("[WORKER_OAUTH_UTILS] Error in GitHub token revocation:", error);
 					return false;
 				}
 			}
 			case "twitter": {
 				// OAuth 2.0 token revocation (X)
-				console.log("Using Twitter revocation endpoint");
+				console.log("[WORKER_OAUTH_UTILS] Using Twitter revocation endpoint");
 				const basic = btoa(`${env.TWITTER_CLIENT_ID}:${env.TWITTER_CLIENT_SECRET}`);
 				const body = new URLSearchParams({
 					token,
@@ -850,7 +850,7 @@ export async function revokeUpstreamToken(
 					client_id: env.TWITTER_CLIENT_ID // harmless extra for some implementations
 				});
 
-				console.log(`Twitter request params: ${body.toString()}`);
+				console.log(`[WORKER_OAUTH_UTILS] Twitter request params: ${body.toString()}`);
 
 				const resp = await fetch("https://api.x.com/2/oauth2/revoke", {
 					method: "POST",
@@ -862,20 +862,20 @@ export async function revokeUpstreamToken(
 				});
 
 				const responseText = await resp.text();
-				console.log(`Twitter revocation response: status=${resp.status}, body=${responseText}`);
+				console.log(`[WORKER_OAUTH_UTILS] Twitter revocation response: status=${resp.status}, body=${responseText}`);
 
 				return resp.ok;
 			}
 			case "linkedin": {
 				// LinkedIn OAuth 2.0 token revocation
-				console.log("Using LinkedIn revocation endpoint");
+				console.log("[WORKER_OAUTH_UTILS] Using LinkedIn revocation endpoint");
 				const params = new URLSearchParams({
 					token,
 					client_id: env.LINKEDIN_CLIENT_ID,
 					client_secret: env.LINKEDIN_CLIENT_SECRET
 				});
 
-				console.log(`LinkedIn request params: ${params.toString()}`);
+				console.log(`[WORKER_OAUTH_UTILS] LinkedIn request params: ${params.toString()}`);
 
 				const resp = await fetch("https://www.linkedin.com/oauth/v2/revoke", {
 					method: "POST",
@@ -884,27 +884,28 @@ export async function revokeUpstreamToken(
 				});
 
 				const responseText = await resp.text();
-				console.log(`LinkedIn revocation response: status=${resp.status}, body=${responseText}`);
+				console.log(`[WORKER_OAUTH_UTILS] LinkedIn revocation response: status=${resp.status}, body=${responseText}`);
 
 				return resp.ok || resp.status === 200;
 			}
 			default:
-				console.log(`Unknown provider: ${provider}`);
+				console.log(`[WORKER_OAUTH_UTILS] Unknown provider: ${provider}`);
 				return false;
 		}
 	} catch (e) {
-		console.error("Token revocation error:", e);
+		console.error("[WORKER_OAUTH_UTILS] Token revocation error:", e);
 		return false;
 	}
 }
 export async function redirectToProvider(
   c: Context,
   provider: string,
-  oauthReqInfo: AuthRequest,
+  clientId: string,
+  authReqInfo: AuthRequest,
   headers: Record<string, string> = {},
 ) {
   // Configure provider-specific OAuth parameters
-  let clientId = '';
+
   let scope = '';
   let upstreamUrl = '';
   let hostedDomain = undefined;
@@ -912,7 +913,7 @@ export async function redirectToProvider(
 
   switch (provider) {
     case "github":
-      console.log("Redirecting to GitHub for OAuth authorization");
+      console.log("[WORKER_OAUTH_UTILS] Redirecting to GitHub for OAuth authorization");
       clientId = c.env.GITHUB_CLIENT_ID || '';
       scope = "read:user user:email";
       upstreamUrl = "https://github.com/login/oauth/authorize";
@@ -920,14 +921,14 @@ export async function redirectToProvider(
       redirectUri = new URL("/callback", c.req.raw.url).href;
       break;
     case "twitter":
-      console.log("Redirecting to Twitter for OAuth authorization");
+      console.log("[WORKER_OAUTH_UTILS] Redirecting to Twitter for OAuth authorization");
       clientId = c.env.TWITTER_CLIENT_ID || '';
       scope = "tweet.read users.read";
       upstreamUrl = "https://x.com/i/oauth2/authorize";
       redirectUri = new URL("/callback", c.req.raw.url).href;
       break;
     case "linkedin":
-      console.log("Redirecting to LinkedIn for OAuth authorization");
+      console.log("[WORKER_OAUTH_UTILS] Redirecting to LinkedIn for OAuth authorization");
       clientId = c.env.LINKEDIN_CLIENT_ID || '';
       scope = "r_liteprofile r_emailaddress";
       upstreamUrl = "https://www.linkedin.com/oauth/v2/authorization";
@@ -935,7 +936,7 @@ export async function redirectToProvider(
       break;
     case "google":
     default:
-      console.log("Redirecting to Google for OAuth authorization");
+      console.log("[WORKER_OAUTH_UTILS] Redirecting to Google for OAuth authorization");
       clientId = c.env.GOOGLE_CLIENT_ID || '';
       scope = "email profile";
       upstreamUrl = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -943,11 +944,12 @@ export async function redirectToProvider(
       redirectUri = new URL("/callback", c.req.raw.url).href;
       break;
   }
-
+console.log(`[WORKER_OAUTH_UTILS] Redirecting to ${provider} with clientId: ${clientId}, scope: ${scope}, redirectUri: ${redirectUri}`);
   // Store the provider in the state for use in the callback
   const stateWithProvider = {
-    ...oauthReqInfo,
-    provider
+    clientId:authReqInfo.clientId,
+    provider,
+    authReqInfo
   };
 
   return new Response(null, {
@@ -995,8 +997,8 @@ export async function parseRedirectApproval(
       throw new Error("Missing or invalid 'state' in form data.");
     }
 
-    state = decodeState<{ oauthReqInfo?: AuthRequest }>(encodedState); // Decode the state
-    clientId = state?.oauthReqInfo?.clientId; // Extract clientId from within the state
+    state = decodeState<{ clientId?: string, provider?: string }>(encodedState); // Decode the state
+    clientId = state?.clientId; // Extract clientId from within the state
 
     if (!clientId) {
       throw new Error("Could not extract clientId from state object.");
@@ -1005,7 +1007,7 @@ export async function parseRedirectApproval(
     // Add the provider preference to the state for use in the GET handler
     state.providerPreference = providerPreference;
   } catch (e) {
-    console.error("Error processing form submission:", e);
+    console.error("[WORKER_OAUTH_UTILS] Error processing form submission:", e);
     // Rethrow or handle as appropriate, maybe return a specific error response
     throw new Error(
       `Failed to parse approval form: ${e instanceof Error ? e.message : String(e)}`,
@@ -1090,7 +1092,7 @@ export function getUpstreamAuthorizeUrl({
   upstream.searchParams.set("response_type", "code");
   if (state) upstream.searchParams.set("state", state);
   if (hostedDomain) upstream.searchParams.set("hd", hostedDomain);
-  console.log(`Constructed upstream authorization URL: ${upstream.href}`);
+  console.log(`[WORKER_OAUTH_UTILS] Constructed upstream authorization URL: ${upstream.href}`);
   return upstream.href;
 }
 
@@ -1161,7 +1163,7 @@ export async function fetchUpstreamAuthToken({
   });
 
   if (!resp.ok) {
-    console.error(`Failed to fetch access token: ${await resp.text()}`);
+    console.error(`[WORKER_OAUTH_UTILS] Failed to fetch access token: ${await resp.text()}`);
     return [null, new Response("Failed to fetch access token", { status: 500 })];
   }
 
@@ -1176,13 +1178,4 @@ export async function fetchUpstreamAuthToken({
   return [body.access_token, null];
 }
 
-// Context from the auth process, encrypted & stored in the auth token
-// and provided to the AlgorandRemoteMCP as this.props
-export type Props = {
-  name: string;
-  email: string;
-  accessToken: string;
-  id: string; // User ID
-  clientId: string; // Client ID for OAuth
-  provider: string; // 'google' or 'github' or 'twitter' or 'linkedin'
-};
+

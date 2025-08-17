@@ -8,12 +8,15 @@ import {
 	renderApprovalDialog,
 	redirectToProvider,
 	revokeUpstreamToken,
-	fetchUpstreamAuthToken, type Props
+	fetchUpstreamAuthToken, 
 } from "./workers-oauth-utils";
+import {type Props, Env} from "./types";
+import { auth } from "@modelcontextprotocol/sdk/client/auth.js";
 
 // Extend the Env type to include our OAuth configuration
 interface OAuthEnv {
 	OAUTH_PROVIDER: OAuthHelpers;
+	OAUTH_KV: KVNamespace; // KV namespace for OAuth client data
 	COOKIE_ENCRYPTION_KEY: string;
 	GOOGLE_CLIENT_ID: string;
 	GOOGLE_CLIENT_SECRET: string;
@@ -32,25 +35,42 @@ const app = new Hono<{ Bindings: Env & OAuthEnv }>();
 // Middleware to check if the request is authenticated
 app.get("/authorize", async (c) => {
 	console.log("[OAUTH_HANDLER] Received OAuth authorization request");
-	const oauthReqInfo = await c.env.OAUTH_PROVIDER.parseAuthRequest(c.req.raw);
-	const { clientId } = oauthReqInfo;
+	const clonedRequest = c.req.raw.clone();
+	const url = new URL(clonedRequest.url);
+	const responseType = url.searchParams.get('response_type') || '';
+	const clientId = url.searchParams.get('client_id') || '';
+	const redirectUri = url.searchParams.get('redirect_uri') || '';
+	const scope = (url.searchParams.get('scope') || '').split(' ').filter(Boolean);
+	const state = url.searchParams.get('state') || '';
+	const codeChallenge = url.searchParams.get('code_challenge') || undefined;
+	const codeChallengeMethod = url.searchParams.get('code_challenge_method') || 'plain';
 	if (!clientId) {
 		console.error("[OAUTH_HANDLER] Invalid OAuth request: missing clientId");
 		return c.text("Invalid request", 400);
 	}
-	console.log("[OAUTH_HANDLER] Parsed OAuth request info:", oauthReqInfo);
+	console.log("[OAUTH_HANDLER] Parsed OAuth request info for Client ID:", clientId);
 
 	const { approved, provider } = await clientIdAlreadyApproved(
 		c.req.raw,
-		oauthReqInfo.clientId,
+		clientId,
 		c.env.COOKIE_ENCRYPTION_KEY || ''
 	);
-
-	if (approved && provider && provider !== '') {
+	const authReqInfo: AuthRequest = {
+		responseType,
+		clientId,
+		redirectUri,
+		scope,
+		state,
+		codeChallenge,
+		codeChallengeMethod,
+	}
+	if (approved && provider && provider !== '' && authReqInfo) {
 		console.log(`[OAUTH_HANDLER] Client ID ${clientId} already approved, redirecting to ${provider}`);
-		return redirectToProvider(c, provider, oauthReqInfo);
+		return redirectToProvider(c, provider, clientId, authReqInfo);
 	}
 	console.log(`[OAUTH_HANDLER] Client ID ${clientId} not approved yet, rendering approval dialog`);
+
+	console.log("[OAUTH_HANDLER] Rendering approval dialog with auth request info:", authReqInfo);
 	return renderApprovalDialog(c.req.raw, {
 		client: await c.env.OAUTH_PROVIDER.lookupClient(clientId),
 		server: {
@@ -61,8 +81,11 @@ app.get("/authorize", async (c) => {
 			//    `base64 -w 0 src/assets/goPlausible-logo-type-h.png | xclip -selection clipboard` (on Linux)
 			logo: getLogo()
 		},
-		state: { oauthReqInfo },
+
+		state: { provider: provider, clientId: clientId, authReqInfo: authReqInfo as AuthRequest },
 	});
+
+
 });
 
 /**
@@ -79,13 +102,16 @@ app.post("/authorize", async (c) => {
 	console.log(`[OAUTH_HANDLER] Selected provider: ${provider}`);
 
 	const { state, headers } = await parseRedirectApproval(clonedReq, c.env.COOKIE_ENCRYPTION_KEY || '');
-	if (!state.oauthReqInfo) {
-		console.error("[OAUTH_HANDLER] Invalid state in OAuth approval request");
+	
+	console.log("[OAUTH_HANDLER] Parsed state from form submission:", state);
+	const authReqInfo: AuthRequest = state.authReqInfo as AuthRequest;
+	if (!state.clientId) {
+		console.error("[OAUTH_HANDLER] Invalid state in OAuth approval request! No Client Id");
 		return c.text("Invalid request", 400);
 	}
-	console.log("[OAUTH_HANDLER] Processing OAuth approval request with state:", state.oauthReqInfo);
+	console.log("[OAUTH_HANDLER] Processing OAuth approval request with state:", state.clientId);
 
-	return redirectToProvider(c, provider as string, state.oauthReqInfo, headers);
+	return redirectToProvider(c, provider as string, state.clientId, authReqInfo, headers);
 });
 
 /**
@@ -100,13 +126,15 @@ app.get("/callback", async (c) => {
 	// Get the oathReqInfo out of KV
 	console.log("[OAUTH_HANDLER] Received OAuth callback request");
 	const stateData = JSON.parse(atob(c.req.query("state") as string));
-	const oauthReqInfo = stateData as AuthRequest;
-	const provider = stateData.provider || "google";
+	console.log("[OAUTH_HANDLER] Parsed state data from query:", stateData);
 
-	if (!oauthReqInfo.clientId) {
+	const provider = stateData.provider;
+
+
+	if (!provider || provider === '') {
 		return c.text("Invalid state", 400);
 	}
-	console.log(`[OAUTH_HANDLER] OAuth callback received from ${provider} with state:`, oauthReqInfo);
+	console.log(`[OAUTH_HANDLER] OAuth callback received from ${provider} with provider:`, provider);
 
 	// Exchange the code for an access token
 	const code = c.req.query("code");
@@ -321,8 +349,7 @@ app.get("/callback", async (c) => {
 			console.error("[OAUTH_HANDLER] Failed to fetch LinkedIn email:", await emailResponse.text());
 			email = "";
 		}
-	}
-	else {
+	} else {
 		// Google format
 		const googleUser = userData as GoogleUser;
 		id = googleUser.id;
@@ -330,7 +357,9 @@ app.get("/callback", async (c) => {
 		email = googleUser.email;
 	}
 
-	console.log(`[OAUTH_HANDLER] Successfully fetched user info from ${provider}: `, { id, name, clientId: oauthReqInfo.clientId, email });
+	console.log(`[OAUTH_HANDLER] Successfully fetched user info from ${provider}: `, { id, name, clientId: stateData.clientId, email });
+	const scope = stateData.authReqInfo.scope
+	console.log(`[OAUTH_HANDLER] OAuth scope requested: ${scope}`);
 	// Return back to the MCP client a new token
 	const { redirectTo } = await c.env.OAUTH_PROVIDER.completeAuthorization({
 		metadata: {
@@ -343,10 +372,10 @@ app.get("/callback", async (c) => {
 			name,
 			provider, // Store the provider in props
 			id, // User ID
-			clientId: oauthReqInfo.clientId, // Client ID for OAuth
+			clientId: stateData.clientId, // Client ID for OAuth
 		} as Props,
-		request: oauthReqInfo,
-		scope: oauthReqInfo.scope,
+		request: stateData.authReqInfo as AuthRequest,
+		scope: scope,
 		userId: id,
 	});
 
@@ -360,6 +389,29 @@ app.get("/callback", async (c) => {
 app.all("/logout", async (c) => {
 	const url = new URL(c.req.raw.url);
 	const provider = url.searchParams.get("provider") || undefined;
+	const clientId = url.searchParams.get("clientId") || undefined;
+	const userId = url.searchParams.get("userId") || undefined;
+	const email = url.searchParams.get("email") || undefined;
+
+	if (!provider || !clientId || !userId || !email) {
+		return c.text("Missing provider, clientId or userId", 400);
+	}
+	console.log("[OAUTH_HANDLER] Received logout request:", {
+		provider,
+		clientId,
+		userId,
+		email
+	});
+	await c.env.OAUTH_KV.delete(`client:${clientId}`);
+	console.log("[OAUTH_HANDLER] Deleted client from OAUTH_KV:", clientId);
+	const grantsList = await c.env.OAUTH_KV.list({ prefix: `grants:${userId}` });
+	if (!grantsList.keys || grantsList.keys.length === 0) {
+		for (const key of grantsList.keys) {
+			console.log("[OAUTH_HANDLER] Deleting grant key:", key.name);
+			await c.env.OAUTH_KV.delete(key.name);
+		}
+		console.log("[OAUTH_HANDLER] All grants deleted for user:", userId);
+	}
 
 	// Try to get access token from Authorization header or query param for convenience.
 	const auth = c.req.header("authorization") || "";

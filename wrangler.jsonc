@@ -44,7 +44,7 @@
   "kv_namespaces": [
     {
       "binding": "OAUTH_KV",
-      "id": "7f55745ea16e43c6be6e52faafc643fa"
+      "id": "da4b082a50724566abe044b79b70ce7d"
     },
     {
       "binding": "VAULT_ENTITIES",

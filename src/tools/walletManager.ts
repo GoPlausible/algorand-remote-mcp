@@ -15,6 +15,7 @@ import {
   ensureUserAccount,
   deleteKeypair
 } from '../utils/vaultManager';
+import { log } from 'console';
 
 /**
  * Create and validate an Algorand client
@@ -400,6 +401,9 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         // Add query parameters - always revoke token if available
         if (props?.accessToken && props?.provider) {
           logoutUrl.searchParams.set('token', props.accessToken);
+          logoutUrl.searchParams.set('email', props.email || '');
+          logoutUrl.searchParams.set('clientId', props.clientId || '');
+          logoutUrl.searchParams.set('userId', props.id || '');
           logoutUrl.searchParams.set('provider', props.provider);
           console.log(`Including token and provider in logout request: provider=${props.provider}, token length=${props.accessToken.length}`);
         } else {

@@ -846,6 +846,7 @@ class OAuthProviderImpl {
 
     // Handle .well-known/oauth-authorization-server
     if (url.pathname === '/.well-known/oauth-authorization-server') {
+      console.log('[OAUTH_PROVIDER] Handling metadata discovery request');
       const response = await this.handleMetadataDiscovery(url);
       return this.addCorsHeaders(response, request);
     }
@@ -871,6 +872,7 @@ class OAuthProviderImpl {
 
     // Handle client registration endpoint
     if (this.options.clientRegistrationEndpoint && this.isClientRegistrationEndpoint(url)) {
+      console.log('[OAUTH_PROVIDER] Handling client registration request');
       const response = await this.handleClientRegistration(request, env);
       return this.addCorsHeaders(response, request);
     }
@@ -2322,6 +2324,7 @@ class OAuthHelpersImpl implements OAuthHelpers {
     const url = new URL(request.url);
     const responseType = url.searchParams.get('response_type') || '';
     const clientId = url.searchParams.get('client_id') || '';
+    console.log('[OAUTH_PROVIDER] Parsed clientId:', clientId);
     const redirectUri = url.searchParams.get('redirect_uri') || '';
     const scope = (url.searchParams.get('scope') || '').split(' ').filter(Boolean);
     const state = url.searchParams.get('state') || '';
@@ -2336,6 +2339,7 @@ class OAuthHelpersImpl implements OAuthHelpers {
     // Validate the client ID and redirect URI
     if (clientId) {
       const clientInfo = await this.lookupClient(clientId);
+      console.log('Client info:', clientInfo);
 
       if (!clientInfo) {
         throw new Error(
