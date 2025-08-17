@@ -30,14 +30,14 @@ const app = new Hono<{ Bindings: Env & OAuthEnv }>();
 
 // Middleware to check if the request is authenticated
 app.get("/authorize", async (c) => {
-	console.log("Received OAuth authorization request");
+	console.log("[OAUTH_HANDLER] Received OAuth authorization request");
 	const oauthReqInfo = await c.env.OAUTH_PROVIDER.parseAuthRequest(c.req.raw);
 	const { clientId } = oauthReqInfo;
 	if (!clientId) {
-		console.error("Invalid OAuth request: missing clientId");
+		console.error("[OAUTH_HANDLER] Invalid OAuth request: missing clientId");
 		return c.text("Invalid request", 400);
 	}
-	console.log("Parsed OAuth request info:", oauthReqInfo);
+	console.log("[OAUTH_HANDLER] Parsed OAuth request info:", oauthReqInfo);
 
 	const { approved, provider } = await clientIdAlreadyApproved(
 		c.req.raw,
@@ -46,10 +46,10 @@ app.get("/authorize", async (c) => {
 	);
 
 	if (approved && provider && provider !== '') {
-		console.log(`Client ID ${clientId} already approved, redirecting to ${provider}`);
+		console.log(`[OAUTH_HANDLER] Client ID ${clientId} already approved, redirecting to ${provider}`);
 		return redirectToProvider(c, provider, oauthReqInfo);
 	}
-	console.log(`Client ID ${clientId} not approved yet, rendering approval dialog`);
+	console.log(`[OAUTH_HANDLER] Client ID ${clientId} not approved yet, rendering approval dialog`);
 	return renderApprovalDialog(c.req.raw, {
 		client: await c.env.OAUTH_PROVIDER.lookupClient(clientId),
 		server: {
@@ -75,14 +75,14 @@ app.post("/authorize", async (c) => {
 	const clonedReq = c.req.raw.clone();
 	const formData = await c.req.formData();
 	const provider = formData.get("provider");
-	console.log(`Selected provider: ${provider}`);
+	console.log(`[OAUTH_HANDLER] Selected provider: ${provider}`);
 
 	const { state, headers } = await parseRedirectApproval(clonedReq, c.env.COOKIE_ENCRYPTION_KEY || '');
 	if (!state.oauthReqInfo) {
-		console.error("Invalid state in OAuth approval request");
+		console.error("[OAUTH_HANDLER] Invalid state in OAuth approval request");
 		return c.text("Invalid request", 400);
 	}
-	console.log("Processing OAuth approval request with state:", state.oauthReqInfo);
+	console.log("[OAUTH_HANDLER] Processing OAuth approval request with state:", state.oauthReqInfo);
 
 	return redirectToProvider(c, provider as string, state.oauthReqInfo, headers);
 });
@@ -97,7 +97,7 @@ app.post("/authorize", async (c) => {
  */
 app.get("/callback", async (c) => {
 	// Get the oathReqInfo out of KV
-	console.log("Received OAuth callback request");
+	console.log("[OAUTH_HANDLER] Received OAuth callback request");
 	const stateData = JSON.parse(atob(c.req.query("state") as string));
 	const oauthReqInfo = stateData as AuthRequest;
 	const provider = stateData.provider || "google";
@@ -105,7 +105,7 @@ app.get("/callback", async (c) => {
 	if (!oauthReqInfo.clientId) {
 		return c.text("Invalid state", 400);
 	}
-	console.log(`OAuth callback received from ${provider} with state:`, oauthReqInfo);
+	console.log(`[OAUTH_HANDLER] OAuth callback received from ${provider} with state:`, oauthReqInfo);
 
 	// Exchange the code for an access token
 	const code = c.req.query("code");
@@ -163,10 +163,10 @@ app.get("/callback", async (c) => {
 	});
 
 	if (errorResponse) {
-		console.error(`Failed to fetch access token from ${provider}:`, errorResponse);
+		console.error(`[OAUTH_HANDLER] Failed to fetch access token from ${provider}:`, errorResponse);
 		return errorResponse;
 	}
-	console.log(`Successfully fetched access token from ${provider}`);
+	console.log(`[OAUTH_HANDLER] Successfully fetched access token from ${provider}`);
 
 	// Fetch the user info from the provider
 	const headers: Record<string, string> = {
@@ -187,7 +187,7 @@ app.get("/callback", async (c) => {
 	const userResponse = await fetch(userInfoUrl, { headers });
 
 	if (!userResponse.ok) {
-		console.error(`Failed to fetch user info from ${provider}:`, await userResponse.text());
+		console.error(`[OAUTH_HANDLER] Failed to fetch user info from ${provider}:`, await userResponse.text());
 		return c.text(`Failed to fetch user info: ${await userResponse.text()}`, 500);
 	}
 
@@ -317,7 +317,7 @@ app.get("/callback", async (c) => {
 			const emailData = await emailResponse.json() as any;
 			email = emailData.elements?.[0]?.["handle~"]?.emailAddress || "";
 		} else {
-			console.error("Failed to fetch LinkedIn email:", await emailResponse.text());
+			console.error("[OAUTH_HANDLER] Failed to fetch LinkedIn email:", await emailResponse.text());
 			email = "";
 		}
 	}
@@ -329,7 +329,7 @@ app.get("/callback", async (c) => {
 		email = googleUser.email;
 	}
 
-	console.log(`Successfully fetched user info from ${provider}: `, { id, name, email });
+	console.log(`[OAUTH_HANDLER] Successfully fetched user info from ${provider}: `, { id, name, email });
 
 	// Return back to the MCP client a new token
 	const { redirectTo } = await c.env.OAUTH_PROVIDER.completeAuthorization({
@@ -357,15 +357,14 @@ app.get("/callback", async (c) => {
  */
 app.all("/logout", async (c) => {
 	const url = new URL(c.req.raw.url);
-	const revoke = 1
 	const provider = url.searchParams.get("provider") || undefined;
 
 	// Try to get access token from Authorization header or query param for convenience.
 	const auth = c.req.header("authorization") || "";
 	const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : undefined;
 	const token = url.searchParams.get("token") || bearer || undefined;
-
-	console.log("Logout request details:", {
+	
+	console.log("[OAUTH_HANDLER] Logout request details:", {
 		provider,
 		hasToken: !!token,
 		tokenType: token ? typeof token : 'undefined',
@@ -375,11 +374,9 @@ app.all("/logout", async (c) => {
 		bearer: !!bearer
 	});
 
-
-
 	// Only attempt token revocation if we have both provider and token
 	if (provider && token) {
-		console.log("About to call revokeUpstreamToken with:", {
+		console.log("[OAUTH_HANDLER] About to call revokeUpstreamToken with:", {
 			provider,
 			tokenLength: token.length,
 			tokenFirstChars: token.substring(0, 5),
@@ -388,15 +385,13 @@ app.all("/logout", async (c) => {
 
 		try {
 			const ok = await revokeUpstreamToken(provider, token, c.env);
-			console.log("Upstream revocation result:", ok ? "ok" : "failed");
+			console.log("[OAUTH_HANDLER] Upstream revocation result:", ok ? "ok" : "failed");
 		} catch (error) {
-			console.error("Token revocation error:", error);
+			console.error("[OAUTH_HANDLER] Token revocation error:", error);
 		}
 	} else {
 		return c.text("No provider or no token specified", 400);
 	}
-
-
 
 	// Return a success response with all cookies cleared
 	return new Response(JSON.stringify({
@@ -407,6 +402,11 @@ app.all("/logout", async (c) => {
 		status: 200,
 		headers: {
 			"Content-Type": "application/json",
+			// Clear OAuth-related cookies
+			"Set-Cookie": [
+				`mcp-approved-clients=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0`,
+				`mcp-provider-preference=; Secure; Path=/; SameSite=Lax; Max-Age=0`
+			].join(", ")
 		}
 	});
 });
