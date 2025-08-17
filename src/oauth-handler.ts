@@ -1,11 +1,12 @@
 import type { AuthRequest, OAuthHelpers } from "./oauth-provider";
-import { type Context, Hono } from "hono";
+import { Hono } from "hono";
 import getLogo from "./logoUrl.js";
 
 import {
 	clientIdAlreadyApproved,
 	parseRedirectApproval,
 	renderApprovalDialog,
+	redirectToProvider,
 	fetchUpstreamAuthToken, getUpstreamAuthorizeUrl, type Props
 } from "./workers-oauth-utils";
 
@@ -56,7 +57,8 @@ app.get("/authorize", async (c) => {
 			// Using the GoPlausible logo as a base64 data URL
 			//    `base64 -i src/assets/goPlausible-logo-type-h.png | pbcopy` (on macOS)
 			//    `base64 -w 0 src/assets/goPlausible-logo-type-h.png | xclip -selection clipboard` (on Linux)
-			logo: getLogo()},
+			logo: getLogo()
+		},
 		state: { oauthReqInfo },
 	});
 });
@@ -81,74 +83,7 @@ app.post("/authorize", async (c) => {
 	return redirectToProvider(c, provider as string, state.oauthReqInfo, headers);
 });
 
-async function redirectToProvider(
-	c: Context,
-	provider: string,
-	oauthReqInfo: AuthRequest,
-	headers: Record<string, string> = {},
-) {
-	// Configure provider-specific OAuth parameters
-	let clientId = '';
-	let scope = '';
-	let upstreamUrl = '';
-	let hostedDomain = undefined;
-	let redirectUri = '';
 
-	switch (provider) {
-		case "github":
-			console.log("Redirecting to GitHub for OAuth authorization");
-			clientId = c.env.GITHUB_CLIENT_ID || '';
-			scope = "read:user user:email";
-			upstreamUrl = "https://github.com/login/oauth/authorize";
-			// Use a fixed redirect URI for GitHub that matches what's registered in the GitHub OAuth application settings
-			redirectUri = new URL("/callback", c.req.raw.url).href;
-			break;
-		case "twitter":
-			console.log("Redirecting to Twitter for OAuth authorization");
-			clientId = c.env.TWITTER_CLIENT_ID || '';
-			scope = "tweet.read users.read";
-			upstreamUrl = "https://x.com/i/oauth2/authorize";
-			redirectUri = new URL("/callback", c.req.raw.url).href;
-			break;
-		case "linkedin":
-			console.log("Redirecting to LinkedIn for OAuth authorization");
-			clientId = c.env.LINKEDIN_CLIENT_ID || '';
-			scope = "r_liteprofile r_emailaddress";
-			upstreamUrl = "https://www.linkedin.com/oauth/v2/authorization";
-			redirectUri = new URL("/callback", c.req.raw.url).href;
-			break;
-		case "google":
-		default:
-			console.log("Redirecting to Google for OAuth authorization");
-			clientId = c.env.GOOGLE_CLIENT_ID || '';
-			scope = "email profile";
-			upstreamUrl = "https://accounts.google.com/o/oauth2/v2/auth";
-			hostedDomain = c.env.HOSTED_DOMAIN;
-			redirectUri = new URL("/callback", c.req.raw.url).href;
-			break;
-	}
-
-	// Store the provider in the state for use in the callback
-	const stateWithProvider = {
-		...oauthReqInfo,
-		provider
-	};
-
-	return new Response(null, {
-		headers: {
-			...headers,
-			location: getUpstreamAuthorizeUrl({
-				clientId,
-				hostedDomain,
-				redirectUri,
-				scope,
-				state: btoa(JSON.stringify(stateWithProvider)),
-				upstreamUrl,
-			}),
-		},
-		status: 302,
-	});
-}
 
 /**
  * OAuth Callback Endpoint
@@ -312,11 +247,11 @@ app.get("/callback", async (c) => {
 		// GitHub doesn't always return email in the user profile
 		// If email is null or not present, we need to make an additional request
 		if (!githubUser.email) {
-			const emailsResponse = await fetch("https://api.github.com/user/emails", { 
+			const emailsResponse = await fetch("https://api.github.com/user/emails", {
 				headers: {
 					...headers,
 					"User-Agent": "goplausible-remote-mcp" // Ensure User-Agent is set for this request too
-				} 
+				}
 			});
 			if (emailsResponse.ok) {
 				const emails = await emailsResponse.json() as GitHubEmail[];
@@ -339,11 +274,11 @@ app.get("/callback", async (c) => {
 	} else if (provider === "linkedin") {
 		const linkedInUser = userData as LinkedInUser;
 		id = linkedInUser.id;
-		
+
 		// LinkedIn API returns name in a nested structure
 		let firstName = "";
 		let lastName = "";
-		
+
 		// Handle the different possible response formats
 		if (linkedInUser.firstName && typeof linkedInUser.firstName === 'object' && 'localized' in linkedInUser.firstName && linkedInUser.firstName.localized) {
 			// New API format with localized names
@@ -355,7 +290,7 @@ app.get("/callback", async (c) => {
 			// Simple string format
 			firstName = linkedInUser.firstName;
 		}
-		
+
 		if (linkedInUser.lastName && typeof linkedInUser.lastName === 'object' && 'localized' in linkedInUser.lastName && linkedInUser.lastName.localized) {
 			// New API format with localized names
 			const locales = Object.keys(linkedInUser.lastName.localized);
@@ -366,9 +301,9 @@ app.get("/callback", async (c) => {
 			// Simple string format
 			lastName = linkedInUser.lastName;
 		}
-		
+
 		name = `${firstName} ${lastName}`.trim();
-		
+
 		// LinkedIn API doesn't return email in the basic profile
 		// We need to make a separate request to get the email
 		const emailResponse = await fetch("https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))", {
@@ -377,7 +312,7 @@ app.get("/callback", async (c) => {
 				"X-Restli-Protocol-Version": "2.0.0"
 			}
 		});
-		
+
 		if (emailResponse.ok) {
 			const emailData = await emailResponse.json() as any;
 			email = emailData.elements?.[0]?.["handle~"]?.emailAddress || "";
@@ -417,204 +352,204 @@ app.get("/callback", async (c) => {
 });
 
 async function revokeUpstreamToken(
-  provider: string,
-  token: string,
-  env: any,
+	provider: string,
+	token: string,
+	env: any,
 
 ): Promise<boolean> {
-  try {
-    console.log(`Attempting to revoke token for provider: ${provider}, token length: ${token.length}`);
-    
-    switch (provider) {
-      case "google": {
-        console.log("Using Google revocation endpoint");
-        try {
-          const params = new URLSearchParams({ token });
-          console.log(`Request params: ${params.toString()}`);
-          
-          const resp = await fetch("https://oauth2.googleapis.com/revoke", {
-            method: "POST",
-            headers: { 
-              "Content-Type": "application/x-www-form-urlencoded"
-            },
-            body: params
-          });
-          
-          const responseText = await resp.text();
-          console.log(`Google revocation response: status=${resp.status}, body=${responseText}`);
-          
-          return resp.ok || resp.status === 200;
-        } catch (error) {
-          console.error("Error in Google token revocation:", error);
-          return false;
-        }
-      }
-      case "github": {
-        // GitHub token revocation - use the correct endpoint for token revocation
-        console.log("Using GitHub revocation endpoint");
-        const basic = btoa(`${env.GITHUB_CLIENT_ID}:${env.GITHUB_CLIENT_SECRET}`);
-        
-        // Use the token endpoint directly instead of the grant endpoint
-        const endpoint = `https://api.github.com/applications/${env.GITHUB_CLIENT_ID}/token`;
-        const endpointGrant = `https://api.github.com/applications/${env.GITHUB_CLIENT_ID}/grant`;
-        
-        console.log(`GitHub endpoint: ${endpoint}`);
-        
-        try {
-          const resp = await fetch(endpoint, {
-            method: "DELETE",
-            headers: {
-              "Authorization": `Basic ${basic}`,
-              "Accept": "application/vnd.github+json",
-              "User-Agent": "goplausible-remote-mcp"
-            },
-            body: JSON.stringify({ access_token: token })
-          });
-          
-          const responseText = await resp.text();
-          console.log(`GitHub token revocation response: status=${resp.status}, body=${responseText}`);
+	try {
+		console.log(`Attempting to revoke token for provider: ${provider}, token length: ${token.length}`);
 
-		  ///////////
+		switch (provider) {
+			case "google": {
+				console.log("Using Google revocation endpoint");
+				try {
+					const params = new URLSearchParams({ token });
+					console.log(`Request params: ${params.toString()}`);
 
-		  const respGrant = await fetch(endpointGrant, {
-            method: "DELETE",
-            headers: {
-              "Authorization": `Basic ${basic}`,
-              "Accept": "application/vnd.github+json",
-              "User-Agent": "goplausible-remote-mcp"
-            },
-            body: JSON.stringify({ access_token: token })
-          });
-          
-          const responseTextGrant = await respGrant.text();
-          console.log(`GitHub grant revocation response: status=${respGrant.status}, body=${responseTextGrant}`);
-          
-          // GitHub returns 204 No Content for successful revocation
-          return (resp.status === 204 || resp.status === 200 || resp.status === 404) &&
-				 (respGrant.status === 204 || respGrant.status === 200 || respGrant.status === 404);
-        } catch (error) {
-          console.error("Error in GitHub token revocation:", error);
-          return false;
-        }
-      }
-      case "twitter": {
-        // OAuth 2.0 token revocation (X)
-        console.log("Using Twitter revocation endpoint");
-        const basic = btoa(`${env.TWITTER_CLIENT_ID}:${env.TWITTER_CLIENT_SECRET}`);
-        const body = new URLSearchParams({
-          token,
-          token_type_hint: "access_token",
-          client_id: env.TWITTER_CLIENT_ID // harmless extra for some implementations
-        });
-        
-        console.log(`Twitter request params: ${body.toString()}`);
-        
-        const resp = await fetch("https://api.x.com/2/oauth2/revoke", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": `Basic ${basic}`
-          },
-          body
-        });
-        
-        const responseText = await resp.text();
-        console.log(`Twitter revocation response: status=${resp.status}, body=${responseText}`);
-        
-        return resp.ok;
-      }
-      case "linkedin": {
-        // LinkedIn OAuth 2.0 token revocation
-        console.log("Using LinkedIn revocation endpoint");
-        const params = new URLSearchParams({
-          token,
-          client_id: env.LINKEDIN_CLIENT_ID,
-          client_secret: env.LINKEDIN_CLIENT_SECRET
-        });
-        
-        console.log(`LinkedIn request params: ${params.toString()}`);
-        
-        const resp = await fetch("https://www.linkedin.com/oauth/v2/revoke", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: params
-        });
-        
-        const responseText = await resp.text();
-        console.log(`LinkedIn revocation response: status=${resp.status}, body=${responseText}`);
-        
-        return resp.ok || resp.status === 200;
-      }
-      default:
-        console.log(`Unknown provider: ${provider}`);
-        return false;
-    }
-  } catch (e) {
-    console.error("Token revocation error:", e);
-    return false;
-  }
+					const resp = await fetch("https://oauth2.googleapis.com/revoke", {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/x-www-form-urlencoded"
+						},
+						body: params
+					});
+
+					const responseText = await resp.text();
+					console.log(`Google revocation response: status=${resp.status}, body=${responseText}`);
+
+					return resp.ok || resp.status === 200;
+				} catch (error) {
+					console.error("Error in Google token revocation:", error);
+					return false;
+				}
+			}
+			case "github": {
+				// GitHub token revocation - use the correct endpoint for token revocation
+				console.log("Using GitHub revocation endpoint");
+				const basic = btoa(`${env.GITHUB_CLIENT_ID}:${env.GITHUB_CLIENT_SECRET}`);
+
+				// Use the token endpoint directly instead of the grant endpoint
+				const endpoint = `https://api.github.com/applications/${env.GITHUB_CLIENT_ID}/token`;
+				const endpointGrant = `https://api.github.com/applications/${env.GITHUB_CLIENT_ID}/grant`;
+
+				console.log(`GitHub endpoint: ${endpoint}`);
+
+				try {
+					const resp = await fetch(endpoint, {
+						method: "DELETE",
+						headers: {
+							"Authorization": `Basic ${basic}`,
+							"Accept": "application/vnd.github+json",
+							"User-Agent": "goplausible-remote-mcp"
+						},
+						body: JSON.stringify({ access_token: token })
+					});
+
+					const responseText = await resp.text();
+					console.log(`GitHub token revocation response: status=${resp.status}, body=${responseText}`);
+
+					///////////
+
+					const respGrant = await fetch(endpointGrant, {
+						method: "DELETE",
+						headers: {
+							"Authorization": `Basic ${basic}`,
+							"Accept": "application/vnd.github+json",
+							"User-Agent": "goplausible-remote-mcp"
+						},
+						body: JSON.stringify({ access_token: token })
+					});
+
+					const responseTextGrant = await respGrant.text();
+					console.log(`GitHub grant revocation response: status=${respGrant.status}, body=${responseTextGrant}`);
+
+					// GitHub returns 204 No Content for successful revocation
+					return (resp.status === 204 || resp.status === 200 || resp.status === 404) &&
+						(respGrant.status === 204 || respGrant.status === 200 || respGrant.status === 404);
+				} catch (error) {
+					console.error("Error in GitHub token revocation:", error);
+					return false;
+				}
+			}
+			case "twitter": {
+				// OAuth 2.0 token revocation (X)
+				console.log("Using Twitter revocation endpoint");
+				const basic = btoa(`${env.TWITTER_CLIENT_ID}:${env.TWITTER_CLIENT_SECRET}`);
+				const body = new URLSearchParams({
+					token,
+					token_type_hint: "access_token",
+					client_id: env.TWITTER_CLIENT_ID // harmless extra for some implementations
+				});
+
+				console.log(`Twitter request params: ${body.toString()}`);
+
+				const resp = await fetch("https://api.x.com/2/oauth2/revoke", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/x-www-form-urlencoded",
+						"Authorization": `Basic ${basic}`
+					},
+					body
+				});
+
+				const responseText = await resp.text();
+				console.log(`Twitter revocation response: status=${resp.status}, body=${responseText}`);
+
+				return resp.ok;
+			}
+			case "linkedin": {
+				// LinkedIn OAuth 2.0 token revocation
+				console.log("Using LinkedIn revocation endpoint");
+				const params = new URLSearchParams({
+					token,
+					client_id: env.LINKEDIN_CLIENT_ID,
+					client_secret: env.LINKEDIN_CLIENT_SECRET
+				});
+
+				console.log(`LinkedIn request params: ${params.toString()}`);
+
+				const resp = await fetch("https://www.linkedin.com/oauth/v2/revoke", {
+					method: "POST",
+					headers: { "Content-Type": "application/x-www-form-urlencoded" },
+					body: params
+				});
+
+				const responseText = await resp.text();
+				console.log(`LinkedIn revocation response: status=${resp.status}, body=${responseText}`);
+
+				return resp.ok || resp.status === 200;
+			}
+			default:
+				console.log(`Unknown provider: ${provider}`);
+				return false;
+		}
+	} catch (e) {
+		console.error("Token revocation error:", e);
+		return false;
+	}
 }
 // ---- /logout ----
 // Clears approval cookie so /authorize shows provider picker again.
 // Optionally revokes upstream token if the agent includes it.
 app.all("/logout", async (c) => {
-  const url = new URL(c.req.raw.url);
-  const revoke = 1
-  const provider = url.searchParams.get("provider") || undefined;
+	const url = new URL(c.req.raw.url);
+	const revoke = 1
+	const provider = url.searchParams.get("provider") || undefined;
 
-  // Try to get access token from Authorization header or query param for convenience.
-  const auth = c.req.header("authorization") || "";
-  const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : undefined;
-  const token = url.searchParams.get("token") || bearer || undefined;
+	// Try to get access token from Authorization header or query param for convenience.
+	const auth = c.req.header("authorization") || "";
+	const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : undefined;
+	const token = url.searchParams.get("token") || bearer || undefined;
 
-  console.log("Logout request details:", { 
-    provider, 
-    hasToken: !!token, 
-    tokenType: token ? typeof token : 'undefined',
-    tokenLength: token ? token.length : 0,
-    tokenValue: token ? `${token.substring(0, 5)}...${token.substring(token.length - 5)}` : 'none',
-    auth: !!auth, 
-    bearer: !!bearer 
-  });
+	console.log("Logout request details:", {
+		provider,
+		hasToken: !!token,
+		tokenType: token ? typeof token : 'undefined',
+		tokenLength: token ? token.length : 0,
+		tokenValue: token ? `${token.substring(0, 5)}...${token.substring(token.length - 5)}` : 'none',
+		auth: !!auth,
+		bearer: !!bearer
+	});
 
 
 
-  // Only attempt token revocation if we have both provider and token
-  if (provider && token) {
-    console.log("About to call revokeUpstreamToken with:", {
-      provider,
-      tokenLength: token.length,
-      tokenFirstChars: token.substring(0, 5),
-      tokenLastChars: token.substring(token.length - 5)
-    });
-    
-    try {
-      const ok = await revokeUpstreamToken(provider, token, c.env);
-      console.log("Upstream revocation result:", ok ? "ok" : "failed");
-    } catch (error) {
-      console.error("Token revocation error:", error);
-    }
-  } else {
-    console.log("Skipping token revocation:", { 
-      revoke: !!revoke, 
-      provider: provider || "missing", 
-      token: token ? "present" : "missing" 
-    });
-  }
+	// Only attempt token revocation if we have both provider and token
+	if (provider && token) {
+		console.log("About to call revokeUpstreamToken with:", {
+			provider,
+			tokenLength: token.length,
+			tokenFirstChars: token.substring(0, 5),
+			tokenLastChars: token.substring(token.length - 5)
+		});
 
-  
-  
-  // Return a success response with all cookies cleared
-  return new Response(JSON.stringify({ 
-    success: true,
-    message: "Successfully logged out",
-    forceReauthentication: true
-  }), {
-    status: 200,
-    headers: { 
-      "Content-Type": "application/json",
-    }
-  });
+		try {
+			const ok = await revokeUpstreamToken(provider, token, c.env);
+			console.log("Upstream revocation result:", ok ? "ok" : "failed");
+		} catch (error) {
+			console.error("Token revocation error:", error);
+		}
+	} else {
+		console.log("Skipping token revocation:", {
+			revoke: !!revoke,
+			provider: provider || "missing",
+			token: token ? "present" : "missing"
+		});
+	}
+
+
+
+	// Return a success response with all cookies cleared
+	return new Response(JSON.stringify({
+		success: true,
+		message: "Successfully logged out",
+		forceReauthentication: true
+	}), {
+		status: 200,
+		headers: {
+			"Content-Type": "application/json",
+		}
+	});
 });
 
 

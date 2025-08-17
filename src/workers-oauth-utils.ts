@@ -1,7 +1,7 @@
 // workers-oauth-utils.ts
 
 import type { AuthRequest, ClientInfo } from "./oauth-provider"; // Adjust path if necessary
-
+import { type Context } from "hono";
 const COOKIE_NAME = "mcp-approved-clients";
 const ONE_YEAR_IN_SECONDS = 31536000;
 
@@ -13,15 +13,15 @@ const ONE_YEAR_IN_SECONDS = 31536000;
  * @returns A URL-safe base64 encoded string.
  */
 function _encodeState(data: any): string {
-	try {
-		const jsonString = JSON.stringify(data);
-		// Use btoa for simplicity, assuming Worker environment supports it well enough
-		// For complex binary data, a Buffer/Uint8Array approach might be better
-		return btoa(jsonString);
-	} catch (e) {
-		console.error("Error encoding state:", e);
-		throw new Error("Could not encode state");
-	}
+  try {
+    const jsonString = JSON.stringify(data);
+    // Use btoa for simplicity, assuming Worker environment supports it well enough
+    // For complex binary data, a Buffer/Uint8Array approach might be better
+    return btoa(jsonString);
+  } catch (e) {
+    console.error("Error encoding state:", e);
+    throw new Error("Could not encode state");
+  }
 }
 
 /**
@@ -30,13 +30,13 @@ function _encodeState(data: any): string {
  * @returns The original data.
  */
 function decodeState<T = any>(encoded: string): T {
-	try {
-		const jsonString = atob(encoded);
-		return JSON.parse(jsonString);
-	} catch (e) {
-		console.error("Error decoding state:", e);
-		throw new Error("Could not decode state");
-	}
+  try {
+    const jsonString = atob(encoded);
+    return JSON.parse(jsonString);
+  } catch (e) {
+    console.error("Error decoding state:", e);
+    throw new Error("Could not decode state");
+  }
 }
 
 /**
@@ -45,20 +45,20 @@ function decodeState<T = any>(encoded: string): T {
  * @returns A promise resolving to the CryptoKey object.
  */
 async function importKey(secret: string): Promise<CryptoKey> {
-	if (!secret) {
-		throw new Error(
-			"COOKIE_SECRET is not defined. A secret key is required for signing cookies.",
-		);
-	}
-	console.log("Importing key for HMAC-SHA256 signing: ", secret); // Log first 10 chars for brevity
-	const enc = new TextEncoder();
-	return crypto.subtle.importKey(
-		"raw",
-		enc.encode(secret),
-		{ hash: "SHA-256", name: "HMAC" },
-		false, // not extractable
-		["sign", "verify"], // key usages
-	);
+  if (!secret) {
+    throw new Error(
+      "COOKIE_SECRET is not defined. A secret key is required for signing cookies.",
+    );
+  }
+  console.log("Importing key for HMAC-SHA256 signing: ", secret); // Log first 10 chars for brevity
+  const enc = new TextEncoder();
+  return crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { hash: "SHA-256", name: "HMAC" },
+    false, // not extractable
+    ["sign", "verify"], // key usages
+  );
 }
 
 /**
@@ -68,12 +68,12 @@ async function importKey(secret: string): Promise<CryptoKey> {
  * @returns A promise resolving to the signature as a hex string.
  */
 async function signWithHmacSha256(key: CryptoKey, data: string): Promise<string> {
-	const enc = new TextEncoder();
-	const signatureBuffer = await crypto.subtle.sign("HMAC", key, enc.encode(data));
-	// Convert ArrayBuffer to hex string
-	return Array.from(new Uint8Array(signatureBuffer))
-		.map((b) => b.toString(16).padStart(2, "0"))
-		.join("");
+  const enc = new TextEncoder();
+  const signatureBuffer = await crypto.subtle.sign("HMAC", key, enc.encode(data));
+  // Convert ArrayBuffer to hex string
+  return Array.from(new Uint8Array(signatureBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 /**
@@ -84,22 +84,22 @@ async function signWithHmacSha256(key: CryptoKey, data: string): Promise<string>
  * @returns A promise resolving to true if the signature is valid, false otherwise.
  */
 async function verifyHmacSha256Signature(
-	key: CryptoKey,
-	signatureHex: string,
-	data: string,
+  key: CryptoKey,
+  signatureHex: string,
+  data: string,
 ): Promise<boolean> {
-	const enc = new TextEncoder();
-	try {
-		// Convert hex signature back to ArrayBuffer
-		const signatureBytes = new Uint8Array(
-			signatureHex.match(/.{1,2}/g)!.map((byte) => Number.parseInt(byte, 16)),
-		);
-		return await crypto.subtle.verify("HMAC", key, signatureBytes.buffer, enc.encode(data));
-	} catch (e) {
-		// Handle errors during hex parsing or verification
-		console.error("Error verifying signature:", e);
-		return false;
-	}
+  const enc = new TextEncoder();
+  try {
+    // Convert hex signature back to ArrayBuffer
+    const signatureBytes = new Uint8Array(
+      signatureHex.match(/.{1,2}/g)!.map((byte) => Number.parseInt(byte, 16)),
+    );
+    return await crypto.subtle.verify("HMAC", key, signatureBytes.buffer, enc.encode(data));
+  } catch (e) {
+    // Handle errors during hex parsing or verification
+    console.error("Error verifying signature:", e);
+    return false;
+  }
 }
 
 /**
@@ -109,51 +109,51 @@ async function verifyHmacSha256Signature(
  * @returns A promise resolving to the list of approved client IDs if the cookie is valid, otherwise null.
  */
 async function getApprovedClientsFromCookie(
-	cookieHeader: string | null,
-	secret: string,
+  cookieHeader: string | null,
+  secret: string,
 ): Promise<string[] | null> {
-	if (!cookieHeader) return null;
+  if (!cookieHeader) return null;
 
-	const cookies = cookieHeader.split(";").map((c) => c.trim());
-	const targetCookie = cookies.find((c) => c.startsWith(`${COOKIE_NAME}=`));
+  const cookies = cookieHeader.split(";").map((c) => c.trim());
+  const targetCookie = cookies.find((c) => c.startsWith(`${COOKIE_NAME}=`));
 
-	if (!targetCookie) return null;
+  if (!targetCookie) return null;
 
-	const cookieValue = targetCookie.substring(COOKIE_NAME.length + 1);
-	const parts = cookieValue.split(".");
+  const cookieValue = targetCookie.substring(COOKIE_NAME.length + 1);
+  const parts = cookieValue.split(".");
 
-	if (parts.length !== 2) {
-		console.warn("Invalid cookie format received.");
-		return null; // Invalid format
-	}
+  if (parts.length !== 2) {
+    console.warn("Invalid cookie format received.");
+    return null; // Invalid format
+  }
 
-	const [signatureHex, base64Payload] = parts;
-	const payload = atob(base64Payload); // Assuming payload is base64 encoded JSON string
+  const [signatureHex, base64Payload] = parts;
+  const payload = atob(base64Payload); // Assuming payload is base64 encoded JSON string
 
-	const key = await importKey(secret);
-	const isValid = await verifyHmacSha256Signature(key, signatureHex, payload);
+  const key = await importKey(secret);
+  const isValid = await verifyHmacSha256Signature(key, signatureHex, payload);
 
-	if (!isValid) {
-		console.warn("Cookie signature verification failed.");
-		return null; // Signature invalid
-	}
+  if (!isValid) {
+    console.warn("Cookie signature verification failed.");
+    return null; // Signature invalid
+  }
 
-	try {
-		const approvedClients = JSON.parse(payload);
-		if (!Array.isArray(approvedClients)) {
-			console.warn("Cookie payload is not an array.");
-			return null; // Payload isn't an array
-		}
-		// Ensure all elements are strings
-		if (!approvedClients.every((item) => typeof item === "string")) {
-			console.warn("Cookie payload contains non-string elements.");
-			return null;
-		}
-		return approvedClients as string[];
-	} catch (e) {
-		console.error("Error parsing cookie payload:", e);
-		return null; // JSON parsing failed
-	}
+  try {
+    const approvedClients = JSON.parse(payload);
+    if (!Array.isArray(approvedClients)) {
+      console.warn("Cookie payload is not an array.");
+      return null; // Payload isn't an array
+    }
+    // Ensure all elements are strings
+    if (!approvedClients.every((item) => typeof item === "string")) {
+      console.warn("Cookie payload contains non-string elements.");
+      return null;
+    }
+    return approvedClients as string[];
+  } catch (e) {
+    console.error("Error parsing cookie payload:", e);
+    return null; // JSON parsing failed
+  }
 }
 
 // --- Exported Functions ---
@@ -162,9 +162,9 @@ async function getApprovedClientsFromCookie(
  * Result of checking if a client ID has already been approved
  */
 export interface ApprovalCheckResult {
-	/** Whether the client ID has been approved */
-	approved: boolean;
-	/** The preferred provider for this client, if available */
+  /** Whether the client ID has been approved */
+  approved: boolean;
+  /** The preferred provider for this client, if available */
   provider: string;
 }
 
@@ -178,82 +178,82 @@ export interface ApprovalCheckResult {
  * @returns A promise resolving to an object containing approval status and provider preference.
  */
 export async function clientIdAlreadyApproved(
-	request: Request,
-	clientId: string,
-	cookieSecret: string,
+  request: Request,
+  clientId: string,
+  cookieSecret: string,
 ): Promise<ApprovalCheckResult> {
-	console.log("Checking if client ID is already approved:", clientId);
-	if (!clientId) return { approved: false, provider: '' };
-	
-	const cookieHeader = request.headers.get("Cookie");
-	const approvedClients = await getApprovedClientsFromCookie(cookieHeader, cookieSecret);
-	console.log("Approved clients from cookie:", approvedClients);
-	
-	// Check for provider preference cookie
-	let provider = null // Default provider
-	try {
-		const cookies = cookieHeader ? cookieHeader.split(';').map(c => c.trim()) : [];
-		const providerCookie = cookies.find(c => c.startsWith('mcp-provider-preference='));
-		if (providerCookie) {
-			provider = providerCookie.split('=')[1];
-		}
-	} catch (error) {
-		console.error("Error reading provider preference cookie:", error);
-	}
-	
-	return {
-		approved: approvedClients?.includes(clientId) ?? false,
-		provider: provider || null,
-	};
+  console.log("Checking if client ID is already approved:", clientId);
+  if (!clientId) return { approved: false, provider: '' };
+
+  const cookieHeader = request.headers.get("Cookie");
+  const approvedClients = await getApprovedClientsFromCookie(cookieHeader, cookieSecret);
+  console.log("Approved clients from cookie:", approvedClients);
+
+  // Check for provider preference cookie
+  let provider = null // Default provider
+  try {
+    const cookies = cookieHeader ? cookieHeader.split(';').map(c => c.trim()) : [];
+    const providerCookie = cookies.find(c => c.startsWith('mcp-provider-preference='));
+    if (providerCookie) {
+      provider = providerCookie.split('=')[1];
+    }
+  } catch (error) {
+    console.error("Error reading provider preference cookie:", error);
+  }
+
+  return {
+    approved: approvedClients?.includes(clientId) ?? false,
+    provider: provider || null,
+  };
 }
 
 /**
  * Configuration for the approval dialog
  */
 export interface ApprovalDialogOptions {
-	/**
-	 * Client information to display in the approval dialog
-	 */
-	client: ClientInfo | null;
-	/**
-	 * Server information to display in the approval dialog
-	 */
-	server: {
-		name: string;
-		logo?: string;
-		description?: string;
-	};
-	/**
-	 * Arbitrary state data to pass through the approval flow
-	 * Will be encoded in the form and returned when approval is complete
-	 */
-	state: Record<string, any>;
-	/**
-	 * Name of the cookie to use for storing approvals
-	 * @default "mcp_approved_clients"
-	 */
-	cookieName?: string;
-	/**
-	 * Secret used to sign cookies for verification
-	 * Can be a string or Uint8Array
-	 * @default Built-in Uint8Array key
-	 */
-	cookieSecret?: string | Uint8Array;
-	/**
-	 * Cookie domain
-	 * @default current domain
-	 */
-	cookieDomain?: string;
-	/**
-	 * Cookie path
-	 * @default "/"
-	 */
-	cookiePath?: string;
-	/**
-	 * Cookie max age in seconds
-	 * @default 30 days
-	 */
-	cookieMaxAge?: number;
+  /**
+   * Client information to display in the approval dialog
+   */
+  client: ClientInfo | null;
+  /**
+   * Server information to display in the approval dialog
+   */
+  server: {
+    name: string;
+    logo?: string;
+    description?: string;
+  };
+  /**
+   * Arbitrary state data to pass through the approval flow
+   * Will be encoded in the form and returned when approval is complete
+   */
+  state: Record<string, any>;
+  /**
+   * Name of the cookie to use for storing approvals
+   * @default "mcp_approved_clients"
+   */
+  cookieName?: string;
+  /**
+   * Secret used to sign cookies for verification
+   * Can be a string or Uint8Array
+   * @default Built-in Uint8Array key
+   */
+  cookieSecret?: string | Uint8Array;
+  /**
+   * Cookie domain
+   * @default current domain
+   */
+  cookieDomain?: string;
+  /**
+   * Cookie path
+   * @default "/"
+   */
+  cookiePath?: string;
+  /**
+   * Cookie max age in seconds
+   * @default 30 days
+   */
+  cookieMaxAge?: number;
 }
 
 
@@ -267,49 +267,49 @@ export interface ApprovalDialogOptions {
  * @returns A Response containing the HTML approval dialog
  */
 export function renderApprovalDialog(request: Request, options: ApprovalDialogOptions): Response {
-	const { client, server, state } = options;
-	console.log("Rendering approval dialog with options:", options);
+  const { client, server, state } = options;
+  console.log("Rendering approval dialog with options:", options);
 
-	// Encode state for form submission
-	const encodedState = btoa(JSON.stringify(state));
+  // Encode state for form submission
+  const encodedState = btoa(JSON.stringify(state));
 
-	// Sanitize any untrusted content
-	const serverName = sanitizeHtml(server.name);
-	console.log("Sanitized server name:", serverName);
-	const clientName = client?.clientName ? sanitizeHtml(client.clientName) : "Unknown MCP Client";
-	console.log("Sanitized client name:", clientName);
-	const serverDescription = server.description ? sanitizeHtml(server.description) : "";
+  // Sanitize any untrusted content
+  const serverName = sanitizeHtml(server.name);
+  console.log("Sanitized server name:", serverName);
+  const clientName = client?.clientName ? sanitizeHtml(client.clientName) : "Unknown MCP Client";
+  console.log("Sanitized client name:", clientName);
+  const serverDescription = server.description ? sanitizeHtml(server.description) : "";
 
-	// Safe URLs
-	const logoUrl = server.logo ? sanitizeHtml(server.logo) : "";
-	console.log("Sanitized logo URL:", logoUrl.substring(0, 100)); // Log first 100 chars for brevity
-	// const clientUri = client?.clientUri ? sanitizeHtml(client.clientUri) : "";
-	const clientUri =  "https://algorandmcp.goplausible.xyz"; // Default to GoPlausible MCP URL
-	console.log("Sanitized client URI:", clientUri.substring(0, 100)); // Log first 100 chars for brevity
-	// const policyUri = client?.policyUri ? sanitizeHtml(client.policyUri) : "http://goplausible.com/policy";
-	const policyUri =  "http://goplausible.com/policy";
-	console.log("Sanitized policy URI:", policyUri.substring(0, 100)); // Log first 100 chars for brevity
-	const tosUri = client?.tosUri ? sanitizeHtml(client.tosUri) : "";
-	console.log("Sanitized TOS URI:", tosUri.substring(0, 100)); // Log first 100 chars for brevity
+  // Safe URLs
+  const logoUrl = server.logo ? sanitizeHtml(server.logo) : "";
+  console.log("Sanitized logo URL:", logoUrl.substring(0, 100)); // Log first 100 chars for brevity
+  // const clientUri = client?.clientUri ? sanitizeHtml(client.clientUri) : "";
+  const clientUri = "https://algorandmcp.goplausible.xyz"; // Default to GoPlausible MCP URL
+  console.log("Sanitized client URI:", clientUri.substring(0, 100)); // Log first 100 chars for brevity
+  // const policyUri = client?.policyUri ? sanitizeHtml(client.policyUri) : "http://goplausible.com/policy";
+  const policyUri = "http://goplausible.com/policy";
+  console.log("Sanitized policy URI:", policyUri.substring(0, 100)); // Log first 100 chars for brevity
+  const tosUri = client?.tosUri ? sanitizeHtml(client.tosUri) : "";
+  console.log("Sanitized TOS URI:", tosUri.substring(0, 100)); // Log first 100 chars for brevity
 
-	// Client contacts
-	console.log("Sanitizing client contacts");
-	const contacts =
-		client?.contacts && client.contacts.length > 0
-			? sanitizeHtml(client.contacts.join(", "))
-			: "";
-	console.log("Sanitized contacts:", contacts.substring(0, 100)); // Log first 100 chars for brevity
+  // Client contacts
+  console.log("Sanitizing client contacts");
+  const contacts =
+    client?.contacts && client.contacts.length > 0
+      ? sanitizeHtml(client.contacts.join(", "))
+      : "";
+  console.log("Sanitized contacts:", contacts.substring(0, 100)); // Log first 100 chars for brevity
 
-	// Get redirect URIs
-	console.log("Sanitizing redirect URIs");
-	const redirectUris =
-		client?.redirectUris && client.redirectUris.length > 0
-			? client.redirectUris.map((uri) => sanitizeHtml(uri))
-			: [];
-	console.log("Sanitized redirect URIs:", redirectUris.slice(0, 3)); // Log first 3 for brevity
+  // Get redirect URIs
+  console.log("Sanitizing redirect URIs");
+  const redirectUris =
+    client?.redirectUris && client.redirectUris.length > 0
+      ? client.redirectUris.map((uri) => sanitizeHtml(uri))
+      : [];
+  console.log("Sanitized redirect URIs:", redirectUris.slice(0, 3)); // Log first 3 for brevity
 
-	// Generate HTML for the approval dialog
-	const htmlContent = `
+  // Generate HTML for the approval dialog
+  const htmlContent = `
     <!DOCTYPE html>
     <html lang="en">
       <head>
@@ -637,7 +637,7 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
               </div>
               
               ${clientUri
-			? `
+      ? `
                 <div class="client-detail">
                   <div class="detail-label">Website:</div>
                   <div class="detail-value small">
@@ -647,11 +647,11 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
                   </div>
                 </div>
               `
-			: ""
-		}
+      : ""
+    }
               
               ${policyUri
-			? `
+      ? `
                 <div class="client-detail">
                   <div class="detail-label">Privacy Policy:</div>
                   <div class="detail-value">
@@ -661,11 +661,11 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
                   </div>
                 </div>
               `
-			: ""
-		}
+      : ""
+    }
               
               ${tosUri
-			? `
+      ? `
                 <div class="client-detail">
                   <div class="detail-label">Terms of Service:</div>
                   <div class="detail-value">
@@ -675,11 +675,11 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
                   </div>
                 </div>
               `
-			: ""
-		}
+      : ""
+    }
               
               ${redirectUris.length > 0
-			? `
+      ? `
                 <div class="client-detail">
                   <div class="detail-label">Redirect URIs:</div>
                   <div class="detail-value small">
@@ -687,18 +687,18 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
                   </div>
                 </div>
               `
-			: ""
-		}
+      : ""
+    }
               
               ${contacts
-			? `
+      ? `
                 <div class="client-detail">
                   <div class="detail-label">Contact:</div>
                   <div class="detail-value">${contacts}</div>
                 </div>
               `
-			: ""
-		}
+      : ""
+    }
             </div>
             
             <p>This MCP Client is requesting to be authorized on ${serverName}. Choose a provider to continue authentication:</p>
@@ -743,22 +743,91 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
       </body>
     </html>
   `;
-	console.log("Generated HTML content for approval dialog");
-	return new Response(htmlContent, {
-		headers: {
-			"Content-Type": "text/html; charset=utf-8",
-		},
-	});
+  console.log("Generated HTML content for approval dialog");
+  return new Response(htmlContent, {
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+    },
+  });
 }
 
 /**
  * Result of parsing the approval form submission.
  */
 export interface ParsedApprovalResult {
-	/** The original state object passed through the form. */
-	state: any;
-	/** Headers to set on the redirect response, including the Set-Cookie header. */
-	headers: Record<string, string>;
+  /** The original state object passed through the form. */
+  state: any;
+  /** Headers to set on the redirect response, including the Set-Cookie header. */
+  headers: Record<string, string>;
+}
+
+export async function redirectToProvider(
+  c: Context,
+  provider: string,
+  oauthReqInfo: AuthRequest,
+  headers: Record<string, string> = {},
+) {
+  // Configure provider-specific OAuth parameters
+  let clientId = '';
+  let scope = '';
+  let upstreamUrl = '';
+  let hostedDomain = undefined;
+  let redirectUri = '';
+
+  switch (provider) {
+    case "github":
+      console.log("Redirecting to GitHub for OAuth authorization");
+      clientId = c.env.GITHUB_CLIENT_ID || '';
+      scope = "read:user user:email";
+      upstreamUrl = "https://github.com/login/oauth/authorize";
+      // Use a fixed redirect URI for GitHub that matches what's registered in the GitHub OAuth application settings
+      redirectUri = new URL("/callback", c.req.raw.url).href;
+      break;
+    case "twitter":
+      console.log("Redirecting to Twitter for OAuth authorization");
+      clientId = c.env.TWITTER_CLIENT_ID || '';
+      scope = "tweet.read users.read";
+      upstreamUrl = "https://x.com/i/oauth2/authorize";
+      redirectUri = new URL("/callback", c.req.raw.url).href;
+      break;
+    case "linkedin":
+      console.log("Redirecting to LinkedIn for OAuth authorization");
+      clientId = c.env.LINKEDIN_CLIENT_ID || '';
+      scope = "r_liteprofile r_emailaddress";
+      upstreamUrl = "https://www.linkedin.com/oauth/v2/authorization";
+      redirectUri = new URL("/callback", c.req.raw.url).href;
+      break;
+    case "google":
+    default:
+      console.log("Redirecting to Google for OAuth authorization");
+      clientId = c.env.GOOGLE_CLIENT_ID || '';
+      scope = "email profile";
+      upstreamUrl = "https://accounts.google.com/o/oauth2/v2/auth";
+      hostedDomain = c.env.HOSTED_DOMAIN;
+      redirectUri = new URL("/callback", c.req.raw.url).href;
+      break;
+  }
+
+  // Store the provider in the state for use in the callback
+  const stateWithProvider = {
+    ...oauthReqInfo,
+    provider
+  };
+
+  return new Response(null, {
+    headers: {
+      ...headers,
+      location: getUpstreamAuthorizeUrl({
+        clientId,
+        hostedDomain,
+        redirectUri,
+        scope,
+        state: btoa(JSON.stringify(stateWithProvider)),
+        upstreamUrl,
+      }),
+    },
+    status: 302,
+  });
 }
 
 /**
@@ -771,70 +840,70 @@ export interface ParsedApprovalResult {
  * @throws If the request method is not POST, form data is invalid, or state is missing.
  */
 export async function parseRedirectApproval(
-	request: Request,
-	cookieSecret: string,
+  request: Request,
+  cookieSecret: string,
 ): Promise<ParsedApprovalResult> {
-	if (request.method !== "POST") {
-		throw new Error("Invalid request method. Expected POST.");
-	}
+  if (request.method !== "POST") {
+    throw new Error("Invalid request method. Expected POST.");
+  }
 
-	let state: any;
-	let clientId: string | undefined;
+  let state: any;
+  let clientId: string | undefined;
 
-	try {
-		const formData = await request.formData();
-		const encodedState = formData.get("state");
-		const providerPreference = formData.get("provider_preference");
+  try {
+    const formData = await request.formData();
+    const encodedState = formData.get("state");
+    const providerPreference = formData.get("provider_preference");
 
-		if (typeof encodedState !== "string" || !encodedState) {
-			throw new Error("Missing or invalid 'state' in form data.");
-		}
+    if (typeof encodedState !== "string" || !encodedState) {
+      throw new Error("Missing or invalid 'state' in form data.");
+    }
 
-		state = decodeState<{ oauthReqInfo?: AuthRequest }>(encodedState); // Decode the state
-		clientId = state?.oauthReqInfo?.clientId; // Extract clientId from within the state
+    state = decodeState<{ oauthReqInfo?: AuthRequest }>(encodedState); // Decode the state
+    clientId = state?.oauthReqInfo?.clientId; // Extract clientId from within the state
 
-		if (!clientId) {
-			throw new Error("Could not extract clientId from state object.");
-		}
-		
-		// Add the provider preference to the state for use in the GET handler
-		state.providerPreference = providerPreference;
-	} catch (e) {
-		console.error("Error processing form submission:", e);
-		// Rethrow or handle as appropriate, maybe return a specific error response
-		throw new Error(
-			`Failed to parse approval form: ${e instanceof Error ? e.message : String(e)}`,
-		);
-	}
+    if (!clientId) {
+      throw new Error("Could not extract clientId from state object.");
+    }
 
-	// Get existing approved clients
-	const cookieHeader = request.headers.get("Cookie");
-	const existingApprovedClients =
-		(await getApprovedClientsFromCookie(cookieHeader, cookieSecret)) || [];
+    // Add the provider preference to the state for use in the GET handler
+    state.providerPreference = providerPreference;
+  } catch (e) {
+    console.error("Error processing form submission:", e);
+    // Rethrow or handle as appropriate, maybe return a specific error response
+    throw new Error(
+      `Failed to parse approval form: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
 
-	// Add the newly approved client ID (avoid duplicates)
-	const updatedApprovedClients = Array.from(new Set([...existingApprovedClients, clientId]));
+  // Get existing approved clients
+  const cookieHeader = request.headers.get("Cookie");
+  const existingApprovedClients =
+    (await getApprovedClientsFromCookie(cookieHeader, cookieSecret)) || [];
 
-	// Sign the updated list
-	const payload = JSON.stringify(updatedApprovedClients);
-	const key = await importKey(cookieSecret);
-	const signature = await signWithHmacSha256(key, payload);
-	const newCookieValue = `${signature}.${btoa(payload)}`; // signature.base64(payload)
+  // Add the newly approved client ID (avoid duplicates)
+  const updatedApprovedClients = Array.from(new Set([...existingApprovedClients, clientId]));
 
-	// Generate Set-Cookie headers
-	const headers: Record<string, string> = {
-		"Set-Cookie": `${COOKIE_NAME}=${newCookieValue}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${ONE_YEAR_IN_SECONDS}`,
-	};
-	
-	// Add provider preference cookie
-	if (state.providerPreference) {
-		headers["Set-Cookie"] = [
-			headers["Set-Cookie"],
-			`mcp-provider-preference=${state.providerPreference}; Secure; Path=/; SameSite=Lax; Max-Age=${ONE_YEAR_IN_SECONDS}`
-		].join(", ");
-	}
+  // Sign the updated list
+  const payload = JSON.stringify(updatedApprovedClients);
+  const key = await importKey(cookieSecret);
+  const signature = await signWithHmacSha256(key, payload);
+  const newCookieValue = `${signature}.${btoa(payload)}`; // signature.base64(payload)
 
-	return { headers, state };
+  // Generate Set-Cookie headers
+  const headers: Record<string, string> = {
+    "Set-Cookie": `${COOKIE_NAME}=${newCookieValue}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${ONE_YEAR_IN_SECONDS}`,
+  };
+
+  // Add provider preference cookie
+  if (state.providerPreference) {
+    headers["Set-Cookie"] = [
+      headers["Set-Cookie"],
+      `mcp-provider-preference=${state.providerPreference}; Secure; Path=/; SameSite=Lax; Max-Age=${ONE_YEAR_IN_SECONDS}`
+    ].join(", ");
+  }
+
+  return { headers, state };
 }
 
 /**
@@ -843,12 +912,12 @@ export async function parseRedirectApproval(
  * @returns A safe string with HTML special characters escaped
  */
 function sanitizeHtml(unsafe: string): string {
-	return unsafe
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#039;");
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 /**
@@ -864,29 +933,29 @@ function sanitizeHtml(unsafe: string): string {
  * @returns {string} The authorization URL.
  */
 export function getUpstreamAuthorizeUrl({
-	upstreamUrl,
-	clientId,
-	scope,
-	redirectUri,
-	state,
-	hostedDomain,
+  upstreamUrl,
+  clientId,
+  scope,
+  redirectUri,
+  state,
+  hostedDomain,
 }: {
-	upstreamUrl: string;
-	clientId: string;
-	scope: string;
-	redirectUri: string;
-	state?: string;
-	hostedDomain?: string;
+  upstreamUrl: string;
+  clientId: string;
+  scope: string;
+  redirectUri: string;
+  state?: string;
+  hostedDomain?: string;
 }) {
-	const upstream = new URL(upstreamUrl);
-	upstream.searchParams.set("client_id", clientId);
-	upstream.searchParams.set("redirect_uri", redirectUri);
-	upstream.searchParams.set("scope", scope);
-	upstream.searchParams.set("response_type", "code");
-	if (state) upstream.searchParams.set("state", state);
-	if (hostedDomain) upstream.searchParams.set("hd", hostedDomain);
+  const upstream = new URL(upstreamUrl);
+  upstream.searchParams.set("client_id", clientId);
+  upstream.searchParams.set("redirect_uri", redirectUri);
+  upstream.searchParams.set("scope", scope);
+  upstream.searchParams.set("response_type", "code");
+  if (state) upstream.searchParams.set("state", state);
+  if (hostedDomain) upstream.searchParams.set("hd", hostedDomain);
   console.log(`Constructed upstream authorization URL: ${upstream.href}`);
-	return upstream.href;
+  return upstream.href;
 }
 
 /**
@@ -903,79 +972,79 @@ export function getUpstreamAuthorizeUrl({
  * @returns {Promise<[string, null] | [null, Response]>} A promise that resolves to an array containing the access token or an error response.
  */
 export async function fetchUpstreamAuthToken({
-	clientId,
-	clientSecret,
-	code,
-	redirectUri,
-	upstreamUrl,
-	grantType,
+  clientId,
+  clientSecret,
+  code,
+  redirectUri,
+  upstreamUrl,
+  grantType,
 }: {
-	code: string | undefined;
-	upstreamUrl: string;
-	clientSecret: string;
-	redirectUri: string;
-	clientId: string;
-	grantType: string;
+  code: string | undefined;
+  upstreamUrl: string;
+  clientSecret: string;
+  redirectUri: string;
+  clientId: string;
+  grantType: string;
 }): Promise<[string, null] | [null, Response]> {
-	if (!code) {
-		return [null, new Response("Missing code", { status: 400 })];
-	}
+  if (!code) {
+    return [null, new Response("Missing code", { status: 400 })];
+  }
 
-	// Determine if this is a GitHub request based on the URL
-	const isGitHub = upstreamUrl.includes('github.com');
-	
-	// Create appropriate parameters based on the provider
-	const params: Record<string, string> = isGitHub ? {
-		// GitHub uses standard OAuth parameter names
-		client_id: clientId,
-		client_secret: clientSecret,
-		code,
-		redirect_uri: redirectUri
-	} : {
-		// Google uses our custom parameter names
-		clientId,
-		clientSecret,
-		code,
-		grantType,
-		redirectUri,
-	};
+  // Determine if this is a GitHub request based on the URL
+  const isGitHub = upstreamUrl.includes('github.com');
 
-	const headers: Record<string, string> = {
-		"Content-Type": "application/x-www-form-urlencoded"
-	};
-	
-	// GitHub requires Accept header for JSON response
-	if (isGitHub) {
-		headers["Accept"] = "application/json";
-	}
+  // Create appropriate parameters based on the provider
+  const params: Record<string, string> = isGitHub ? {
+    // GitHub uses standard OAuth parameter names
+    client_id: clientId,
+    client_secret: clientSecret,
+    code,
+    redirect_uri: redirectUri
+  } : {
+    // Google uses our custom parameter names
+    clientId,
+    clientSecret,
+    code,
+    grantType,
+    redirectUri,
+  };
 
-	const resp = await fetch(upstreamUrl, {
-		body: new URLSearchParams(params).toString(),
-		headers,
-		method: "POST",
-	});
-	
-	if (!resp.ok) {
-		console.error(`Failed to fetch access token: ${await resp.text()}`);
-		return [null, new Response("Failed to fetch access token", { status: 500 })];
-	}
+  const headers: Record<string, string> = {
+    "Content-Type": "application/x-www-form-urlencoded"
+  };
 
-	interface authTokenResponse {
-		access_token: string;
-	}
+  // GitHub requires Accept header for JSON response
+  if (isGitHub) {
+    headers["Accept"] = "application/json";
+  }
 
-	const body = (await resp.json()) as authTokenResponse;
-	if (!body.access_token) {
-		return [null, new Response("Missing access token", { status: 400 })];
-	}
-	return [body.access_token, null];
+  const resp = await fetch(upstreamUrl, {
+    body: new URLSearchParams(params).toString(),
+    headers,
+    method: "POST",
+  });
+
+  if (!resp.ok) {
+    console.error(`Failed to fetch access token: ${await resp.text()}`);
+    return [null, new Response("Failed to fetch access token", { status: 500 })];
+  }
+
+  interface authTokenResponse {
+    access_token: string;
+  }
+
+  const body = (await resp.json()) as authTokenResponse;
+  if (!body.access_token) {
+    return [null, new Response("Missing access token", { status: 400 })];
+  }
+  return [body.access_token, null];
 }
 
 // Context from the auth process, encrypted & stored in the auth token
 // and provided to the AlgorandRemoteMCP as this.props
 export type Props = {
-	name: string;
-	email: string;
-	accessToken: string;
-	provider: string; // 'google' or 'github' or 'twitter' or 'linkedin'
+  name: string;
+  email: string;
+  accessToken: string;
+  provider: string; // 'google' or 'github' or 'twitter' or 'linkedin'
 };
