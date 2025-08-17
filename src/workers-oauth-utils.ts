@@ -774,7 +774,6 @@ export async function revokeUpstreamToken(
 				console.log("Using Google revocation endpoint");
 				try {
 					const params = new URLSearchParams({ token });
-					console.log(`Request params: ${params.toString()}`);
 
 					const resp = await fetch("https://oauth2.googleapis.com/revoke", {
 						method: "POST",
@@ -1183,5 +1182,7 @@ export type Props = {
   name: string;
   email: string;
   accessToken: string;
+  id: string; // User ID
+  clientId: string; // Client ID for OAuth
   provider: string; // 'google' or 'github' or 'twitter' or 'linkedin'
 };

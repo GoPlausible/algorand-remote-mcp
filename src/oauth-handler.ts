@@ -342,6 +342,8 @@ app.get("/callback", async (c) => {
 			email,
 			name,
 			provider, // Store the provider in props
+			id, // User ID
+			clientId: oauthReqInfo.clientId, // Client ID for OAuth
 		} as Props,
 		request: oauthReqInfo,
 		scope: oauthReqInfo.scope,
@@ -363,7 +365,7 @@ app.all("/logout", async (c) => {
 	const auth = c.req.header("authorization") || "";
 	const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : undefined;
 	const token = url.searchParams.get("token") || bearer || undefined;
-	
+
 	console.log("[OAUTH_HANDLER] Logout request details:", {
 		provider,
 		hasToken: !!token,

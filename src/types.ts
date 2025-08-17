@@ -500,6 +500,8 @@ export interface Props extends Record<string, unknown> {
 	name: string;
 	email: string;
 	accessToken: string;
+  id: string; // User ID
+  clientId: string; // Client ID for OAuth
   provider: string; // 'google' or 'github' or 'twitter' or 'linkedin'
 }
 /**
