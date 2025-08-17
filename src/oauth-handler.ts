@@ -22,6 +22,7 @@ interface OAuthEnv {
 	TWITTER_CLIENT_ID: string;
 	TWITTER_CLIENT_SECRET: string;
 	LINKEDIN_CLIENT_ID: string;
+	OAUTH_KV_SESSIONS: KVNamespace; // KV namespace for OAuth sessions
 	LINKEDIN_CLIENT_SECRET: string;
 	HOSTED_DOMAIN?: string;
 }
@@ -150,7 +151,7 @@ app.get("/callback", async (c) => {
 			userInfoUrl = "https://www.googleapis.com/oauth2/v2/userinfo";
 			redirectUri = new URL("/callback", c.req.url).href;
 			break;
-		
+
 	}
 
 	const [accessToken, errorResponse] = await fetchUpstreamAuthToken({
@@ -329,8 +330,7 @@ app.get("/callback", async (c) => {
 		email = googleUser.email;
 	}
 
-	console.log(`[OAUTH_HANDLER] Successfully fetched user info from ${provider}: `, { id, name, email });
-
+	console.log(`[OAUTH_HANDLER] Successfully fetched user info from ${provider}: `, { id, name, clientId: oauthReqInfo.clientId, email });
 	// Return back to the MCP client a new token
 	const { redirectTo } = await c.env.OAUTH_PROVIDER.completeAuthorization({
 		metadata: {

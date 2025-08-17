@@ -53,6 +53,10 @@
     {
       "binding": "PUBLIC_KEY_CACHE",
       "id": "1638f9e52fd24353a1006929ea34ec65"
+    },
+    {
+      "binding": "OAUTH_KV_SESSIONS",
+      "id": "90c090cd9ccb45fea03a8ac3afe43383"
     }
   ],
   "observability": {
