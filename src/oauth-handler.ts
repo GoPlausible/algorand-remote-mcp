@@ -420,7 +420,7 @@ async function revokeUpstreamToken(
   provider: string,
   token: string,
   env: any,
-  { allGrants = true }: { allGrants?: boolean } = {}
+
 ): Promise<boolean> {
   try {
     console.log(`Attempting to revoke token for provider: ${provider}, token length: ${token.length}`);
@@ -450,30 +450,52 @@ async function revokeUpstreamToken(
         }
       }
       case "github": {
-        // Revoke the whole grant (kills refresh + access), or just this token
-        // Requires Basic auth with client_id:client_secret
+        // GitHub token revocation - use the correct endpoint for token revocation
         console.log("Using GitHub revocation endpoint");
         const basic = btoa(`${env.GITHUB_CLIENT_ID}:${env.GITHUB_CLIENT_SECRET}`);
-        const endpoint = allGrants
-          ? `https://api.github.com/applications/${env.GITHUB_CLIENT_ID}/grant`
-          : `https://api.github.com/applications/${env.GITHUB_CLIENT_ID}/token`;
+        
+        // Use the token endpoint directly instead of the grant endpoint
+        const endpoint = `https://api.github.com/applications/${env.GITHUB_CLIENT_ID}/token`;
+        const endpointGrant = `https://api.github.com/applications/${env.GITHUB_CLIENT_ID}/grant`;
         
         console.log(`GitHub endpoint: ${endpoint}`);
         
-        const resp = await fetch(endpoint, {
-          method: "DELETE",
-          headers: {
-            "Authorization": `Basic ${basic}`,
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "goplausible-remote-mcp"
-          },
-          body: JSON.stringify({ access_token: token })
-        });
-        
-        const responseText = await resp.text();
-        console.log(`GitHub revocation response: status=${resp.status}, body=${responseText}`);
-        
-        return resp.status === 204 || resp.status === 200;
+        try {
+          const resp = await fetch(endpoint, {
+            method: "DELETE",
+            headers: {
+              "Authorization": `Basic ${basic}`,
+              "Accept": "application/vnd.github+json",
+              "User-Agent": "goplausible-remote-mcp"
+            },
+            body: JSON.stringify({ access_token: token })
+          });
+          
+          const responseText = await resp.text();
+          console.log(`GitHub token revocation response: status=${resp.status}, body=${responseText}`);
+
+		  ///////////
+
+		  const respGrant = await fetch(endpointGrant, {
+            method: "DELETE",
+            headers: {
+              "Authorization": `Basic ${basic}`,
+              "Accept": "application/vnd.github+json",
+              "User-Agent": "goplausible-remote-mcp"
+            },
+            body: JSON.stringify({ access_token: token })
+          });
+          
+          const responseTextGrant = await respGrant.text();
+          console.log(`GitHub grant revocation response: status=${respGrant.status}, body=${responseTextGrant}`);
+          
+          // GitHub returns 204 No Content for successful revocation
+          return (resp.status === 204 || resp.status === 200 || resp.status === 404) &&
+				 (respGrant.status === 204 || respGrant.status === 200 || respGrant.status === 404);
+        } catch (error) {
+          console.error("Error in GitHub token revocation:", error);
+          return false;
+        }
       }
       case "twitter": {
         // OAuth 2.0 token revocation (X)
@@ -568,13 +590,7 @@ app.all("/logout", async (c) => {
     });
     
     try {
-      // Create a wrapper function to test if revokeUpstreamToken is being called
-      const testRevoke = async () => {
-        console.log("Inside testRevoke wrapper function");
-        return await revokeUpstreamToken(provider, token, c.env, { allGrants: true });
-      };
-      
-      const ok = await testRevoke();
+      const ok = await revokeUpstreamToken(provider, token, c.env);
       console.log("Upstream revocation result:", ok ? "ok" : "failed");
     } catch (error) {
       console.error("Token revocation error:", error);
@@ -587,25 +603,32 @@ app.all("/logout", async (c) => {
     });
   }
 
-  // Also clear the provider preference cookie
-  const providerPreferenceCookie = "mcp-provider-preference=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0";
+  // Clear all cookies related to authentication
+  const cookiesToClear = [
+    // Clear the approved clients cookie
+    clearApprovedClientsCookie()["Set-Cookie"],
+    // Clear the provider preference cookie
+    "mcp-provider-preference=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0",
+    // Clear any session cookies
+    "mcp-session=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0",
+    // Clear any other cookies that might be used for authentication
+    "mcp-auth=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0"
+  ];
   
-  // Combine all cookie headers
-  const allCookieHeaders = {
-    "Set-Cookie": setCookieHeaders["Set-Cookie"] 
-      ? [setCookieHeaders["Set-Cookie"], providerPreferenceCookie].join(", ")
-      : providerPreferenceCookie
-  };
-
-  // Return a success response without redirecting
+  // Return a success response with all cookies cleared
   return new Response(JSON.stringify({ 
     success: true,
-    message: "Successfully logged out"
+    message: "Successfully logged out",
+    forceReauthentication: true
   }), {
     status: 200,
     headers: { 
-      ...allCookieHeaders,
-      "Content-Type": "application/json"
+      "Set-Cookie": cookiesToClear.join(", "),
+      "Content-Type": "application/json",
+      // Add cache control headers to prevent caching
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0"
     }
   });
 });

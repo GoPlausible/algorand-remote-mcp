@@ -393,13 +393,16 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
     async () => {
       try {
         // Build the logout URL with the base URL from the environment or a default
-        const baseUrl = new URL( 'https://algorandmcp.goplausible.xyz');
+        const baseUrl = new URL('https://algorandmcp.goplausible.xyz');
         const logoutUrl = new URL('/logout', baseUrl.origin);
         
         // Add query parameters - always revoke token if available
         if (props?.accessToken && props?.provider) {
           logoutUrl.searchParams.set('token', props.accessToken);
           logoutUrl.searchParams.set('provider', props.provider);
+          console.log(`Including token and provider in logout request: provider=${props.provider}, token length=${props.accessToken.length}`);
+        } else {
+          console.log('No token or provider available for logout request');
         }
         
         console.log(`Calling logout endpoint: ${logoutUrl.toString()}`);
@@ -410,16 +413,30 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         });
         
         if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Logout failed with status: ${response.status}, response: ${errorText}`);
           throw new Error(`Logout failed with status: ${response.status}`);
         }
-        await env.PUBLIC_KEY_CACHE.delete(props.email); // Clear cache for the user
         
-        // Return response without redirectUrl
+        // Parse the response to get any additional information
+        const responseData = await response.json();
+        console.log('Logout response:', responseData);
+        
+        // Clear local cache
+        if (props.email) {
+          await env.PUBLIC_KEY_CACHE.delete(props.email);
+          console.log(`Cleared cache for user: ${props.email}`);
+        }
+        
+        // Return response with clear instructions for the client
         return ResponseProcessor.processResponse({
           success: true,
-          message: 'Successfully logged out'
+          message: 'Successfully logged out. You will need to re-authenticate on your next request.',
+          // Include information that this was a forced logout to help client understand the state
+          forceReauthentication: true
         });
       } catch (error: any) {
+        console.error('Error during logout:', error);
         return {
           content: [{
             type: 'text',
