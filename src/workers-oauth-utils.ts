@@ -304,9 +304,11 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
 	// Safe URLs
 	const logoUrl = server.logo ? sanitizeHtml(server.logo) : "";
 	console.log("Sanitized logo URL:", logoUrl.substring(0, 100)); // Log first 100 chars for brevity
-	const clientUri = client?.clientUri ? sanitizeHtml(client.clientUri) : "";
+	// const clientUri = client?.clientUri ? sanitizeHtml(client.clientUri) : "";
+	const clientUri =  "https://algorandmcp.goplausible.xyz"; // Default to GoPlausible MCP URL
 	console.log("Sanitized client URI:", clientUri.substring(0, 100)); // Log first 100 chars for brevity
-	const policyUri = client?.policyUri ? sanitizeHtml(client.policyUri) : "";
+	// const policyUri = client?.policyUri ? sanitizeHtml(client.policyUri) : "http://goplausible.com/policy";
+	const policyUri =  "http://goplausible.com/policy";
 	console.log("Sanitized policy URI:", policyUri.substring(0, 100)); // Log first 100 chars for brevity
 	const tosUri = client?.tosUri ? sanitizeHtml(client.tosUri) : "";
 	console.log("Sanitized TOS URI:", tosUri.substring(0, 100)); // Log first 100 chars for brevity

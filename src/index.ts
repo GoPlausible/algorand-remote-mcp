@@ -41,8 +41,8 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 		// Configure ResponseProcessor with pagination settings
 		console.log("Initializing Algorand Remote MCP...");
 		console.log("Current state:", this.state);
-		console.log("Props Google name:", this.props?.name);
-		console.log("Props Google email:", this.props?.email);
+		console.log("Props name:", this.props?.name);
+		console.log("Props email:", this.props?.email);
 		// Set default page size or use from state if available
 		const itemsPerPage = this.state?.items_per_page || 10;
 		ResponseProcessor.setItemsPerPage(itemsPerPage);

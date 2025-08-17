@@ -98,7 +98,7 @@ async function redirectToProvider(
 		case "github":
 			console.log("Redirecting to GitHub for OAuth authorization");
 			clientId = c.env.GITHUB_CLIENT_ID || '';
-			scope = "user:email";
+			scope = "read:user user:email";
 			upstreamUrl = "https://github.com/login/oauth/authorize";
 			// Use a fixed redirect URI for GitHub that matches what's registered in the GitHub OAuth application settings
 			redirectUri = new URL("/callback", c.req.raw.url).href;
@@ -236,9 +236,10 @@ app.get("/callback", async (c) => {
 		Authorization: `Bearer ${accessToken}`,
 	};
 
-	// GitHub requires Accept header for REST API
+	// GitHub requires Accept header and User-Agent header for REST API
 	if (provider === "github") {
 		headers["Accept"] = "application/vnd.github.v3+json";
+		headers["User-Agent"] = "goplausible-remote-mcp";
 	} else if (provider === "twitter") {
 		headers["Authorization"] = `Bearer ${accessToken}`;
 	} else if (provider === "linkedin") {
@@ -311,7 +312,12 @@ app.get("/callback", async (c) => {
 		// GitHub doesn't always return email in the user profile
 		// If email is null or not present, we need to make an additional request
 		if (!githubUser.email) {
-			const emailsResponse = await fetch("https://api.github.com/user/emails", { headers });
+			const emailsResponse = await fetch("https://api.github.com/user/emails", { 
+				headers: {
+					...headers,
+					"User-Agent": "goplausible-remote-mcp" // Ensure User-Agent is set for this request too
+				} 
+			});
 			if (emailsResponse.ok) {
 				const emails = await emailsResponse.json() as GitHubEmail[];
 				const primaryEmail = emails.find(e => e.primary);
