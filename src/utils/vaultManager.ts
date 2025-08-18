@@ -296,6 +296,7 @@ export async function createNewEntity(env: Env, email: string, provider: string)
   }
 
   try {
+    console.log(`[VAULT_MANAGER] Creating new entity in vault for email: ${email} with provider: ${provider}`);
     // Check if the entity already exists
     const existingEntityCheck = await checkIdentityEntity(env, email, provider);
     if (existingEntityCheck && existingEntityCheck.success && existingEntityCheck.entityDetails?.id) {
@@ -314,6 +315,7 @@ export async function createNewEntity(env: Env, email: string, provider: string)
       },
       body: JSON.stringify({
         name: email,
+        provider: provider,
       })
     });
 
