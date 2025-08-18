@@ -1129,10 +1129,11 @@ export function getUpstreamAuthorizeUrl({
   upstream.searchParams.set("client_id", clientId);
   upstream.searchParams.set("redirect_uri", redirectUri);
   upstream.searchParams.set("scope", scope);
-  upstream.searchParams.set("grant_type", grantType);
-  if (provider === "twitter" && codeChallenge) {
+
+  if ((provider === "twitter" || provider === "linkedin" || provider === "github") && codeChallenge) {
     upstream.searchParams.set("code_challenge", codeChallenge);
     upstream.searchParams.set("code_challenge_method", "S256");
+      upstream.searchParams.set("grant_type", grantType);
   }
   console.log(`[WORKER_OAUTH_UTILS] Using grant type: ${grantType}`);
   upstream.searchParams.set("response_type", "code");
