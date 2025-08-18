@@ -16,6 +16,7 @@ import { auth } from "@modelcontextprotocol/sdk/client/auth.js";
 // Extend the Env type to include our OAuth configuration
 interface OAuthEnv {
 	OAUTH_PROVIDER: OAuthHelpers;
+	CODE_VERIFIER_KV: KVNamespace; // KV namespace for PKCE code verifiers
 	OAUTH_KV: KVNamespace; // KV namespace for OAuth client data
 	COOKIE_ENCRYPTION_KEY: string;
 	GOOGLE_CLIENT_ID: string;
@@ -43,7 +44,7 @@ app.get("/authorize", async (c) => {
 	const scope = (url.searchParams.get('scope') || '').split(' ').filter(Boolean);
 	const state = url.searchParams.get('state') || '';
 	const codeChallenge = url.searchParams.get('code_challenge') || undefined;
-	const codeChallengeMethod = url.searchParams.get('code_challenge_method') || 'plain';
+	const codeChallengeMethod = url.searchParams.get('code_challenge_method') || 'S256';
 	if (!clientId) {
 		console.error("[OAUTH_HANDLER] Invalid OAuth request: missing clientId");
 		return c.text("Invalid request", 400);
@@ -148,7 +149,7 @@ app.get("/callback", async (c) => {
 	let tokenUrl = '';
 	let userInfoUrl = '';
 	let redirectUri = '';
-
+	const pkce: any = await c.env.CODE_VERIFIER_KV.get(`pkce:${stateData.clientId}`, { type: "json" });
 	switch (provider) {
 		case "github":
 			clientId = c.env.GITHUB_CLIENT_ID || '';
@@ -161,8 +162,16 @@ app.get("/callback", async (c) => {
 		case "twitter":
 			clientId = c.env.TWITTER_CLIENT_ID || '';
 			clientSecret = c.env.TWITTER_CLIENT_SECRET || '';
-			tokenUrl = "https://x.com/i/oauth2/token";
-			userInfoUrl = "https://x.com/2/me";
+			tokenUrl = "https://api.x.com/2/oauth2/token";
+			userInfoUrl = "https://api.x.com/2/users/me";
+			// redirectUri = new URL("/callback", c.req.url).href;
+
+			console.log("[OAUTH_HANDLER] Retrieved PKCE data for Twitter:", pkce);
+			if (!pkce?.codeVerifier || !pkce?.upstreamRedirectUri) {
+				console.error("[OAUTH_HANDLER] Missing PKCE for Twitter state:", stateData.authReqInfo, pkce);
+				return c.text("Twitter session expired or PKCE missing", 400);
+			}
+			//redirectUri = pkce.upstreamRedirectUri;
 			redirectUri = new URL("/callback", c.req.url).href;
 			break;
 		case "linkedin":
@@ -182,13 +191,14 @@ app.get("/callback", async (c) => {
 
 	}
 
-	const [accessToken, errorResponse] = await fetchUpstreamAuthToken({
+	const [accessToken, errorResponse] = await fetchUpstreamAuthToken(c.env,{
 		clientId,
 		clientSecret,
 		code,
 		grantType: "authorization_code",
 		redirectUri,
 		upstreamUrl: tokenUrl,
+		codeVerifier: provider === "twitter" ? pkce.codeVerifier : undefined
 	});
 
 	if (errorResponse) {
@@ -208,6 +218,7 @@ app.get("/callback", async (c) => {
 		headers["User-Agent"] = "goplausible-remote-mcp";
 	} else if (provider === "twitter") {
 		headers["Authorization"] = `Bearer ${accessToken}`;
+		headers["Content-Type"] = "application/json";
 	} else if (provider === "linkedin") {
 		headers["Authorization"] = `Bearer ${accessToken}`;
 	}
@@ -249,21 +260,22 @@ app.get("/callback", async (c) => {
 		name: string;
 		email: string;
 	}
-
+let res = await userResponse.json()
 	// Parse the user data with the appropriate type
 	const userData = provider === "github"
-		? await userResponse.json() as GitHubUser
+		? res as GitHubUser
 		: provider === "twitter"
-			? await userResponse.json() as TwitterUser
+			? (res && typeof res === "object" && "data" in res ? (res.data as TwitterUser) : {} as TwitterUser)
 			: provider === "linkedin"
-				? await userResponse.json() as LinkedInUser
-				: await userResponse.json() as GoogleUser
+				? res as LinkedInUser
+				: res as GoogleUser
 
 
 	// Normalize user data based on provider
 	let id: string;
 	let name: string;
 	let email: string;
+	console.log(`[OAUTH_HANDLER] User data received: ${userData}`);
 
 	if (provider === "github") {
 		const githubUser = userData as GitHubUser;

@@ -774,15 +774,19 @@ class OAuthProviderImpl {
    */
   private validateEndpoint(endpoint: string, name: string): void {
     if (this.isPath(endpoint)) {
+      console.log(`[OAUTH_PROVIDER] Validating endpoint ${name} as a path: ${endpoint}`);
       // It should be an absolute path starting with /
       if (!endpoint.startsWith('/')) {
+        console.error(`[OAUTH_PROVIDER] Invalid endpoint ${name}: ${endpoint}`);
         throw new TypeError(`${name} path must be an absolute path starting with /`);
       }
     } else {
       // It should be a valid URL
+      console.log(`[OAUTH_PROVIDER] Validating endpoint ${name} as a URL: ${endpoint}`);
       try {
         new URL(endpoint);
       } catch (e) {
+        console.error(`[OAUTH_PROVIDER] Invalid endpoint ${name}: ${endpoint}`);
         throw new TypeError(`${name} must be either an absolute path starting with / or a valid URL`);
       }
     }
@@ -824,6 +828,7 @@ class OAuthProviderImpl {
 
     // Special handling for OPTIONS requests (CORS preflight)
     if (request.method === 'OPTIONS') {
+  
       // For API routes and OAuth endpoints, respond with CORS headers
       if (
         this.isApiRequest(url) ||
@@ -853,8 +858,9 @@ class OAuthProviderImpl {
 
     // Handle token endpoint (including revocation)
     if (this.isTokenEndpoint(url)) {
+      console.log('[OAUTH_PROVIDER] Handling token endpoint request');
       const parsed = await this.parseTokenEndpointRequest(request, env);
-
+      console.log('[OAUTH_PROVIDER] Parsed token endpoint request:', parsed);
       // If parsing failed, return the error response
       if (parsed instanceof Response) {
         return this.addCorsHeaders(parsed, request);
@@ -879,19 +885,23 @@ class OAuthProviderImpl {
 
     // Check if it's an API request
     if (this.isApiRequest(url)) {
+      console.log('[OAUTH_PROVIDER] Handling API request');
       const response = await this.handleApiRequest(request, env, ctx);
       return this.addCorsHeaders(response, request);
     }
 
     // Inject OAuth helpers into env if not already present
     if (!env.OAUTH_PROVIDER) {
+      console.log('[OAUTH_PROVIDER] Injecting OAuth helpers into env');
       env.OAUTH_PROVIDER = this.createOAuthHelpers(env);
+      console.log('[OAUTH_PROVIDER] OAuth helpers injected: env.OAUTH_PROVIDER using createOAuthHelpers');
     }
 
     // Call the default handler based on its type
     // Note: We don't add CORS headers to default handler responses
     if (this.typedDefaultHandler.type === HandlerType.EXPORTED_HANDLER) {
       // It's an object with a fetch method
+      console.log('[OAUTH_PROVIDER] Calling default handler fetch method');
       return this.typedDefaultHandler.handler.fetch(
         request as Parameters<ExportedHandlerWithFetch['fetch']>[0],
         env,
@@ -899,6 +909,7 @@ class OAuthProviderImpl {
       );
     } else {
       // It's a WorkerEntrypoint class - instantiate it with ctx and env in that order
+      console.log('[OAUTH_PROVIDER] Instantiating WorkerEntrypoint default handler');
       const handler = new this.typedDefaultHandler.handler(ctx, env);
       return handler.fetch(request);
     }
@@ -1292,6 +1303,7 @@ class OAuthProviderImpl {
       let calculatedChallenge: string;
 
       if (grantData.codeChallengeMethod === 'S256') {
+        console.log('[OAUTH_PROVIDER] Verifying PKCE code_verifier using S256 method');
         // SHA-256 transformation for S256 method
         const encoder = new TextEncoder();
         const data = encoder.encode(codeVerifier);
@@ -1299,6 +1311,7 @@ class OAuthProviderImpl {
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         calculatedChallenge = base64UrlEncode(String.fromCharCode(...hashArray));
       } else {
+        console.log('[OAUTH_PROVIDER] Verifying PKCE code_verifier using plain method');
         // Plain method, direct comparison
         calculatedChallenge = codeVerifier;
       }
@@ -2395,6 +2408,7 @@ class OAuthHelpersImpl implements OAuthHelpers {
 
     // Check if this is an implicit flow request (response_type=token)
     if (options.request.responseType === 'token') {
+      console.log('[OAUTH_PROVIDER] Implicit flow requested, generating access token directly');
       // For implicit flow, we skip the authorization code and directly issue an access token
       const accessTokenSecret = generateRandomString(TOKEN_LENGTH);
       const accessToken = `${options.userId}:${grantId}:${accessTokenSecret}`;
@@ -2463,6 +2477,7 @@ class OAuthHelpersImpl implements OAuthHelpers {
 
       return { redirectTo: redirectUrl.toString() };
     } else {
+      console.log('[OAUTH_PROVIDER] Authorization code flow requested, generating authorization code');
       // Standard authorization code flow
       // Generate an authorization code with embedded user and grant IDs
       const authCodeSecret = generateRandomString(32);

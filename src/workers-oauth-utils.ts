@@ -24,6 +24,7 @@ function _encodeState(data: any): string {
   }
 }
 
+
 /**
  * Decodes a URL-safe base64 string back to its original data.
  * @param encoded - The URL-safe base64 encoded string.
@@ -38,7 +39,20 @@ function decodeState<T = any>(encoded: string): T {
     throw new Error("Could not decode state");
   }
 }
-
+function _b64url(u8: Uint8Array) {
+  return btoa(String.fromCharCode(...u8)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+export function generateCodeVerifier(): string {
+  const bytes = new Uint8Array(64);
+  crypto.getRandomValues(bytes);
+  // 43..128 chars allowed; 64 is fine
+  return _b64url(bytes).slice(0, 64);
+}
+export async function computeS256CodeChallenge(verifier: string): Promise<string> {
+  const enc = new TextEncoder().encode(verifier);
+  const hash = await crypto.subtle.digest("SHA-256", enc);
+  return _b64url(new Uint8Array(hash));
+}
 /**
  * Imports a secret key string for HMAC-SHA256 signing.
  * @param secret - The raw secret key string.
@@ -719,10 +733,9 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
                   <span>Continue with GitHub</span>
                 </button>
                 
-                <button type="button" class="provider-button disabled" disabled>
+                <button type="submit" class="provider-button" style="background-color: #ffffff; border-color: #e1e4e8; color: #24292e; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);" name="provider" value="twitter" onclick="document.getElementById('provider_preference').value='twitter';">
                   <img src="https://about.x.com/content/dam/about-twitter/x/brand-toolkit/logo-black.png.twimg.1920.png" alt="X Logo" class="provider-logo">
                   <span>Continue with X</span>
-                  <span class="coming-soon">Coming soon</span>
                 </button>
                 
                 <button type="submit" class="provider-button" style="background-color: #ffffff; border-color: #e1e4e8; color: #24292e; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);" name="provider" value="linkedin" onclick="document.getElementById('provider_preference').value='linkedin';">
@@ -910,7 +923,9 @@ export async function redirectToProvider(
   let upstreamUrl = '';
   let hostedDomain = undefined;
   let redirectUri = '';
-
+  let codeChallengeParam: string | undefined;
+  let codeChallengeMethod: string | undefined;
+  let redirectUriOverride: string | undefined;
   switch (provider) {
     case "github":
       console.log("[WORKER_OAUTH_UTILS] Redirecting to GitHub for OAuth authorization");
@@ -926,6 +941,19 @@ export async function redirectToProvider(
       scope = "tweet.read users.read";
       upstreamUrl = "https://x.com/i/oauth2/authorize";
       redirectUri = new URL("/callback", c.req.raw.url).href;
+      redirectUriOverride = c.env.OAUTH_CALLBACK_URL || (c.env.BASE_URL ? new URL("/callback", c.env.BASE_URL).href : undefined);
+      const cv = generateCodeVerifier();
+      const cc = await computeS256CodeChallenge(cv);
+      codeChallengeParam = cc;
+      codeChallengeMethod = "S256";
+      await c.env.CODE_VERIFIER_KV.put(
+        `pkce:${authReqInfo.clientId}`,
+        JSON.stringify({ codeVerifier: cv, upstreamRedirectUri: redirectUriOverride || new URL("/callback", c.req.raw.url).href }),
+        { expirationTtl: 600 }
+      );
+
+
+
       break;
     case "linkedin":
       console.log("[WORKER_OAUTH_UTILS] Redirecting to LinkedIn for OAuth authorization");
@@ -956,9 +984,12 @@ export async function redirectToProvider(
     headers: {
       ...headers,
       location: getUpstreamAuthorizeUrl({
+        provider,
+        codeChallenge: provider === 'twitter' ? codeChallengeParam : authReqInfo.codeChallenge,
+        codeChallengeMethod: provider === 'twitter' ? codeChallengeMethod : authReqInfo.codeChallengeMethod,
         clientId,
         hostedDomain,
-        redirectUri,
+        redirectUri: redirectUriOverride || redirectUri,
         scope,
         grantType: "authorization_code",
         state: btoa(JSON.stringify(stateWithProvider)),
@@ -1072,6 +1103,7 @@ function sanitizeHtml(unsafe: string): string {
  * @returns {string} The authorization URL.
  */
 export function getUpstreamAuthorizeUrl({
+  provider,
   upstreamUrl,
   clientId,
   scope,
@@ -1079,7 +1111,10 @@ export function getUpstreamAuthorizeUrl({
   redirectUri,
   state,
   hostedDomain,
+  codeChallenge,
+  codeChallengeMethod
 }: {
+  provider: string;
   upstreamUrl: string;
   clientId: string;
   scope: string;
@@ -1087,12 +1122,18 @@ export function getUpstreamAuthorizeUrl({
   grantType: string;
   state?: string;
   hostedDomain?: string;
+  codeChallenge?: string;
+  codeChallengeMethod?: string;
 }) {
   const upstream = new URL(upstreamUrl);
   upstream.searchParams.set("client_id", clientId);
   upstream.searchParams.set("redirect_uri", redirectUri);
   upstream.searchParams.set("scope", scope);
   upstream.searchParams.set("grant_type", grantType);
+  if (provider === "twitter" && codeChallenge) {
+    upstream.searchParams.set("code_challenge", codeChallenge);
+    upstream.searchParams.set("code_challenge_method", "S256");
+  }
   console.log(`[WORKER_OAUTH_UTILS] Using grant type: ${grantType}`);
   upstream.searchParams.set("response_type", "code");
   if (state) upstream.searchParams.set("state", state);
@@ -1114,13 +1155,14 @@ export function getUpstreamAuthorizeUrl({
  *
  * @returns {Promise<[string, null] | [null, Response]>} A promise that resolves to an array containing the access token or an error response.
  */
-export async function fetchUpstreamAuthToken({
+export async function fetchUpstreamAuthToken(env: any, {
   clientId,
   clientSecret,
   code,
   redirectUri,
   upstreamUrl,
   grantType,
+  codeVerifier
 }: {
   code: string | undefined;
   upstreamUrl: string;
@@ -1128,6 +1170,7 @@ export async function fetchUpstreamAuthToken({
   redirectUri: string;
   clientId: string;
   grantType: string;
+  codeVerifier?: string;
 }): Promise<[string, null] | [null, Response]> {
   if (!code) {
     return [null, new Response("Missing code", { status: 400 })];
@@ -1152,14 +1195,15 @@ export async function fetchUpstreamAuthToken({
     code,
     redirect_uri: redirectUri,
     grant_type: grantType,
-  }: isX ? {
+  } : isX ? {
     // X (Twitter) uses standard OAuth parameter names
     client_id: clientId,
     client_secret: clientSecret,
     code,
     redirect_uri: redirectUri,
     grant_type: grantType,
-  }:{
+    ...(codeVerifier ? { code_verifier: codeVerifier } : {}),
+  } : {
     // Google uses our custom parameter names
     clientId,
     clientSecret,
@@ -1175,6 +1219,10 @@ export async function fetchUpstreamAuthToken({
   // GitHub requires Accept header for JSON response
   if (isGitHub) {
     headers["Accept"] = "application/json";
+  }
+  if (isX) {
+    const basic = btoa(`${env.TWITTER_CLIENT_ID}:${env.TWITTER_CLIENT_SECRET}`);
+    headers["Authorization"] = `Basic ${basic}`;
   }
 
   const resp = await fetch(upstreamUrl, {
@@ -1198,5 +1246,3 @@ export async function fetchUpstreamAuthToken({
   }
   return [body.access_token, null];
 }
-
-
