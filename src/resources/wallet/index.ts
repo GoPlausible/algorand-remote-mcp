@@ -76,7 +76,8 @@ export async function registerWalletResources(server: McpServer, env: Env, props
       const entityId = await env.VAULT_ENTITIES.get(props.email);
       console.log(`Entity ID for ${props.email} from KV store:`, entityId);
       let roleId = null;
-      if (entityId) {
+      if (!!entityId) {
+        console.log(`Fetching role ID from KV for entity ${entityId}`);
         roleId = await env.VAULT_ENTITIES.get(entityId);
         console.log(`Role ID for ${entityId} from KV store:`, roleId);
       }

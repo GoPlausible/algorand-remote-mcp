@@ -941,7 +941,7 @@ export async function redirectToProvider(
       scope = "tweet.read users.read";
       upstreamUrl = "https://x.com/i/oauth2/authorize";
       redirectUri = new URL("/callback", c.req.raw.url).href;
-      redirectUriOverride = c.env.OAUTH_CALLBACK_URL || (c.env.BASE_URL ? new URL("/callback", c.env.BASE_URL).href : undefined);
+      redirectUriOverride =  (c.env.BASE_URL ? new URL("/callback", c.env.BASE_URL).href : undefined);
       const cv = generateCodeVerifier();
       const cc = await computeS256CodeChallenge(cv);
       codeChallengeParam = cc;
@@ -951,9 +951,6 @@ export async function redirectToProvider(
         JSON.stringify({ codeVerifier: cv, upstreamRedirectUri: redirectUriOverride || new URL("/callback", c.req.raw.url).href }),
         { expirationTtl: 600 }
       );
-
-
-
       break;
     case "linkedin":
       console.log("[WORKER_OAUTH_UTILS] Redirecting to LinkedIn for OAuth authorization");
@@ -1130,7 +1127,7 @@ export function getUpstreamAuthorizeUrl({
   upstream.searchParams.set("redirect_uri", redirectUri);
   upstream.searchParams.set("scope", scope);
 
-  if ((provider === "twitter" || provider === "linkedin" || provider === "github") && codeChallenge) {
+  if ((provider === "twitter") && codeChallenge) {
     upstream.searchParams.set("code_challenge", codeChallenge);
     upstream.searchParams.set("code_challenge_method", "S256");
       upstream.searchParams.set("grant_type", grantType);

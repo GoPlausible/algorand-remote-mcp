@@ -26,7 +26,6 @@ interface OAuthEnv {
 	TWITTER_CLIENT_ID: string;
 	TWITTER_CLIENT_SECRET: string;
 	LINKEDIN_CLIENT_ID: string;
-	OAUTH_KV_SESSIONS: KVNamespace; // KV namespace for OAuth sessions
 	LINKEDIN_CLIENT_SECRET: string;
 	HOSTED_DOMAIN?: string;
 }

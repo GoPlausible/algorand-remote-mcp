@@ -88,6 +88,7 @@ export async function getPublicKey(env: Env, keyName: string): Promise<PublicKey
     return { success: false, error: 'Hashicorp Vault worker not configured' };
   }
   // Check if the public key is cached
+  console.log(`Fetching public key for ${keyName} from vault`);
   const cachedKey = await env.PUBLIC_KEY_CACHE.get(keyName);
   if (cachedKey) {
     console.log('Public key retrieved from cache:', cachedKey);
@@ -244,9 +245,9 @@ export async function ensureUserAccount(env: Env, email: string | undefined, pro
   console.log(`Checking for existing entity in VAULT_ENTITIES for email: ${email} provider: ${provider}`);
 
   let entityId: string | null = null;
+  let roleId: string | null = null;
   try {
     entityId = await env.VAULT_ENTITIES.get(email);
-    console.log(`Entity ID for ${email} from KV store:`, entityId);
   } catch (error) {
     console.error('Error getting entity ID from KV store:', error);
   }
@@ -274,6 +275,9 @@ export async function ensureUserAccount(env: Env, email: string | undefined, pro
       throw new Error(keypairResult.error || 'Failed to create keypair in vault');
     }
   }
+  console.log(`Entity ID for ${email} from KV store:`, entityId);
+  if(entityId) roleId = await env.VAULT_ENTITIES.get(entityId);
+  console.log(`Role ID for ${entityId} from KV store:`, roleId);
   return 'vault';
 }
 
