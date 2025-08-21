@@ -270,7 +270,7 @@ export async function ensureUserAccount(env: Env, email: string | undefined, pro
     console.error('Failed to get public key from vault:', publicKeyResult.error);
     // Create a new vault-based account
     console.log(`Creating new keypair for ${email}`);
-    const keypairResult = await createKeypair(env, email);
+    const keypairResult = await createKeypair(env, email, provider);
     if (!keypairResult.success) {
       throw new Error(keypairResult.error || 'Failed to create keypair in vault');
     }

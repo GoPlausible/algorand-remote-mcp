@@ -78,7 +78,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           // Create new keypair
           await deleteKeypair(env, props.email, props.provider);
           await env.PUBLIC_KEY_CACHE.delete(props.email); // Clear cache for the user
-          const keypairResult = await createKeypair(env, props.email);
+          const keypairResult = await createKeypair(env, props.email, props.provider);
 
           if (!keypairResult.success) {
             throw new Error(keypairResult.error || 'Failed to create keypair in vault');
@@ -111,7 +111,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         } else {
           // No account found, create a new vault-based account
           console.log('No account found, creating new vault-based keypair for user:', props.email);
-          const keypairResult = await createKeypair(env, props.email);
+          const keypairResult = await createKeypair(env, props.email, props.provider);
 
           if (!keypairResult.success) {
             throw new Error(keypairResult.error || 'Failed to create keypair in vault');
