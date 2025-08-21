@@ -411,7 +411,7 @@ export interface Env {
    * Hashicorp Vault Worker binding for secure secret storage
    */
   HCV_WORKER?: any;
- /*  PUBLIC_KEY_CACHE?: any; */
+  PUBLIC_KEY_CACHE?: any;
   /**
    * Durable Object namespace for the AlgorandRemoteMCP class
    */

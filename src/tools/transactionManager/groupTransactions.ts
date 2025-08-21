@@ -191,16 +191,7 @@ async function buildTransaction(
 /**
  * Register group transaction tools to the MCP server
  */
-export async function registerGroupTransactionTools(server: McpServer, env: Env, props: Props): Promise<void> {
-  let provider = props.provider;
-  let email = provider === 'google' ? props.email : props.email.indexOf(`${provider}`) > -1 ? props.email : `${provider}_${props.email}`;
-  const publicKeyResult = await getPublicKey(env, email, provider);
-
-  if (!publicKeyResult.success || publicKeyResult.error) {
-    throw new Error('No valid account found for signing');
-  } 
-  let publicKey = publicKeyResult.publicKey;
-
+export function registerGroupTransactionTools(server: McpServer, env: Env, props: Props): void {
   // Assign group ID to transactions
   server.tool(
     'assign_group_id',
@@ -315,12 +306,12 @@ export async function registerGroupTransactionTools(server: McpServer, env: Env,
     async ({ encodedTxns, keyName }) => {
       try {
         // Ensure user has an account
-        // try {
-        //   await ensureUserAccount(env, props.email || '', provider);
-        //   console.log(`Ensured user account for ${props.email || keyName}`);
-        // } catch (error: any) {
-        //   throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
-        // }
+        try {
+          await ensureUserAccount(env, props.email || '', props.provider || 'google');
+          console.log(`Ensured user account for ${props.email || keyName}`);
+        } catch (error: any) {
+          throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
+        }
 
         // Decode transactions
         const decodedTxns = encodedTxns.map(txn => {
@@ -344,82 +335,88 @@ export async function registerGroupTransactionTools(server: McpServer, env: Env,
 
         // Sign each transaction with the same key
         let signatures: (string | null)[] = [];
+        const publicKeyResult = await getPublicKey(env, props.email);
 
-        const signaturePromises = groupedEncodedTxns.map(async txn => {
-          // Get the public key from the vault
-  
-          if (!publicKey) {
-            return null;
-          }
-          console.log('Public key from vault:', publicKey);
+        if (publicKeyResult.success && !publicKeyResult.error) {
+          // For vault-based accounts, use signWithTransit and process the response
+          const signaturePromises = groupedEncodedTxns.map(async txn => {
+            // Get the public key from the vault
+            const publicKeyResult = await getPublicKey(env, props.email || keyName);
+            if (!publicKeyResult.success || !publicKeyResult.publicKey) {
+              return null;
+            }
+            console.log('Public key from vault:', publicKeyResult.publicKey);
 
-          // Get the raw signature from the vault
-          const TAG: Buffer = Buffer.from("TX");
-          console.log('TAG:', Buffer.from("TX"));
-          console.log('Encoded transaction buffer signing:', new Uint8Array(Buffer.from(txn, 'base64')));
-          const finalEncodedTxn = new Uint8Array(Buffer.from(txn, 'base64'));
-          const finalEncodedTxnTagged = ConcatArrays(TAG, finalEncodedTxn);
-          console.log('Final encoded transaction:', finalEncodedTxnTagged);
-          const finalEncodedTxnBase64 = Buffer.from(finalEncodedTxnTagged).toString('base64');
-          const signatureResult = await signWithTransit(env, finalEncodedTxnBase64, email, provider);
+            // Get the raw signature from the vault
+            const TAG: Buffer = Buffer.from("TX");
+            console.log('TAG:', Buffer.from("TX"));
+            console.log('Encoded transaction buffer signing:', new Uint8Array(Buffer.from(txn, 'base64')));
+            const finalEncodedTxn = new Uint8Array(Buffer.from(txn, 'base64'));
+            const finalEncodedTxnTagged = ConcatArrays(TAG, finalEncodedTxn);
+            console.log('Final encoded transaction:', finalEncodedTxnTagged);
+            const finalEncodedTxnBase64 = Buffer.from(finalEncodedTxnTagged).toString('base64');
+            const signatureResult = await signWithTransit(env, finalEncodedTxnBase64, props.email || keyName);
 
-          if (!signatureResult.success || !signatureResult.signature) {
-            return null;
-          }
+            if (!signatureResult.success || !signatureResult.signature) {
+              return null;
+            }
 
-          // Decode the transaction
-          const decodedTxn = algosdk.decodeUnsignedTransaction(Buffer.from(txn, 'base64'));
-          console.log('Decoded transaction:', decodedTxn);
+            // Decode the transaction
+            const decodedTxn = algosdk.decodeUnsignedTransaction(Buffer.from(txn, 'base64'));
+            console.log('Decoded transaction:', decodedTxn);
 
-          // Convert the base64 signature to Uint8Array
-          const signature = Buffer.from(signatureResult.signature, 'base64');
-          console.log('Signature:', signature);
+            // Convert the base64 signature to Uint8Array
+            const signature = Buffer.from(signatureResult.signature, 'base64');
+            console.log('Signature:', signature);
 
-          // Convert the base64 public key to Uint8Array
-          const publicKeyBuffer = Buffer.from(publicKey, 'base64');
-          console.log('Public key buffer:', publicKeyBuffer);
+            // Convert the base64 public key to Uint8Array
+            const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
+            console.log('Public key buffer:', publicKeyBuffer);
 
-          // Get the address from the public key
-          const signerAddr = algosdk.encodeAddress(publicKeyBuffer);
-          console.log('Signer address:', signerAddr);
-          const txnObj = decodedTxn.get_obj_for_encoding();
-          console.log('Transaction object for encoding:', txnObj);
+            // Get the address from the public key
+            const signerAddr = algosdk.encodeAddress(publicKeyBuffer);
+            console.log('Signer address:', signerAddr);
+            const txnObj = decodedTxn.get_obj_for_encoding();
+            console.log('Transaction object for encoding:', txnObj);
 
-          // Create a signed transaction object
-          const signedTxn: any = {
-            txn: txnObj,
-            sig: signature,
-          };
-          console.log('Signed transaction object:', signedTxn);
+            // Create a signed transaction object
+            const signedTxn: any = {
+              txn: txnObj,
+              sig: signature,
+            };
+            console.log('Signed transaction object:', signedTxn);
 
-          // Add AuthAddr if signing with a different key than From indicates
-          // Compare the actual bytes of the public keys, not their string representations
-          const fromPubKey = decodedTxn.from.publicKey;
-          let keysMatch = fromPubKey.length === publicKeyBuffer.length;
-          if (keysMatch) {
-            for (let i = 0; i < fromPubKey.length; i++) {
-              if (fromPubKey[i] !== publicKeyBuffer[i]) {
-                keysMatch = false;
-                break;
+            // Add AuthAddr if signing with a different key than From indicates
+            // Compare the actual bytes of the public keys, not their string representations
+            const fromPubKey = decodedTxn.from.publicKey;
+            let keysMatch = fromPubKey.length === publicKeyBuffer.length;
+            if (keysMatch) {
+              for (let i = 0; i < fromPubKey.length; i++) {
+                if (fromPubKey[i] !== publicKeyBuffer[i]) {
+                  keysMatch = false;
+                  break;
+                }
               }
             }
-          }
 
-          if (!keysMatch) {
-            // Only add sgnr if the keys are actually different
-            signedTxn["sgnr"] = algosdk.decodeAddress(signerAddr);
-          }
+            if (!keysMatch) {
+              // Only add sgnr if the keys are actually different
+              signedTxn["sgnr"] = algosdk.decodeAddress(signerAddr);
+            }
 
-          // Encode the signed transaction using MessagePack
-          const encodedSignedTxn: Uint8Array = new Uint8Array(msgpack.encode(signedTxn, { sortKeys: true, ignoreUndefined: true }))
-          console.log('Encoded signed transaction:', encodedSignedTxn);
-          console.log('TXN ID:', decodedTxn.txID());
+            // Encode the signed transaction using MessagePack
+            const encodedSignedTxn: Uint8Array = new Uint8Array(msgpack.encode(signedTxn, { sortKeys: true, ignoreUndefined: true }))
+            console.log('Encoded signed transaction:', encodedSignedTxn);
+            console.log('TXN ID:', decodedTxn.txID());
 
-          // Return the base64 encoded signed transaction
-          return Buffer.from(encodedSignedTxn).toString('base64');
-        });
+            // Return the base64 encoded signed transaction
+            return Buffer.from(encodedSignedTxn).toString('base64');
+          });
 
-        signatures = await Promise.all(signaturePromises);
+          signatures = await Promise.all(signaturePromises);
+        } else {
+          throw new Error('No valid account found for signing');
+        }
 
 
 

@@ -1,12 +1,8 @@
 {
   "servers": {
     "algorand-remote-mcp": {
-      "type": "stdio",
-      "command": "npx",
-      "args": [
-        "mcp-remote",
-        "https://algorandmcp.goplausible.xyz/sse"
-      ]
+      "type": "sse",
+      "url": "https://algorandmcp.goplausible.xyz/sse",
     }
   }
 }
