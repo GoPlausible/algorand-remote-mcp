@@ -56,7 +56,7 @@ export async function registerWalletResources(server: McpServer, env: Env, props
   server.resource("Wallet Account Public Key", "algorand://wallet/publickey", async (uri) => {
     try {
 
-      const publicKeyResult = await getPublicKey(env, props.email);
+      const publicKeyResult = await getPublicKey(env, props.email, props.provider);
 
       if (!publicKeyResult.success || publicKeyResult.error) {
         return {
@@ -109,7 +109,7 @@ export async function registerWalletResources(server: McpServer, env: Env, props
   server.resource("Wallet Account Address", "algorand://wallet/address", async (uri) => {
     try {
       // Get address using the unified approach
-      const address = await getUserAddress(env, props.email);
+      const address = await getUserAddress(env, props.email, props.provider);
       if (!address) {
         return {
           contents: [{
@@ -156,7 +156,7 @@ export async function registerWalletResources(server: McpServer, env: Env, props
 
     try {
       // Get address using the unified approach
-      const address = await getUserAddress(env, props.email);
+      const address = await getUserAddress(env, props.email, props.provider);
 
       if (!address) {
         return {
@@ -217,7 +217,7 @@ export async function registerWalletResources(server: McpServer, env: Env, props
 
     try {
       // Get address using the unified approach
-      const address = await getUserAddress(env, props.email);
+      const address = await getUserAddress(env, props.email, props.provider);
 
       if (!address) {
         return {

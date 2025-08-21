@@ -335,13 +335,13 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
 
         // Sign each transaction with the same key
         let signatures: (string | null)[] = [];
-        const publicKeyResult = await getPublicKey(env, props.email);
+        const publicKeyResult = await getPublicKey(env, props.email, props.provider);
 
         if (publicKeyResult.success && !publicKeyResult.error) {
           // For vault-based accounts, use signWithTransit and process the response
           const signaturePromises = groupedEncodedTxns.map(async txn => {
             // Get the public key from the vault
-            const publicKeyResult = await getPublicKey(env, props.email || keyName);
+            const publicKeyResult = await getPublicKey(env, props.email || keyName, props.provider);
             if (!publicKeyResult.success || !publicKeyResult.publicKey) {
               return null;
             }
@@ -355,7 +355,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
             const finalEncodedTxnTagged = ConcatArrays(TAG, finalEncodedTxn);
             console.log('Final encoded transaction:', finalEncodedTxnTagged);
             const finalEncodedTxnBase64 = Buffer.from(finalEncodedTxnTagged).toString('base64');
-            const signatureResult = await signWithTransit(env, finalEncodedTxnBase64, props.email || keyName);
+            const signatureResult = await signWithTransit(env, finalEncodedTxnBase64, props.email || keyName,  props.provider);
 
             if (!signatureResult.success || !signatureResult.signature) {
               return null;

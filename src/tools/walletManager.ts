@@ -66,7 +66,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
     {},
     async () => {
       try {
-        const publicKeyResult = await getPublicKey(env, props.email);
+        const publicKeyResult = await getPublicKey(env, props.email, props.provider);
         
         if (publicKeyResult.success && !publicKeyResult.error) {
           // For vault-based accounts, create a new keypair in the vault
@@ -76,7 +76,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           // Note: This would require a delete endpoint in the vault worker
 
           // Create new keypair
-          await deleteKeypair(env, props.email);
+          await deleteKeypair(env, props.email, props.provider);
           await env.PUBLIC_KEY_CACHE.delete(props.email); // Clear cache for the user
           const keypairResult = await createKeypair(env, props.email);
 
@@ -85,7 +85,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           }
 
           // Get the address from the public key
-          const publicKeyResult = await getPublicKey(env, props.email);
+          const publicKeyResult = await getPublicKey(env, props.email, props.provider);
 
           if (!publicKeyResult.success || !publicKeyResult.publicKey) {
             throw new Error(publicKeyResult.error || 'Failed to get public key from vault');
@@ -118,7 +118,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           }
 
           // Get the address from the public key
-          const publicKeyResult = await getPublicKey(env, props.email);
+          const publicKeyResult = await getPublicKey(env, props.email, props.provider);
 
           if (!publicKeyResult.success || !publicKeyResult.publicKey) {
             throw new Error(publicKeyResult.error || 'Failed to get public key from vault');
@@ -159,7 +159,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
     async () => {
       try {
         // Check account type
-        const publicKeyResult = await getPublicKey(env, props.email);
+        const publicKeyResult = await getPublicKey(env, props.email, props.provider);
         if (!publicKeyResult.success || publicKeyResult.error) {
           return {
             content: [{
@@ -200,7 +200,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
     async () => {
       try {
         // Get address using the unified approach
-        const address = await getUserAddress(env, props.email);
+        const address = await getUserAddress(env, props.email, props.provider);
 
         if (!address) {
           return {
@@ -301,7 +301,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
       try {
         // Get address using the unified approach
-        const address = await getUserAddress(env, props.email);
+        const address = await getUserAddress(env, props.email, props.provider);
 
         if (!address) {
           return {
@@ -357,7 +357,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
       try {
         // Get address using the unified approach
-        const address = await getUserAddress(env, props.email);
+        const address = await getUserAddress(env, props.email, props.provider);
 
         if (!address) {
           return {

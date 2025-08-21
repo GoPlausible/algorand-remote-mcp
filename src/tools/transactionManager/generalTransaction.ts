@@ -145,7 +145,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         // For vault-based accounts, we need to manually construct the signed transaction
 
         // Get the public key from the vault
-        const publicKeyResult = await getPublicKey(env, props.email);
+        const publicKeyResult = await getPublicKey(env, props.email, props.provider);
 
         if (!publicKeyResult.success || !publicKeyResult.publicKey) {
           throw new Error('Failed to get public key from vault');
