@@ -72,7 +72,6 @@ export async function registerWalletResources(server: McpServer, env: Env, props
       if (!publicKeyResult.success || !publicKeyResult.publicKey) {
         throw new Error(publicKeyResult.error || 'Failed to get public key from vault');
       }
-      // Get address using the unified approach
       const entityId = await env.VAULT_ENTITIES.get(props.email);
       console.log(`Entity ID for ${props.email} from KV store:`, entityId);
       let roleId = null;
