@@ -13,7 +13,9 @@ import {
   getPublicKey,
   getUserAddress,
   ensureUserAccount,
-  deleteKeypair
+  deleteKeypair,
+  deleteEntity,
+  createNewEntity
 } from '../utils/vaultManager';
 import { log } from 'console';
 
@@ -67,7 +69,19 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
     async () => {
       try {
         const publicKeyResult = await getPublicKey(env, props.email, props.provider);
-        
+        let entityId: string | null = await env.VAULT_ENTITIES.get(props.email);
+        console.log(`Entity ID for ${props.email} from KV store:`, entityId);
+        let roleId = null;
+        if (!!entityId) {
+          console.log(`Fetching role ID from KV for entity ${entityId}`);
+          roleId = await env.VAULT_ENTITIES.get(entityId);
+          console.log(`Role ID for ${entityId} from KV store:`, roleId);
+        }
+        if (!roleId || !entityId) {
+          console.log(`provider: ${props.provider}, email: ${props.email}, clientId: ${props.clientId}, userId: ${props.id}`);
+          throw new Error('Role or entity ID not found in KV store');
+        }
+
         if (publicKeyResult.success && !publicKeyResult.error) {
           // For vault-based accounts, create a new keypair in the vault
           console.log('Creating new vault-based keypair for user:', props.email);
@@ -77,7 +91,16 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
           // Create new keypair
           await deleteKeypair(env, props.email, props.provider);
+
+          await deleteEntity(env, props.email, entityId, roleId, props.provider);
+          await env.VAULT_ENTITIES.delete(props.email);
+          await env.VAULT_ENTITIES.delete(entityId);
           await env.PUBLIC_KEY_CACHE.delete(props.email); // Clear cache for the user
+          const entityResult = await createNewEntity(env, props.email, props.provider);
+          console.log(`New entity created: ${entityResult}`);
+
+
+
           const keypairResult = await createKeypair(env, props.email, props.provider);
 
           if (!keypairResult.success) {
@@ -95,9 +118,9 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
           const address = algosdk.encodeAddress(publicKeyBuffer);
 
-          const entityId = await env.VAULT_ENTITIES?.get(props.email);
+           entityId = await env.VAULT_ENTITIES?.get(props.email);
           console.log(`Entity ID for ${props.email} from KV store:`, entityId);
-          let roleId = null;
+          // let roleId = null;
           if (!!entityId) {
             console.log(`Fetching role ID from KV for entity ${entityId}`);
             roleId = await env.VAULT_ENTITIES?.get(entityId);
@@ -109,6 +132,8 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
             role_id: roleId
           });
         } else {
+          throw new Error('No active agent wallet configured');
+        } /* else {
           // No account found, create a new vault-based account
           console.log('No account found, creating new vault-based keypair for user:', props.email);
           const keypairResult = await createKeypair(env, props.email, props.provider);
@@ -140,7 +165,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
             address,
             role_id: roleId
           });
-        }
+        } */
       } catch (error: any) {
         return {
           content: [{
@@ -216,11 +241,11 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
         let roleId = null;
         if (!!entityId) {
-          console.log(`Fetching role ID from KV for entity ${entityId}`); 
+          console.log(`Fetching role ID from KV for entity ${entityId}`);
           roleId = await env.VAULT_ENTITIES?.get(entityId);
           console.log(`Role ID for ${entityId} from KV store:`, roleId);
         }
-        
+
 
         return ResponseProcessor.processResponse({
           address,
@@ -403,7 +428,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         const baseUrl = new URL('https://algorandmcp.goplausible.xyz');
         const logoutUrl = new URL('/logout', baseUrl.origin);
         console.log(`Calling Logout URL: ${logoutUrl.toString()}`);
-        
+
         // Add query parameters - always revoke token if available
         if (props?.accessToken && props?.provider) {
           logoutUrl.searchParams.set('token', props.accessToken);
@@ -415,30 +440,30 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         } else {
           console.log('No token or provider available for logout request');
         }
-        
+
         console.log(`Calling logout endpoint: ${logoutUrl.toString()}`);
-        
+
         // Call the logout endpoint
         const response = await fetch(logoutUrl.toString(), {
           method: 'GET'
         });
-        
+
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`Logout failed with status: ${response.status}, response: ${errorText}`);
           throw new Error(`Logout failed with status: ${response.status}`);
         }
-        
+
         // Parse the response to get any additional information
         const responseData = await response.json();
         console.log('Logout response:', responseData);
-        
+
         // Clear local cache
         if (props.email) {
           await env.PUBLIC_KEY_CACHE.delete(props.email);
           console.log(`Cleared cache for user: ${props.email}`);
         }
-        
+
         // Return response with clear instructions for the client
         return ResponseProcessor.processResponse({
           success: true,

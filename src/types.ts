@@ -412,6 +412,7 @@ export interface Env {
    */
   HCV_WORKER?: any;
   PUBLIC_KEY_CACHE?: any;
+  VAULT_ENTITIES?: any;
   /**
    * Durable Object namespace for the AlgorandRemoteMCP class
    */
@@ -490,7 +491,7 @@ PLAUSIBLE_AI?: R2Bucket;
 
   OAUTH_KV?: KVNamespace;
   HCV_WORKER_URL?: string; // Hashicorp Vault Worker binding for secure secret storage
-  VAULT_ENTITIES?: KVNamespace; // Hashicorp vault entities-emails mappings
+
   VAULT_OIDC_ACCESSOR: string; // Hashicorp vault OIDC accessors
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;

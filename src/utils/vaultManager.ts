@@ -71,7 +71,41 @@ export async function deleteKeypair(env: Env, keyName: string, provider: string)
     console.log('Keypair deleted successfully:', result);
     return { success: true, keyName: keyName };
   } catch (error: any) {
-    console.error('Error creating keypair in vault:', error.message || 'Unknown error');
+    console.error('Error deleting keypair in vault:', error.message || 'Unknown error');
+    return { success: false, keyName: keyName, error: error.message || 'Unknown error' };
+  }
+}
+
+export async function deleteEntity(env: Env, keyName: string ,entityId: string,roleId: string, provider: string): Promise<KeypairResponse> {
+  if (!env.HCV_WORKER || !keyName) {
+    console.error('Hashicorp Vault worker not configured');
+    return { success: false, keyName: keyName, error: 'Hashicorp Vault worker not configured' };
+  }
+  try {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/${provider}/v1/identity/entity/id`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        id: entityId,
+        role_id: roleId,
+        email: keyName,
+        provider: provider
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Failed to delete entity in vault:', errorText);
+      return { success: false, keyName: keyName, error: errorText };
+    }
+
+    const result = await response.json();
+    console.log('Entity, Entity Alias and Role deleted successfully:', result);
+    return { success: true, keyName: keyName };
+  } catch (error: any) {
+    console.error('Error deleting keypair in vault:', error.message || 'Unknown error');
     return { success: false, keyName: keyName, error: error.message || 'Unknown error' };
   }
 }
@@ -199,8 +233,6 @@ export async function verifySignatureWithTransit(env: Env, data: string, signatu
   }
 }
 
-
-
 /**
  * Get user's address regardless of storage mechanism
  * @param env Environment with necessary bindings
@@ -223,7 +255,6 @@ export async function getUserAddress(env: Env, email: string | undefined, provid
 
   return null;
 }
-
 
 /**
  * Ensure user has an account, creating one if necessary

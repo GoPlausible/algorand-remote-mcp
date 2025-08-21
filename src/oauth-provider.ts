@@ -15,13 +15,13 @@ enum HandlerType {
  */
 type TypedHandler =
   | {
-      type: HandlerType.EXPORTED_HANDLER;
-      handler: ExportedHandlerWithFetch;
-    }
+    type: HandlerType.EXPORTED_HANDLER;
+    handler: ExportedHandlerWithFetch;
+  }
   | {
-      type: HandlerType.WORKER_ENTRYPOINT;
-      handler: new (ctx: ExecutionContext, env: any) => WorkerEntrypointWithFetch;
-    };
+    type: HandlerType.WORKER_ENTRYPOINT;
+    handler: new (ctx: ExecutionContext, env: any) => WorkerEntrypointWithFetch;
+  };
 
 /**
  * Aliases for either type of Handler that makes .fetch required
@@ -715,7 +715,7 @@ class OAuthProviderImpl {
     if (hasSingleHandlerConfig && hasMultiHandlerConfig) {
       throw new TypeError(
         'Cannot use both apiRoute/apiHandler and apiHandlers. ' +
-          'Use either apiRoute + apiHandler OR apiHandlers, not both.'
+        'Use either apiRoute + apiHandler OR apiHandlers, not both.'
       );
     }
 
@@ -828,7 +828,7 @@ class OAuthProviderImpl {
 
     // Special handling for OPTIONS requests (CORS preflight)
     if (request.method === 'OPTIONS') {
-  
+
       // For API routes and OAuth endpoints, respond with CORS headers
       if (
         this.isApiRequest(url) ||
@@ -970,10 +970,10 @@ class OAuthProviderImpl {
     env: any
   ): Promise<
     | {
-        body: any;
-        clientInfo: ClientInfo;
-        isRevocationRequest: boolean;
-      }
+      body: any;
+      clientInfo: ClientInfo;
+      isRevocationRequest: boolean;
+    }
     | Response
   > {
     // Only accept POST requests
@@ -2356,8 +2356,8 @@ class OAuthHelpersImpl implements OAuthHelpers {
 
       if (!clientInfo) {
         throw new Error(
-            `Invalid client. The clientId provided does not match to this client.`
-          );
+          `Invalid client. The clientId provided does not match to this client.`
+        );
       }
       // If client exists, validate the redirect URI against registered URIs
       if (clientInfo && redirectUri) {
@@ -2511,14 +2511,16 @@ class OAuthHelpersImpl implements OAuthHelpers {
       // Set 10-minute TTL for the grant (will be extended when code is exchanged)
       const codeExpiresIn = 600; // 10 minutes
       await this.env.OAUTH_KV.put(grantKey, JSON.stringify(grant), { expirationTtl: codeExpiresIn });
+      console.log('[OAUTH_PROVIDER] Stored grant with auth code:', grant);
 
       // Build the redirect URL for authorization code flow
       const redirectUrl = new URL(options.request.redirectUri);
       redirectUrl.searchParams.set('code', authCode);
       if (options.request.state) {
+        console.log('[OAUTH_PROVIDER] Adding state to redirect URL:', options.request.state);
         redirectUrl.searchParams.set('state', options.request.state);
       }
-
+      console.log('[OAUTH_PROVIDER] Redirect URL:', redirectUrl.toString());
       return { redirectTo: redirectUrl.toString() };
     }
   }
