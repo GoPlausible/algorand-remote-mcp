@@ -24,7 +24,7 @@ function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | nu
 /**
  * Register asset transaction management tools to the MCP server
  */
-export function registerAssetTransactionTools(server: McpServer,env: Env, props: Props): void {
+export async function registerAssetTransactionTools(server: McpServer,env: Env, props: Props): void {
   // Create a new Algorand Standard Asset (ASA)
   server.tool(
     'create_asset',

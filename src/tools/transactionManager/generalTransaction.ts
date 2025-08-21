@@ -13,7 +13,6 @@ import {
   Env, Props, VaultResponse,
 } from '../../types';
 import {
-  getUserAddress,
   ensureUserAccount,
   getPublicKey,
   signWithTransit
@@ -48,13 +47,22 @@ function ConcatArrays(...arrs: ArrayLike<number>[]) {
  */
 export async function registerGeneralTransactionTools(server: McpServer, env: Env, props: Props): Promise<void> {
   // Ensure user has a vault-based account
-  try {
-    const accType = await ensureUserAccount(env, props.email, props.provider || 'google');
-    console.log(`User has a ${accType}-based account`);
-  } catch (error: any) {
-    throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
-  }
+  let provider = props.provider;
+  let email = provider === 'google' ? props.email : props.email.indexOf(`${provider}`) > -1 ? props.email : `${provider}_${props.email}`;
+  // try {
+  //   const accType = await ensureUserAccount(env, email, provider);
+  //   console.log(`User has a ${accType}-based account`);
+  // } catch (error: any) {
+  //   throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
+  // }
+  // Get the public key from the vault
+  const publicKeyResult = await getPublicKey(env, email, provider);
 
+  if (!publicKeyResult.success || !publicKeyResult.publicKey) {
+    throw new Error('Failed to get public key from vault');
+  }
+  let publicKey = publicKeyResult.publicKey;
+  console.log('Public key from vault:', publicKey);
   // Create payment transaction tool
   server.tool(
     'create_payment_transaction',
@@ -140,17 +148,11 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
       try {
 
         // Ensure user has an account
-        await ensureUserAccount(env, props.email || '', props.provider || 'google');
+        // await ensureUserAccount(env, props.email || '', provider);
 
         // For vault-based accounts, we need to manually construct the signed transaction
 
-        // Get the public key from the vault
-        const publicKeyResult = await getPublicKey(env, props.email);
 
-        if (!publicKeyResult.success || !publicKeyResult.publicKey) {
-          throw new Error('Failed to get public key from vault');
-        }
-        console.log('Public key from vault:', publicKeyResult.publicKey);
 
         // Get the raw signature from the vault
         const TAG: Buffer = Buffer.from("TX");
@@ -160,7 +162,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         const finalEncodedTxnTagged = ConcatArrays(TAG, finalEncodedTxn);
         console.log('Final encoded transaction:', finalEncodedTxnTagged);
         const finalEncodedTxnBase64 = Buffer.from(finalEncodedTxnTagged).toString('base64');
-        const signatureResult = await signWithTransit(env, finalEncodedTxnBase64, props.email);
+        const signatureResult = await signWithTransit(env, finalEncodedTxnBase64, email, provider);
 
 
         if (!signatureResult.success || !signatureResult.signature) {
@@ -178,7 +180,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
 
 
         // Convert the base64 public key to Uint8Array
-        const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
+        const publicKeyBuffer = Buffer.from(publicKey, 'base64');
         console.log('Public key buffer:', publicKeyBuffer);
 
         // Get the address from the public key

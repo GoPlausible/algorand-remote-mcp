@@ -7,6 +7,7 @@ import OAuthProvider from "./oauth-provider";
 import { OauthHandler } from "./oauth-handler";
 // import algosdk from 'algosdk';
 import {
+	registerWalletTools,
 	registerAccountTools,
 	registerGeneralTransactionTools,
 	registerAssetTransactionTools,
@@ -17,11 +18,10 @@ import {
 	registerArc26Tools,
 	registerApiTools,
 	registerKnowledgeTools,
-	registerWalletTools
 } from './tools';
 import { registerWalletResources, registerKnowledgeResources, registerGuideResource } from './resources';
 
-
+import { ensureUserAccount } from './utils/vaultManager';
 
 // Define our MCP agent with tools
 export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
@@ -45,14 +45,24 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 		console.log("Props email:", this.props?.email);
 		console.log("Props User ID:", this.props?.id);
 		console.log("Props clientId:", this.props?.clientId);
+		console.log("Props provider:", this.props?.provider);
 		// Set default page size or use from state if available
 		const itemsPerPage = this.state?.items_per_page || 10;
 		ResponseProcessor.setItemsPerPage(itemsPerPage);
-
+		let provider = this.props?.provider; 
+		let email = this.props?.provider === 'google' ? this.props?.email : this.props?.email.indexOf(`${this.props?.provider}`) > -1 ? this.props?.email : `${this.props?.provider}_${this.props?.email}`;
+		
+		try {
+			const accType = await ensureUserAccount(this.env, email, provider);
+			console.log(`User has a ${accType}-based account`);
+		} catch (error: any) {
+			throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
+		}
 
 
 		// Register resources
 		await this.registerWalletResources();
+		await this.registerWalletTools();
 		this.registerKnowledgeResources();
 		this.registerGuideResources();
 
@@ -64,7 +74,7 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 		this.registerArc26Tools();
 		this.registerApiTools();
 		this.registerKnowledgeTools();
-		await this.registerWalletTools();
+	
 		// Additional tool categories will be added here
 	}
 
@@ -119,13 +129,13 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 		await registerGeneralTransactionTools(this.server, this.env, this.props);
 
 		// Register asset transaction tools
-		registerAssetTransactionTools(this.server, this.env, this.props);
+		await registerAssetTransactionTools(this.server, this.env, this.props);
 
 		// Register application transaction tools
-		registerAppTransactionTools(this.server, this.env, this.props);
+		await registerAppTransactionTools(this.server, this.env, this.props);
 
 		// Register group transaction tools
-		registerGroupTransactionTools(this.server, this.env, this.props);
+		await registerGroupTransactionTools(this.server, this.env, this.props);
 	}
 
 	/**

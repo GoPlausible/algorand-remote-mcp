@@ -12,15 +12,19 @@ import { Env, KeypairResponse, PublicKeyResponse, SignatureResponse, Verificatio
  * @param keyName Optional name for the keypair
  * @returns Promise resolving to keypair creation status
  */
-export async function createKeypair(env: Env, keyName?: string): Promise<KeypairResponse> {
-  if (!env.HCV_WORKER || !keyName) {
+export async function createKeypair(env: Env, keyName?: string, provider?: string): Promise<KeypairResponse> {
+  if (!env.HCV_WORKER || !keyName ) {
     console.error('Hashicorp Vault worker not configured');
     return { success: false, keyName: keyName || 'No key', error: 'Hashicorp Vault worker not configured' };
   }
+  if (!provider) {
+    console.error('Provider not specified for keypair creation');
+    return { success: false, keyName: keyName || 'No key', error: 'Provider not specified' };
+  }
 
   try {
-    const body = keyName ? JSON.stringify({ name: keyName }) : '{}';
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/keypair`, {
+    const body = keyName ? JSON.stringify({ name: keyName, provider }) : '{}';
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/${provider}/transit/keypair`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -41,6 +45,78 @@ export async function createKeypair(env: Env, keyName?: string): Promise<Keypair
     return { success: false, keyName: keyName, error: error.message || 'Unknown error' };
   }
 }
+/**
+ * Get the public key for a keypair from the vault
+ * @param env Environment with HCV_WORKER binding
+ * @param keyName Name of the keypair 
+ * @returns Promise resolving to the public key
+ */
+export async function getPublicKey(env: Env, keyName: string, provider: string): Promise<PublicKeyResponse> {
+  if (!env.HCV_WORKER || !keyName /* || !env.PUBLIC_KEY_CACHE */) {
+    console.error('Hashicorp Vault worker not configured');
+    return { success: false, error: 'Hashicorp Vault worker not configured' };
+  }
+  if (!provider) {
+    console.error('Provider not specified for getting public key');
+    return { success: false, error: 'Provider not specified' };
+  }
+  // Check if the public key is cached
+  console.log(`Fetching public key for ${keyName} from vault`);
+  console.log(`Provider: ${provider}`);
+  // const cachedKey = await env.PUBLIC_KEY_CACHE.get(keyName);
+  // if (cachedKey) {
+  //   console.log('Public key retrieved from cache:', cachedKey);
+  //   return { success: true, publicKey: cachedKey };
+  // }
+
+  try {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/${provider}/transit/publickey/${keyName}`, {
+      method: 'GET'
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Failed to get public key from vault:', errorText);
+      return { success: false, error: errorText };
+    }
+
+    const result = await response.json();
+    console.log('Public key retrieved successfully:', result);
+    // if (!cachedKey) {
+    //   // Cache the public key for future use
+    //   await env.PUBLIC_KEY_CACHE.put(keyName, result.public_key/* , { expirationTtl: 3600 } */); // Cache for 1 hour
+    //   console.log('Public key cached successfully');
+    // }
+    return { success: true, publicKey: result.public_key };
+  } catch (error: any) {
+    console.error('Error getting public key from vault:', error.message || 'Unknown error');
+    return { success: false, error: error.message || 'Unknown error' };
+  }
+}
+
+/**
+ * Get user's address regardless of storage mechanism
+ * @param env Environment with necessary bindings
+ * @param email User email
+ * @returns Promise resolving to the user's address or null if not found
+ */
+export async function getUserAddress(env: Env, email: string | undefined, provider: string): Promise<string | null> {
+  if (!email) {
+    console.error('No email provided for getting address');
+    return null;
+  }
+
+  // First try vault-based approach
+  const publicKeyResult = await getPublicKey(env, email, provider);
+
+  if (publicKeyResult.success && publicKeyResult.publicKey) {
+    // User has a vault-based account
+    const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
+    return algosdk.encodeAddress(publicKeyBuffer);
+  }
+
+  return null;
+}
 
 /**
  * Delete a Ed25519 keypair in the vault
@@ -48,13 +124,17 @@ export async function createKeypair(env: Env, keyName?: string): Promise<Keypair
  * @param keyName Optional name for the keypair 
  * @returns Promise resolving to keypair deletion status
  */
-export async function deleteKeypair(env: Env, keyName: string): Promise<KeypairResponse> {
+export async function deleteKeypair(env: Env, keyName: string,provider: string): Promise<KeypairResponse> {
   if (!env.HCV_WORKER || !keyName) {
     console.error('Hashicorp Vault worker not configured');
     return { success: false, keyName: keyName, error: 'Hashicorp Vault worker not configured' };
   }
+  if (!provider) {
+    console.error('Provider not specified for keypair deletion');
+    return { success: false, keyName: keyName || 'No key', error: 'Provider not specified' };
+  }
   try {
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/keys/${keyName}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/${provider}/transit/keys/${keyName}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -77,65 +157,25 @@ export async function deleteKeypair(env: Env, keyName: string): Promise<KeypairR
 }
 
 /**
- * Get the public key for a keypair from the vault
- * @param env Environment with HCV_WORKER binding
- * @param keyName Name of the keypair 
- * @returns Promise resolving to the public key
- */
-export async function getPublicKey(env: Env, keyName: string): Promise<PublicKeyResponse> {
-  if (!env.HCV_WORKER || !keyName || !env.PUBLIC_KEY_CACHE) {
-    console.error('Hashicorp Vault worker not configured');
-    return { success: false, error: 'Hashicorp Vault worker not configured' };
-  }
-  // Check if the public key is cached
-  console.log(`Fetching public key for ${keyName} from vault`);
-  const cachedKey = await env.PUBLIC_KEY_CACHE.get(keyName);
-  if (cachedKey) {
-    console.log('Public key retrieved from cache:', cachedKey);
-    return { success: true, publicKey: cachedKey };
-  }
-
-  try {
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/publickey/${keyName}`, {
-      method: 'GET'
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Failed to get public key from vault:', errorText);
-      return { success: false, error: errorText };
-    }
-
-    const result = await response.json();
-    console.log('Public key retrieved successfully:', result);
-    if (!cachedKey){
-      // Cache the public key for future use
-      await env.PUBLIC_KEY_CACHE.put(keyName, result.public_key/* , { expirationTtl: 3600 } */); // Cache for 1 hour
-      console.log('Public key cached successfully');
-    }
-    return { success: true, publicKey: result.public_key };
-  } catch (error: any) {
-    console.error('Error getting public key from vault:', error.message || 'Unknown error');
-    return { success: false, error: error.message || 'Unknown error' };
-  }
-}
-
-/**
  * Sign data using a keypair in the vault
  * @param env Environment with HCV_WORKER binding
  * @param keyName Name of the keypair to use for signing 
  * @param data Base64-encoded data to sign
  * @returns Promise resolving to the signature
  */
-export async function signWithTransit(env: Env, data: string, keyName: string): Promise<SignatureResponse> {
+export async function signWithTransit(env: Env, data: string, keyName: string,provider: string): Promise<SignatureResponse> {
   if (!env.HCV_WORKER || !keyName) {
     console.error('Hashicorp Vault worker not configured');
     return { success: false, error: 'Hashicorp Vault worker not configured' };
   }
+  if (!provider) {
+    console.error('Provider not specified for sign with transit');
+    return { success: false, error: 'Provider not specified' };
+  }
 
   try {
 
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/sign/${keyName}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/${provider}/transit/sign/${keyName}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -167,14 +207,18 @@ export async function signWithTransit(env: Env, data: string, keyName: string): 
  * @param signature Base64-encoded signature to verify
  * @returns Promise resolving to verification result
  */
-export async function verifySignatureWithTransit(env: Env, data: string, signature: string, keyName: string): Promise<VerificationResponse> {
+export async function verifySignatureWithTransit(env: Env, data: string, signature: string, keyName: string,provider: string): Promise<VerificationResponse> {
   if (!env.HCV_WORKER || !keyName) {
     console.error('Hashicorp Vault worker not configured');
     return { success: false, error: 'Hashicorp Vault worker not configured' };
   }
+  if (!provider) {
+    console.error('Provider not specified for verifying with transit');
+    return { success: false, error: 'Provider not specified' };
+  }
 
   try {
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/transit/verify/${keyName}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/${provider}/transit/verify/${keyName}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -201,29 +245,6 @@ export async function verifySignatureWithTransit(env: Env, data: string, signatu
 
 
 
-/**
- * Get user's address regardless of storage mechanism
- * @param env Environment with necessary bindings
- * @param email User email
- * @returns Promise resolving to the user's address or null if not found
- */
-export async function getUserAddress(env: Env, email: string | undefined): Promise<string | null> {
-  if (!email) {
-    console.error('No email provided for getting address');
-    return null;
-  }
-  // First try vault-based approach
-  const publicKeyResult = await getPublicKey(env, email);
-
-  if (publicKeyResult.success && publicKeyResult.publicKey) {
-    // User has a vault-based account
-    const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
-    return algosdk.encodeAddress(publicKeyBuffer);
-  }
-
-  return null;
-}
-
 
 /**
  * Ensure user has an account, creating one if necessary
@@ -231,7 +252,7 @@ export async function getUserAddress(env: Env, email: string | undefined): Promi
  * @param email User email
  * @returns Promise resolving to account type
  */
-export async function ensureUserAccount(env: Env, email: string | undefined, provider: string | undefined): Promise<any> {
+export async function ensureUserAccount(env: Env, email: string | undefined, provider: string ): Promise<any> {
   console.log('Ensuring user account for email:', email);
   if (!email || email === '' || !env.VAULT_ENTITIES || !provider) {
     console.error('No email provided for account ensurance');
@@ -264,19 +285,19 @@ export async function ensureUserAccount(env: Env, email: string | undefined, pro
       console.log(`Created new entity with ID: ${entityId}`);
     }
   }
-  const publicKeyResult = await getPublicKey(env, email);
+  const publicKeyResult = await getPublicKey(env, email, provider);
 
   if (!publicKeyResult.success || publicKeyResult.error) {
     console.error('Failed to get public key from vault:', publicKeyResult.error);
     // Create a new vault-based account
     console.log(`Creating new keypair for ${email}`);
-    const keypairResult = await createKeypair(env, email);
+    const keypairResult = await createKeypair(env, email, provider);
     if (!keypairResult.success) {
       throw new Error(keypairResult.error || 'Failed to create keypair in vault');
     }
   }
   console.log(`Entity ID for ${email} from KV store:`, entityId);
-  if(entityId) roleId = await env.VAULT_ENTITIES.get(entityId);
+  if (entityId) roleId = await env.VAULT_ENTITIES.get(entityId);
   console.log(`Role ID for ${entityId} from KV store:`, roleId);
   return 'vault';
 }
@@ -298,7 +319,10 @@ export async function createNewEntity(env: Env, email: string, provider: string)
     console.error('Hashicorp Vault worker not configured or email not provided');
     return { success: false, error: 'Hashicorp Vault worker not configured or email not provided' };
   }
-
+  if (!provider) {
+    console.error('Provider not specified for creating new entity');
+    return { success: false, error: 'Provider not specified' };
+  }
   try {
     console.log(`[VAULT_MANAGER] Creating new entity in vault for email: ${email} with provider: ${provider}`);
     // Check if the entity already exists
@@ -441,6 +465,10 @@ export async function checkIdentityEntity(env: Env, entityId: string, provider: 
     console.error('Hashicorp Vault worker not configured or entity ID not provided');
     return { success: false, exists: false, error: 'Hashicorp Vault worker not configured or entity ID not provided' };
   }
+  if (!provider) {
+    console.error('Provider not specified for checking identity entity');
+    return { success: false, exists: false, error: 'Provider not specified' };
+  }
 
   try {
     // Make a GET request to the entity endpoint with the provided ID
@@ -482,15 +510,19 @@ export async function checkIdentityEntity(env: Env, entityId: string, provider: 
  * @param secret to store
  * @returns Promise resolving to success status
  */
-export async function storeSecret(env: Env, email: string, secret: string): Promise<boolean> {
+export async function storeSecret(env: Env, email: string, secret: string,provider: string): Promise<boolean> {
   if (!env.HCV_WORKER) {
     console.error('Hashicorp Vault worker not configured');
+    return false;
+  }
+  if (!provider) {
+    console.error('Provider not specified for secret retrieve');
     return false;
   }
 
   try {
     const secretPath = `${email}`;
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/secret/${secretPath}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/${provider}/secret/${secretPath}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -520,9 +552,13 @@ export async function storeSecret(env: Env, email: string, secret: string): Prom
  * @param email User email as the key
  * @returns Promise resolving to the secret or undefined if not found
  */
-export async function retrieveSecret(env: Env, email: string): Promise<string | undefined> {
+export async function retrieveSecret(env: Env, email: string,provider: string): Promise<string | undefined> {
   if (!env.HCV_WORKER) {
     console.error('Hashicorp Vault worker not configured');
+    return undefined;
+  }
+  if (!provider) {
+    console.error('Provider not specified for secret retrieve');
     return undefined;
   }
 
@@ -532,7 +568,7 @@ export async function retrieveSecret(env: Env, email: string): Promise<string | 
     // Fetch the secret from the vault
     // Note: Adjust the endpoint as per your vault worker's API
     console.log('Fetching secret from vault at path:', secretPath);
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/secret/${secretPath}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/${provider}/secret/${secretPath}`, {
       method: 'GET'
     });
     console.log('Response from vault:', response);
@@ -562,15 +598,19 @@ export async function retrieveSecret(env: Env, email: string): Promise<string | 
  * @param email User email as the key
  * @returns Promise resolving to success status
  */
-export async function deleteSecret(env: Env, email: string): Promise<boolean> {
+export async function deleteSecret(env: Env, email: string,provider: string): Promise<boolean> {
   if (!env.HCV_WORKER) {
     console.error('Hashicorp Vault worker not configured');
+    return false;
+  }
+  if (!provider) {
+    console.error('Provider not specified for keypair creation');
     return false;
   }
 
   try {
     const secretPath = `${email}`;
-    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/secret/${secretPath}`, {
+    const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/${provider}/secret/${secretPath}`, {
       method: 'DELETE'
     });
 

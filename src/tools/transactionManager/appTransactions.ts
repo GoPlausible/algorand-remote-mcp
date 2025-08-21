@@ -55,7 +55,7 @@ function processNote(note?: string): Uint8Array | undefined {
 /**
  * Register application (smart contract) transaction management tools to the MCP server
  */
-export function registerAppTransactionTools(server: McpServer,env: Env, props: Props): void {
+export async function registerAppTransactionTools(server: McpServer,env: Env, props: Props): void {
   // Create application (smart contract)
   server.tool(
     'create_application',

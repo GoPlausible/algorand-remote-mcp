@@ -46,35 +46,33 @@ function getAccountFromMnemonic(mnemonic: string | undefined): algosdk.Account |
  */
 export async function registerWalletResources(server: McpServer, env: Env, props: Props): Promise<void> {
   // Ensure user has a vault-based account 
-  try {
-    const accType = await ensureUserAccount(env, props.email, props.provider || 'google');
-    console.log(`User has a ${accType}-based account`);
-  } catch (error: any) {
-    throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
+  let provider = props.provider;
+  let email = provider === 'google' ? props.email : props.email.indexOf(`${provider}`) > -1 ? props.email : `${provider}_${props.email}`;
+  // try {
+  //   const accType = await ensureUserAccount(env, email, provider);
+  //   console.log(`User has a ${accType}-based account`);
+  // } catch (error: any) {
+  //   throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
+  // }
+  const publicKeyResult = await getPublicKey(env, email, provider);
+
+  if (!publicKeyResult.success || publicKeyResult.error) {
+    throw new Error(publicKeyResult.error || 'No active agent wallet configured');
   }
+  let publicKey = publicKeyResult.publicKey;
+
+
+
   // === Wallet Public Key ===
   server.resource("Wallet Account Public Key", "algorand://wallet/publickey", async (uri) => {
     try {
-
-      const publicKeyResult = await getPublicKey(env, props.email);
-
-      if (!publicKeyResult.success || publicKeyResult.error) {
-        return {
-          contents: [{
-            uri: uri.href,
-            text: JSON.stringify({
-              error: "No active agent wallet configured"
-            }, null, 2)
-          }]
-        };
+      if (!env.VAULT_ENTITIES) {
+        throw new Error('VAULT_ENTITIES KV store is not configured');
       }
 
-      if (!publicKeyResult.success || !publicKeyResult.publicKey) {
-        throw new Error(publicKeyResult.error || 'Failed to get public key from vault');
-      }
       // Get address using the unified approach
-      const entityId = await env.VAULT_ENTITIES.get(props.email);
-      console.log(`Entity ID for ${props.email} from KV store:`, entityId);
+      const entityId = await env.VAULT_ENTITIES.get(email);
+      console.log(`Entity ID for ${email} from KV store:`, entityId);
       let roleId = null;
       if (!!entityId) {
         console.log(`Fetching role ID from KV for entity ${entityId}`);
@@ -86,7 +84,7 @@ export async function registerWalletResources(server: McpServer, env: Env, props
         contents: [{
           uri: uri.href,
           text: JSON.stringify({
-            publicKey: publicKeyResult.publicKey,
+            publicKey: publicKey,
             format: 'base64',
             role_id: roleId
           }, null, 2)
@@ -109,7 +107,7 @@ export async function registerWalletResources(server: McpServer, env: Env, props
   server.resource("Wallet Account Address", "algorand://wallet/address", async (uri) => {
     try {
       // Get address using the unified approach
-      const address = await getUserAddress(env, props.email);
+      const address = await getUserAddress(env, email, provider);
       if (!address) {
         return {
           contents: [{
@@ -156,7 +154,7 @@ export async function registerWalletResources(server: McpServer, env: Env, props
 
     try {
       // Get address using the unified approach
-      const address = await getUserAddress(env, props.email);
+      const address = await getUserAddress(env, email, provider);
 
       if (!address) {
         return {
@@ -217,7 +215,7 @@ export async function registerWalletResources(server: McpServer, env: Env, props
 
     try {
       // Get address using the unified approach
-      const address = await getUserAddress(env, props.email);
+      const address = await getUserAddress(env, email, provider);
 
       if (!address) {
         return {
