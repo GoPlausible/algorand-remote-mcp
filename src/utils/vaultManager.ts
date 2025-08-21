@@ -332,15 +332,6 @@ export async function createNewEntity(env: Env, email: string, provider: string)
 
   try {
     console.log(`[VAULT_MANAGER] Creating new entity in vault for email: ${email} with provider: ${provider}`);
-    // Check if the entity already exists
-    const existingEntityCheck = await checkIdentityEntity(env, email, provider);
-    if (existingEntityCheck && existingEntityCheck.success && existingEntityCheck.entityDetails?.id) {
-      console.log(`Entity already exists for email: ${email}`);
-      if (env.VAULT_ENTITIES) {
-        await env.VAULT_ENTITIES.put(email, existingEntityCheck.entityDetails.id);
-      }
-      return { success: true, entityId: existingEntityCheck.entityDetails.id };
-    }
     console.log(`Creating new entity in vault for email: ${email}`);
     // Step 1: Create the Entity
     const createEntityResponse = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/${provider}/v1/identity/entity`, {
@@ -361,99 +352,14 @@ export async function createNewEntity(env: Env, email: string, provider: string)
     }
 
     const entityResult = await createEntityResponse.json();
-    const entityId = entityResult.data.id;
-    console.log('Entity created successfully with ID:', entityId);
+    const id = entityResult.data.id;
+    console.log('Entity created successfully with ID:', id);
 
 
-    if (!entityId) {
+    if (!id) {
       return { success: false, error: 'Entity ID not found in response' };
     }
-
-
-    // Step 2: Get OIDC Accessor
-    // const authMethodsResponse = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/v1/sys/auth`, {
-    //   method: 'GET',
-    // });
-
-    // if (!authMethodsResponse.ok) {
-    //   const errorText = await authMethodsResponse.text();
-    //   console.error('Failed to get auth methods from vault:', errorText);
-    //   return { success: false, entityId, error: `Failed to get auth methods: ${errorText}` };
-    // }
-
-    // const authMethods = await authMethodsResponse.json();
-    // let oidcAccessor = '';
-
-    // // Find the OIDC accessor
-    // if (authMethods['oidc/'] && authMethods['oidc/'].accessor) {
-    //   oidcAccessor = authMethods['oidc/'].accessor;
-    // } else {
-    //   return { success: false, entityId, error: 'OIDC accessor not found' };
-    // }
-    // const oidcAccessor = env.VAULT_OIDC_ACCESSOR; // Use a default or configured OIDC accessor
-
-    // Step 3: Create Alias Mapping Email to Entity
-    // const createAliasResponse = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/v1/identity/entity-alias`, {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify({
-    //     name: email,
-    //     canonical_id: entityId,
-    //     mount_accessor: oidcAccessor,
-
-    //   })
-    // });
-
-    // if (!createAliasResponse.ok) {
-    //   const errorText = await createAliasResponse.text();
-    //   console.error('Failed to create entity alias in vault:', errorText);
-    //   return { success: false, entityId, error: `Failed to create entity alias: ${errorText}` };
-    // }
-    // console.log('Entity alias created successfully');
-    // Write the entityId to VAULT_ENTITIES KV store with email as the key
-    if (env.VAULT_ENTITIES) {
-      await env.VAULT_ENTITIES.put(email, entityId);
-    }
-
-    // Step 4: Create Token for Entity
-    // const createTokenResponse = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/v1/auth/token/create`, {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify({
-    //     entity_id: entityId,
-    //     role_name: email.toLowerCase().replace('@', '-').replaceAll('.', '-'),
-    //     policies: ["per-user-policy"],
-    //     meta: {
-    //       email: email,
-    //       role_name: email.toLowerCase().replace('@', '-').replaceAll('.', '-')
-    //     },
-    //     no_default_policy: true,
-    //     display_name: `${email}`,
-    //     // entity_alias: email,
-    //     // role_name: "user-role",
-    //   })
-    // });
-
-    // if (!createTokenResponse.ok) {
-    //   const errorText = await createTokenResponse.text();
-    //   console.error('Failed to create token in vault:', errorText);
-    //   return { success: false, entityId, error: `Failed to create token: ${errorText}` };
-    // }
-
-    // const tokenResult = await createTokenResponse.json();
-    // const token = tokenResult.auth.client_token;
-
-    // if (!token) {
-    //   return { success: false, entityId, error: 'Token not found in response' };
-    // }
-
-
-
-    return { success: true, entityId };
+    return { success: true, entityId: id };
   } catch (error: any) {
     console.error('Error creating entity in vault:', error.message || 'Unknown error');
     return { success: false, error: error.message || 'Unknown error' };

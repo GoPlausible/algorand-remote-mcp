@@ -93,44 +93,53 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           await deleteKeypair(env, props.email, props.provider);
 
           await deleteEntity(env, props.email, entityId, roleId, props.provider);
+          console.log(`Deleted entity and role for ${props.email} with ID ${entityId}`);
+
           await env.VAULT_ENTITIES.delete(props.email);
+          console.log(`Deleted entity ID for ${props.email} from KV store`);
           await env.VAULT_ENTITIES.delete(entityId);
-          await env.PUBLIC_KEY_CACHE.delete(props.email); // Clear cache for the user
+          console.log(`Deleted entity ID ${entityId} from KV store`);
+          await env.PUBLIC_KEY_CACHE.delete(props.email);
+          console.log(`Cleared public key cache for user: ${props.email}`);
           const entityResult = await createNewEntity(env, props.email, props.provider);
           console.log(`New entity created: ${entityResult}`);
-
-
-
           const keypairResult = await createKeypair(env, props.email, props.provider);
 
           if (!keypairResult.success) {
             throw new Error(keypairResult.error || 'Failed to create keypair in vault');
           }
-
+          console.log(`New keypair created: ${keypairResult}`);
           // Get the address from the public key
+          console.log(`Getting public key for ${props.email} with provider ${props.provider}`);
           const publicKeyResult = await getPublicKey(env, props.email, props.provider);
 
           if (!publicKeyResult.success || !publicKeyResult.publicKey) {
             throw new Error(publicKeyResult.error || 'Failed to get public key from vault');
           }
+          console.log(`Public key for ${props.email}: ${publicKeyResult.publicKey}`);
 
           // Convert the public key to an Algorand address
           const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
           const address = algosdk.encodeAddress(publicKeyBuffer);
 
-           entityId = await env.VAULT_ENTITIES?.get(props.email);
+          entityId = await env.VAULT_ENTITIES?.get(props.email);
           console.log(`Entity ID for ${props.email} from KV store:`, entityId);
           // let roleId = null;
           if (!!entityId) {
             console.log(`Fetching role ID from KV for entity ${entityId}`);
             roleId = await env.VAULT_ENTITIES?.get(entityId);
             console.log(`Role ID for ${entityId} from KV store:`, roleId);
+            if (roleId) {
+              return ResponseProcessor.processResponse({
+                address,
+                role_id: roleId
+              });
+            } else {
+              throw new Error(`No Role ID found for entity: ${entityId}`);
+            }
+          } else {
+            throw new Error(`No entity ID found for ${props.email}`);
           }
-
-          return ResponseProcessor.processResponse({
-            address,
-            role_id: roleId
-          });
         } else {
           throw new Error('No active agent wallet configured');
         } /* else {
