@@ -117,7 +117,7 @@ export async function deleteEntity(env: Env, keyName: string ,entityId: string,r
  * @returns Promise resolving to the public key
  */
 export async function getPublicKey(env: Env, keyName: string, provider: string): Promise<PublicKeyResponse> {
-  if (!env.HCV_WORKER || !keyName || !env.PUBLIC_KEY_CACHE) {
+  if (!env.HCV_WORKER || !keyName) {
     console.error('Hashicorp Vault worker not configured');
     return { success: false, error: 'Hashicorp Vault worker not configured' };
   }
@@ -264,8 +264,8 @@ export async function getUserAddress(env: Env, email: string | undefined, provid
  */
 export async function ensureUserAccount(env: Env, email: string | undefined, provider: string | undefined): Promise<any> {
   console.log('Ensuring user account for email:', email);
-  if (!email || email === '' || !env.VAULT_ENTITIES || !provider) {
-    console.error('No email provided for account ensurance');
+  if (!email || email === ''|| email.indexOf(`${provider}`)===-1 || !env.VAULT_ENTITIES || !provider) {
+    console.error('No email or no provider provided for account ensurance');
     return null;
   }
 
@@ -276,9 +276,13 @@ export async function ensureUserAccount(env: Env, email: string | undefined, pro
   console.log(`Checking for existing entity in VAULT_ENTITIES for email: ${email} provider: ${provider}`);
 
   let entityId: string | null = null;
+  let providerEmail: string | null = null;
+  let providerEntity: string | null = null;
   let roleId: string | null = null;
   try {
-    entityId = await env.VAULT_ENTITIES.get(email);
+    providerEmail = `${provider}--${email}`
+    entityId = await env.VAULT_ENTITIES.get(providerEmail);
+    providerEntity = `${provider}--${entityId}`
   } catch (error) {
     console.error('Error getting entity ID from KV store:', error);
   }
@@ -292,6 +296,7 @@ export async function ensureUserAccount(env: Env, email: string | undefined, pro
       console.error('Failed to create entity:', entityResult.error);
     } else {
       entityId = entityResult.entityId || null;
+      providerEntity = `${provider}--${entityId}`
       console.log(`Created new entity with ID: ${entityId}`);
     }
   }
@@ -306,9 +311,9 @@ export async function ensureUserAccount(env: Env, email: string | undefined, pro
       throw new Error(keypairResult.error || 'Failed to create keypair in vault');
     }
   }
-  console.log(`Entity ID for ${email} from KV store:`, entityId);
-  if(entityId) roleId = await env.VAULT_ENTITIES.get(entityId);
-  console.log(`Role ID for ${entityId} from KV store:`, roleId);
+  console.log(`Entity ID for ${email} from KV store:`, providerEntity);
+  if(entityId) roleId = await env.VAULT_ENTITIES.get(providerEntity);
+  console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
   return 'vault';
 }
 
