@@ -9,7 +9,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
   getUserAddress,
   getPublicKey,
-  ensureUserAccount
+  /* ensureUserAccount */
 } from '../../utils/vaultManager';
 
 /**
@@ -50,9 +50,9 @@ export async function registerWalletResources(server: McpServer, env: Env, props
     if (!props.email || !props.provider) {
       throw new Error('Email and provider must be provided in props');
     }
-    console.log(`Ensuring user account for ${props.email} with provider ${props.provider}`);
-    const accType = await ensureUserAccount(env, props.email, props.provider);
-    console.log(`User has a ${accType}-based account`);
+    // console.log(`Ensuring user account for ${props.email} with provider ${props.provider}`);
+    // const accType = await ensureUserAccount(env, props.email, props.provider);
+    // console.log(`User has a ${accType}-based account`);
   } catch (error: any) {
     throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
   }

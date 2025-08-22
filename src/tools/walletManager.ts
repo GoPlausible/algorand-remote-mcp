@@ -12,7 +12,7 @@ import {
   createKeypair,
   getPublicKey,
   getUserAddress,
-  ensureUserAccount,
+  /* ensureUserAccount, */
   deleteKeypair,
   deleteEntity,
   createNewEntity
@@ -57,12 +57,12 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
     throw new Error('Email and provider must be provided in props');
   }
   // Ensure user has a vault-based account 
-  try {
-    const accType = await ensureUserAccount(env, props.email, props.provider || 'google');
-    console.log(`User has a ${accType}-based account`);
-  } catch (error: any) {
-    throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
-  }
+  // try {
+  //   const accType = await ensureUserAccount(env, props.email, props.provider || 'google');
+  //   console.log(`User has a ${accType}-based account`);
+  // } catch (error: any) {
+  //   throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
+  // }
   //Reset wallet account
   server.tool(
     'reset_wallet_account',

@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { ResponseProcessor } from '../../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Env, Props } from '../../types';
-import { signWithTransit, getPublicKey, ensureUserAccount } from '../../utils/vaultManager';
+import { signWithTransit, getPublicKey/* , ensureUserAccount */ } from '../../utils/vaultManager';
 import * as msgpack from "algo-msgpack-with-bigint";
 
 /**
@@ -309,13 +309,13 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
           throw new Error('Email and provider must be provided in props');
         }
         console.log(`Signing atomic transaction group for ${props.email} with provider ${props.provider}`);
-        // Ensure user has an account
-        try {
-          await ensureUserAccount(env, props.email || '', props.provider || 'google');
-          console.log(`Ensured user account for ${props.email || keyName}`);
-        } catch (error: any) {
-          throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
-        }
+        // // Ensure user has an account
+        // try {
+        //   await ensureUserAccount(env, props.email || '', props.provider || 'google');
+        //   console.log(`Ensured user account for ${props.email || keyName}`);
+        // } catch (error: any) {
+        //   throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
+        // }
 
         // Decode transactions
         const decodedTxns = encodedTxns.map(txn => {

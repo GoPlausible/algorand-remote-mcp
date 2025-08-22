@@ -51,13 +51,13 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
   if (!props.email || !props.provider) {
     throw new Error('Email and provider must be provided in props');
   }
-  console.log(`Ensuring user account for ${props.email} with provider ${props.provider}`);
-  try {
-    const accType = await ensureUserAccount(env, props.email, props.provider);
-    console.log(`User has a ${accType}-based account`);
-  } catch (error: any) {
-    throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
-  }
+  // console.log(`Ensuring user account for ${props.email} with provider ${props.provider}`);
+  // try {
+  //   const accType = await ensureUserAccount(env, props.email, props.provider);
+  //   console.log(`User has a ${accType}-based account`);
+  // } catch (error: any) {
+  //   throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
+  // }
 
   // Create payment transaction tool
   server.tool(
@@ -145,10 +145,10 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         if (!props.email || !props.provider) {
           throw new Error('Email and provider must be provided in props');
         }
-        console.log(`Ensuring account for ${props.email} with provider ${props.provider}`);
+        // console.log(`Ensuring account for ${props.email} with provider ${props.provider}`);
 
-        // Ensure user has an account
-        await ensureUserAccount(env, props.email || '', props.provider);
+        // // Ensure user has an account
+        // await ensureUserAccount(env, props.email || '', props.provider);
 
         // For vault-based accounts, we need to manually construct the signed transaction
 

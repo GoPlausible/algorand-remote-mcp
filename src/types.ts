@@ -561,7 +561,7 @@ export interface KeypairResponse {
 }
 
 /**
- * Response from the getPublicKey function
+ * Response from the get Public Key function
  */
 export interface PublicKeyResponse {
   success: boolean;

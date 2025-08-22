@@ -5,6 +5,9 @@ import { Env, State, Props, VaultResponse } from './types';
 import { ResponseProcessor } from './utils';
 import OAuthProvider from "./oauth-provider";
 import { OauthHandler } from "./oauth-handler";
+import {
+  ensureUserAccount,
+} from './utils/vaultManager';
 // import algosdk from 'algosdk';
 import {
 	registerAccountTools,
@@ -48,7 +51,17 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 		// Set default page size or use from state if available
 		const itemsPerPage = this.state?.items_per_page || 10;
 		ResponseProcessor.setItemsPerPage(itemsPerPage);
-
+		// Ensure user has a vault-based account 
+		try {
+			if (!this.props.email || !this.props.provider) {
+				throw new Error('Email and provider must be provided in props');
+			}
+			console.log(`Ensuring user account for ${this.props.email} with provider ${this.props.provider}`);
+			const accType = await ensureUserAccount(this.env, this.props.email, this.props.provider);
+			console.log(`User ${this.props.email} has a ${accType}-based account on ${this.props.provider} provider`);
+		} catch (error: any) {
+			throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
+		}
 
 
 		// Register resources
@@ -182,7 +195,7 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 // 		if (url.pathname === "/sse" || url.pathname === "/sse/message") {
 // 			console.log("Serving SSE endpoint");
 
-			
+
 
 // 			return AlgorandRemoteMCP.serveSSE("/sse", {
 // 				binding: "AlgorandRemoteMCP",
