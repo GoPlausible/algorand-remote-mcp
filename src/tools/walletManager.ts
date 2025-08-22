@@ -53,7 +53,9 @@ function getAccountFromMnemonic(mnemonic: string | undefined): algosdk.Account |
  */
 export async function registerWalletTools(server: McpServer, env: Env, props: Props): Promise<void> {
   console.log('Registering wallet tools for Algorand Remote MCP');
-
+  if (!props.email || !props.provider) {
+    throw new Error('Email and provider must be provided in props');
+  }
   // Ensure user has a vault-based account 
   try {
     const accType = await ensureUserAccount(env, props.email, props.provider || 'google');

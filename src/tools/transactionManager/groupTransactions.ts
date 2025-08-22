@@ -305,6 +305,10 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
     },
     async ({ encodedTxns, keyName }) => {
       try {
+        if(!props.email || !props.provider) {
+          throw new Error('Email and provider must be provided in props');
+        }
+        console.log(`Signing atomic transaction group for ${props.email} with provider ${props.provider}`);
         // Ensure user has an account
         try {
           await ensureUserAccount(env, props.email || '', props.provider || 'google');
