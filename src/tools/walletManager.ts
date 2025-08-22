@@ -56,6 +56,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
   if (!props.email || !props.provider) {
     throw new Error('Email and provider must be provided in props');
   }
+  
   // Ensure user has a vault-based account 
   // try {
   //   const accType = await ensureUserAccount(env, props.email, props.provider || 'google');
@@ -194,6 +195,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
     {},
     async () => {
       try {
+        
         // Check account type
         const publicKeyResult = await getPublicKey(env, props.email, props.provider);
         if (!publicKeyResult.success || publicKeyResult.error) {
@@ -280,6 +282,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
     {},
     async () => {
       try {
+        
         const entityId = await env.VAULT_ENTITIES?.get(props.email);
         console.log(`Entity ID for ${props.email} from KV store:`, entityId);
         let roleId = null;
@@ -326,6 +329,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           }]
         };
       }
+      
       const entityId = await env.VAULT_ENTITIES?.get(props.email);
       console.log(`Entity ID for ${props.email} from KV store:`, entityId);
       let roleId = null;

@@ -35,7 +35,7 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 
 	// Initialize state with default values
 	initialState: State = {
-		items_per_page: 10,
+		items_per_page: 10
 
 	};
 
@@ -46,6 +46,8 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 		console.log("Current state:", this.state);
 		console.log("Props name:", this.props?.name);
 		console.log("Props email:", this.props?.email);
+		// Set provider in state if available in props
+	
 		console.log("Props User ID:", this.props?.id);
 		console.log("Props clientId:", this.props?.clientId);
 		// Set default page size or use from state if available

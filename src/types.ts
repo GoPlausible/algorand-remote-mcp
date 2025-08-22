@@ -395,7 +395,7 @@ export interface EncodedSignedTransaction {
  * This defines all the persistent state that will be stored
  */
 export interface State {
-  
+
   /**
    * Number of items to show per page
    */
@@ -407,6 +407,7 @@ export interface State {
  */
 export interface Env {
 
+
   /**
    * Hashicorp Vault Worker binding for secure secret storage
    */
@@ -417,77 +418,77 @@ export interface Env {
    * Durable Object namespace for the AlgorandRemoteMCP class
    */
   AlgorandRemoteMCP: DurableObjectNamespace;
-  
-/**
- * R2 bucket binding for knowledge resources
- */
-KNOWLEDGE_BUCKET?: R2Bucket;
 
-/**
- * R2 bucket binding for PlausibleAI documentation
- */
-PLAUSIBLE_AI?: R2Bucket;
-  
+  /**
+   * R2 bucket binding for knowledge resources
+   */
+  KNOWLEDGE_BUCKET?: R2Bucket;
+
+  /**
+   * R2 bucket binding for PlausibleAI documentation
+   */
+  PLAUSIBLE_AI?: R2Bucket;
+
   /**
    * Algorand network to use (mainnet, testnet, etc.)
    */
   ALGORAND_NETWORK?: string;
-  
+
   /**
    * Algorand node URL for API access (base URL)
    */
   ALGORAND_ALGOD?: string;
-  
+
   /**
    * Algorand node API URL with version (e.g., with /v2)
    */
   ALGORAND_ALGOD_API?: string;
-  
+
   /**
    * Algorand node port if different from the default
    */
   ALGORAND_ALGOD_PORT?: string;
-  
+
   /**
    * Algorand Indexer URL for querying historical data (base URL)
    */
   ALGORAND_INDEXER?: string;
-  
+
   /**
    * Algorand Indexer API URL with version (e.g., with /v2)
    */
   ALGORAND_INDEXER_API?: string;
-  
+
   /**
    * Algorand Indexer port if different from the default
    */
   ALGORAND_INDEXER_PORT?: string;
-  
+
   /**
    * NFD API URL for name resolution
    */
   NFD_API_URL?: string;
-  
+
   /**
    * Pera Wallet API URL for asset verification
    */
   PERA_WALLET_API_URL?: string;
-  
+
   /**
    * Pera Explorer URL for asset links
    */
   PERA_EXPLORER_URL?: string;
-  
+
   /**
    * API key for Algorand node access if required
    */
   ALGORAND_TOKEN?: string;
-  
+
   /**
    * Items per page for pagination (default in state)
    */
   ITEMS_PER_PAGE?: string;
-  
+
 
   OAUTH_KV?: KVNamespace;
   HCV_WORKER_URL?: string; // Hashicorp Vault Worker binding for secure secret storage
@@ -498,9 +499,9 @@ PLAUSIBLE_AI?: R2Bucket;
   COOKIE_ENCRYPTION_KEY?: string;
 }
 export interface Props extends Record<string, unknown> {
-	name: string;
-	email: string;
-	accessToken: string;
+  name: string;
+  email: string;
+  accessToken: string;
   id: string; // User ID
   clientId: string; // Client ID for OAuth
   provider: string; // 'google' or 'github' or 'twitter' or 'linkedin'
@@ -537,7 +538,7 @@ export interface AssetDetailsResponse {
   verification_tier: "verified" | "unverified" | "suspicious";
   is_collectible: boolean;
   circulating_supply: string;
-  
+
   // Optional fields according to schema
   name?: string | null;
   unit_name?: string | null;

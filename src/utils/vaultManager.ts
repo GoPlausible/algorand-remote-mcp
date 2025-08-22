@@ -1,5 +1,5 @@
 /**
- * Vault Manager for Algorand Remote MCP
+ * VaultManager for Algorand Remote MCP
  * Provides utility functions for interacting with the Hashicorp Vault worker
  */
 
