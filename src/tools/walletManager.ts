@@ -18,6 +18,7 @@ import {
   createNewEntity
 } from '../utils/vaultManager';
 import { log } from 'console';
+import { email } from 'zod/v4';
 
 /**
  * Create and validate an Algorand client
@@ -111,6 +112,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           console.log(`Cleared public key cache for user: ${props.email}`);
           const entityResult = await createNewEntity(env, props.email, props.provider);
           console.log(`New entity created: ${entityResult}`);
+            await new Promise(resolve => setTimeout(resolve, 500));
           const keypairResult = await createKeypair(env, props.email, props.provider);
 
           if (!keypairResult.success) {
@@ -119,6 +121,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           console.log(`New keypair created: ${keypairResult}`);
           // Get the address from the public key
           console.log(`Getting public key for ${props.email} with provider ${props.provider}`);
+        
           const publicKeyResult = await getPublicKey(env, props.email, props.provider);
 
           if (!publicKeyResult.success || !publicKeyResult.publicKey) {
@@ -141,7 +144,9 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
             if (roleId) {
               return ResponseProcessor.processResponse({
                 address,
-                role_id: roleId
+                role_id: roleId,
+                user: props.email,
+                provider: props.provider,
               });
             } else {
               throw new Error(`No Role ID found for entity: ${providerEntity}`);
@@ -195,7 +200,9 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         return ResponseProcessor.processResponse({
           publicKey: publicKeyResult.publicKey,
           format: 'base64',
-          role_id: roleId
+          role_id: roleId,
+          user: props.email,
+          provider: props.provider,
         });
       } catch (error: any) {
         return {
@@ -241,7 +248,9 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
         return ResponseProcessor.processResponse({
           address,
-          role_id: roleId
+          role_id: roleId,
+          user: props.email,
+          provider: props.provider,
         });
       } catch (error: any) {
         return {
@@ -282,6 +291,8 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
         return ResponseProcessor.processResponse({
           role_id: roleId,
+          user: props.email,
+          provider: props.provider,
 
         });
       } catch (error: any) {
@@ -347,6 +358,8 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
             address,
             amount: accountInfo.amount,
             assets: accountInfo.assets || [],
+            user: props.email,
+            provider: props.provider,
             role_id: roleId
           }]
         });
@@ -400,6 +413,8 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
         return ResponseProcessor.processResponse({
           assets: accountInfo.assets || [],
+          user: props.email,
+          provider: props.provider,
 
         });
       } catch (error: any) {
@@ -464,7 +479,8 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         return ResponseProcessor.processResponse({
           success: true,
           message: 'Successfully logged out. You will need to re-authenticate on your next request.',
-          // Include information that this was a forced logout to help client understand the state
+          user: props.email,
+          provider: props.provider,
           forceReauthentication: true
         });
       } catch (error: any) {

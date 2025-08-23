@@ -264,7 +264,7 @@ export async function getUserAddress(env: Env, email: string | undefined, provid
  */
 export async function ensureUserAccount(env: Env, email: string | undefined, provider: string | undefined): Promise<any> {
   console.log('Ensuring user account for email:', email);
-  if (!email || email === ''|| email.indexOf(`${provider}`)===-1 || !env.VAULT_ENTITIES || !provider) {
+  if (!email || email === '' || !env.VAULT_ENTITIES || !provider) {
     console.error('No email or no provider provided for account ensurance');
     return null;
   }
@@ -300,6 +300,8 @@ export async function ensureUserAccount(env: Env, email: string | undefined, pro
       console.log(`Created new entity with ID: ${entityId}`);
     }
   }
+  // Delay for half a second before proceeding
+  
   const publicKeyResult = await getPublicKey(env, email, provider);
 
   if (!publicKeyResult.success || publicKeyResult.error) {
