@@ -89,7 +89,7 @@ export async function deleteEntity(env: Env, keyName: string ,entityId: string,r
       },
       body: JSON.stringify({
         id: entityId,
-        role_id: roleId,
+        role: roleId,
         email: keyName,
         provider: provider
       })

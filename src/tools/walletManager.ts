@@ -144,7 +144,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
             if (roleId) {
               return ResponseProcessor.processResponse({
                 address,
-                role_id: roleId,
+                role: roleId,
                 user: props.email,
                 provider: props.provider,
               });
@@ -200,7 +200,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         return ResponseProcessor.processResponse({
           publicKey: publicKeyResult.publicKey,
           format: 'base64',
-          role_id: roleId,
+          role: roleId,
           user: props.email,
           provider: props.provider,
         });
@@ -248,7 +248,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
         return ResponseProcessor.processResponse({
           address,
-          role_id: roleId,
+          role: roleId,
           user: props.email,
           provider: props.provider,
         });
@@ -290,7 +290,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         }
 
         return ResponseProcessor.processResponse({
-          role_id: roleId,
+          role: roleId,
           user: props.email,
           provider: props.provider,
 
@@ -360,7 +360,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
             assets: accountInfo.assets || [],
             user: props.email,
             provider: props.provider,
-            role_id: roleId
+            role: roleId
           }]
         });
       } catch (error: any) {

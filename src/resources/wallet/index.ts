@@ -94,7 +94,7 @@ export async function registerWalletResources(server: McpServer, env: Env, props
           text: JSON.stringify({
             publicKey: publicKeyResult.publicKey,
             format: 'base64',
-            role_id: roleId
+            role: roleId
           }, null, 2)
         }]
       };
