@@ -298,6 +298,7 @@ export async function ensureUserAccount(env: Env, email: string | undefined, pro
       entityId = entityResult.entityId || null;
       providerEntity = `${provider}--${entityId}`
       console.log(`Created new entity with ID: ${entityId}`);
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
   }
   // Delay for half a second before proceeding
@@ -308,6 +309,7 @@ export async function ensureUserAccount(env: Env, email: string | undefined, pro
     console.error('Failed to get public key from vault:', publicKeyResult.error);
     // Create a new vault-based account
     console.log(`Creating new keypair for ${email}`);
+
     const keypairResult = await createKeypair(env, email, provider);
     if (!keypairResult.success) {
       throw new Error(keypairResult.error || 'Failed to create keypair in vault');
