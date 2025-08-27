@@ -93,7 +93,7 @@
   //   "LINKEDIN_CLIENT_SECRET": "your_linkedin_client_secret_here",
   //   "LINKEDIN_CLIENT_ID": "your_linkedin_client_id_here",
   //   "COOKIE_ENCRYPTION_KEY": "your_cookie_encryption_key_here"
-  // "TWITTER_CLIENT_SECRET": "your_twitter_client_secret_here",
+  //   "TWITTER_CLIENT_SECRET": "your_twitter_client_secret_here",
   //   "TWITTER_CLIENT_ID": "your_twitter_client_id_here"
   //  },
 
