@@ -7,6 +7,7 @@ export const guide = `# Algorand Remote MCP Guide for Agents
 
 > **🌐 NETWORK CONFIGURATION**: This system is configured for **Algorand Mainnet**. All examples and asset IDs reference mainnet assets (e.g., USDC ASA ID: 31566704).
 > **🌐 SIGNING TRANSACTIONS**: This system is set to sign transactions on MCP server side not by LLM or agent therefore there is no need to get sensitive data like private key or mnemonic unless explicitly asked by user to use the tools to get those or summoned through an MCP Resource.
+> **🌐 TRANSACTIONS FUNDS & MBRS**: Wallet account needs to have 0.1 Algo to be considered active and keeps that MBR, and also each asset or app optin adds 0.1 to MBR. When sending transactions and before sign and send, always make sure you have recent wallet account balance and if funds or asset balances were not sufficient for transaction the use generate_algorand_qrcode tool to generate a tip jar transaction QRCode for user to top up right away. 
 
 ## 🚨 CRITICAL: FIRST STEPS FOR EVERY NEW SESSION
 
