@@ -22,7 +22,7 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
       documents: z.array(z.string()).describe('Array of document keys (e.g. ["ARCs:specs:arc-0020.md"])')
     },
     async ({ documents }) => {
-      
+
       try {
         if (!env.PLAUSIBLE_AI) {
           console.error('R2 bucket not available');
@@ -33,51 +33,51 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
             }]
           };
         }
-        
+
         // Process document keys and fetch content from R2
         const results = await Promise.all(documents.map(async (docKey) => {
           try {
             // Format the document key for R2 path
             // The docKey will be something like "ARCs:specs:arc-0020.md"
             // We need to convert the colons to forward slashes for the R2 path
-            // Maybe the file is stored under a slightly different key structure
-            // Let's try looking for it with and without any taxonomy prefix
             const r2Key = docKey.replace(/:/g, '/');
             console.log(`Looking for document at key: ${r2Key}`);
-            
+
             // Get the document from R2 bucket
             // @ts-ignore - We've checked PLAUSIBLE_AI exists above
             let object = await env.PLAUSIBLE_AI.get(r2Key);
-            
+
             // If not found, try listing objects with this prefix to see what's available
             if (!object) {
               console.log(`Object not found at ${r2Key}, trying to list similar objects`);
+              // @ts-ignore - We've checked PLAUSIBLE_AI exists above
               const similarObjects = await env.PLAUSIBLE_AI.list({
                 prefix: r2Key.split('/')[0], // Get just the first segment
                 delimiter: '/'
               });
-              
+
               console.log(`Found ${similarObjects.objects.length} similar objects`);
               if (similarObjects.objects.length > 0) {
                 // console.log(`Similar objects: ${similarObjects.objects.map(o => o.key).join(', ')}`);
-                
+
                 // Try an exact match from the list of similar objects
-                const exactMatch = similarObjects.objects.find(o => 
+                const exactMatch = similarObjects.objects.find(o =>
                   o.key.replace(/\//g, ':') === docKey
                 );
-                
+
                 if (exactMatch) {
                   // console.log(`Found exact match: ${exactMatch.key}`);
+                  // @ts-ignore - We've checked PLAUSIBLE_AI exists above
                   object = await env.PLAUSIBLE_AI.get(exactMatch.key);
                 }
               }
             }
-            
+
             if (!object) {
               console.error(`Document not found: ${docKey}`);
               return `Document not found: ${docKey}`;
             }
-            
+
             // Get the text content
             const content = await object.text();
             return content;
@@ -86,7 +86,7 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
             return `Failed to read document ${docKey}: ${error instanceof Error ? error.message : 'Unknown error'}`;
           }
         }));
-        
+
         return ResponseProcessor.processResponse({
           documents: results
         });
@@ -100,7 +100,7 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
       }
     }
   );
-  
+
   // List available knowledge documents
   server.tool(
     'list_knowledge_docs',
@@ -109,7 +109,7 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
       prefix: z.string().optional().default('').describe('Optional prefix to filter documents')
     },
     async ({ prefix }) => {
-      
+
       try {
         if (!env.PLAUSIBLE_AI) {
           console.error('R2 bucket not available');
@@ -120,23 +120,23 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
             }]
           };
         }
-        
+
         // Format the prefix for R2 listing
         // If no specific prefix given, don't use any prefix to list all objects at root
         const r2Prefix = prefix ? `${prefix.replace(/:/g, '/')}` : '';
         console.log(`Listing objects with prefix: '${r2Prefix}'`);
-        
+
         // List objects from the R2 bucket with the given prefix
         // @ts-ignore - We've checked PLAUSIBLE_AI exists above
         const objects = await env.PLAUSIBLE_AI.list({
           prefix: r2Prefix,
           delimiter: '/'
         });
-        
+
         console.log(`Found ${objects.objects.length} objects and ${objects.delimitedPrefixes.length} prefixes`);
-    
-       
-        
+
+
+
         // Format the results
         const results = {
           files: objects.objects.map((obj) => {
@@ -153,7 +153,7 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
             return prefix.replace('taxonomy/', '').replace(/\//g, ':');
           })
         };
-        
+
         return ResponseProcessor.processResponse(results);
       } catch (error: any) {
         return {

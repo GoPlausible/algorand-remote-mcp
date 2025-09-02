@@ -168,7 +168,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         const finalEncodedTxnTagged = ConcatArrays(TAG, finalEncodedTxn);
         console.log('Final encoded transaction:', finalEncodedTxnTagged);
         const finalEncodedTxnBase64 = Buffer.from(finalEncodedTxnTagged).toString('base64');
-        const signatureResult = await signWithTransit(env, finalEncodedTxnBase64, props.email);
+        const signatureResult = await signWithTransit(env, finalEncodedTxnBase64, props.email, props.provider);
 
 
         if (!signatureResult.success || !signatureResult.signature) {

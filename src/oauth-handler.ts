@@ -1,6 +1,6 @@
 import type { AuthRequest, OAuthHelpers } from "./oauth-provider";
 import { Hono } from "hono";
-import getLogo from "./logoUrl.js";
+import {getLogo} from "./logoUrl.js";
 
 import {
 	clientIdAlreadyApproved,
