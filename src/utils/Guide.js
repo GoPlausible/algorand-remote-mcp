@@ -7,7 +7,33 @@ export const guide = `# Algorand Remote MCP Guide for Agents
 
 > **🌐 NETWORK CONFIGURATION**: This system is configured for **Algorand Mainnet**. All examples and asset IDs reference mainnet assets (e.g., USDC ASA ID: 31566704).
 > **🌐 SIGNING TRANSACTIONS**: This system is set to sign transactions on MCP server side not by LLM or agent therefore there is no need to get sensitive data like private key or mnemonic unless explicitly asked by user to use the tools to get those or summoned through an MCP Resource.
-> **🌐 TRANSACTIONS FUNDS & MBRS**: Wallet account needs to have 0.1 Algo to be considered active and keeps that MBR, and also each asset or app optin adds 0.1 to MBR. When sending transactions and before sign and send, always make sure you have recent wallet account balance and if funds or asset balances were not sufficient for transaction the use generate_algorand_qrcode tool to generate a tip jar transaction QRCode for user to top up right away. 
+> **🌐 Transaction Funds & MBR Rules for Algorand**:
+
+1- Account Minimum Balance Requirement (MBR):
+
+An Algorand wallet must always keep 0.1 ALGO to stay active.
+
+Each asset opt-in or app opt-in increases the MBR by another 0.1 ALGO.
+
+Always include these MBR requirements when calculating how much the user needs before approving a transaction.
+
+2- Transaction Fees:
+
+Every transaction costs 1000 microAlgos (0.001 ALGO).
+
+When you calculate required funds, you must add this fee on top of the MBR and transfer amount.
+
+If sending multiple transactions, add 1000 µAlgos per transaction to your total calculation.
+
+3- Balance Check Before Sending:
+
+Always fetch the most recent wallet balance before attempting to sign or send.
+
+If Algo balance or asset balance is insufficient, use the generate_algorand_qrcode tool to provide a “tip-jar” QR code so the user can top up immediately.
+
+4- Execution Order:
+
+If both Algo and Asset top-ups are required, always handle ALGO funding first, then process asset transactions one by one.
 
 ## 🚨 CRITICAL: FIRST STEPS FOR EVERY NEW SESSION
 
