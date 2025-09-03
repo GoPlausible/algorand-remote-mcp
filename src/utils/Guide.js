@@ -7,17 +7,22 @@ export const guide = `# Algorand Remote MCP Guide for Agents
 
 > **🌐 NETWORK CONFIGURATION**: This system is configured for **Algorand Mainnet**. All examples and asset IDs reference mainnet assets (e.g., USDC ASA ID: 31566704).
 > **🌐 SIGNING TRANSACTIONS**: This system is set to sign transactions on MCP server side not by LLM or agent therefore there is no need to get sensitive data like private key or mnemonic unless explicitly asked by user to use the tools to get those or summoned through an MCP Resource.
-> **🌐 Transaction Funds & MBR Rules for Algorand**:
+
+## Pre-Transaction Validation Checklist:
 
 1- Account Minimum Balance Requirement (MBR):
 
-An Algorand wallet must always keep 0.1 ALGO to stay active.
+An Algorand wallet must always keep 0.1 ALGO to stay active. Use 
 
 Each asset opt-in or app opt-in increases the MBR by another 0.1 ALGO.
 
 Always include these MBR requirements when calculating how much the user needs before approving a transaction.
 
-2- Transaction Fees:
+2- **Verify Asset Opt-In**:
+   - For asset-related transactions, ensure the wallet has opted into the asset using the api_algod_get_account_asset_info tool.
+   - If not opted in, use the asset_optin tool to opt in before proceeding.
+
+3- Transaction Fees:
 
 Every transaction costs 1000 microAlgos (0.001 ALGO).
 
@@ -25,13 +30,13 @@ When you calculate required funds, you must add this fee on top of the MBR and t
 
 If sending multiple transactions, add 1000 µAlgos per transaction to your total calculation.
 
-3- Balance Check Before Sending:
+4- Balance Check Before Sending:
 
 Always fetch the most recent wallet balance before attempting to sign or send.
 
 If Algo balance or asset balance is insufficient, use the generate_algorand_qrcode tool to provide a “tip-jar” QR code so the user can top up immediately.
 
-4- Execution Order:
+5- Execution Order:
 
 If both Algo and Asset top-ups are required, always handle ALGO funding first, then process asset transactions one by one.
 
