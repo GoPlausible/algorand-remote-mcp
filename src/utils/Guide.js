@@ -34,9 +34,17 @@ If sending multiple transactions, add 1000 µAlgos per transaction to your total
 
 Always fetch the most recent wallet balance before attempting to sign or send.
 
+5- Tip-Jar QR Code Generation:
 If Algo balance or asset balance is insufficient, use the generate_algorand_qrcode tool to provide a “tip-jar” QR code so the user can top up immediately.
+This only happens for Algo and Asset top-ups.
 
-5- Execution Order:
+When generating a QR code for funding, use the generate_algorand_qrcode tool with parameters:
+   - address: Wallet address
+   - amount: Total required amount (including MBR and fees)
+   - assetId: (optional) Asset ID if funding an ASA
+   - note: Optional note like "Top-up for transaction"
+
+6- Execution Order:
 
 If both Algo and Asset top-ups are required, always handle ALGO funding first, then process asset transactions one by one.
 

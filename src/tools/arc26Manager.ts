@@ -11,6 +11,7 @@ import { Env, Props } from '../types';
 import { generate } from '@juit/qrcode'
 
 function buildHTMLPage({
+  provider,
   uri,
   uriType,
   uuid,
@@ -20,6 +21,7 @@ function buildHTMLPage({
   label2,
   amount
 }: {
+  provider: string;
   uri: string;
   uriType: string;
   uuid: string;
@@ -114,7 +116,7 @@ function buildHTMLPage({
     
     <img src="https://agency.goplausible.xyz/images/Agent.png" alt="Algorand X Agent" style="width:64px; height:64px; border-radius:50%; object-fit:cover; margin-bottom:1rem;" />
 
-    <h2><strong>👋 Hey @${from}</strong></h2>
+    <h2><strong>👋 Hey ${provider === 'twitter'? '@':''}${from}</strong></h2>
     
     <h3>Your ${label2}</h3>
     
@@ -360,6 +362,7 @@ export function registerArc26Tools(server: McpServer, env: Env, props: Props): v
         await env.ARC26_KV?.put(`image--${uuid}`, qrCode, { expirationTtl: 86400 * 7 }); // Cache for 7 days
 
         const htmlPage = buildHTMLPage({
+          provider: props.provider,
           uri,
           uriType,
           uuid,
