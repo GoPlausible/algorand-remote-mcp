@@ -36,7 +36,7 @@ Always fetch the most recent wallet balance before attempting to sign or send.
 
 5- Tip-Jar QR Code Generation:
 If Algo balance or asset balance is insufficient, use the generate_algorand_qrcode tool to provide a “tip-jar” QR code so the user can top up immediately.
-This only happens for Algo and Asset top-ups.
+This only happens for Algo and Asset top-ups. Give the generated QRCode links to user to scan with PeraWallet (important) and top up.
 
 When generating a QR code for funding, use the generate_algorand_qrcode tool with parameters:
    - address: Wallet address

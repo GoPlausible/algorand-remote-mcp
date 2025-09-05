@@ -114,7 +114,7 @@ function buildHTMLPage({
 <body>
   <div class="card">
     
-    <img src="https://agency.goplausible.xyz/images/Agent.png" alt="Algorand X Agent" style="width:64px; height:64px; border-radius:50%; object-fit:cover; margin-bottom:1rem;" />
+    <img src="https://agency.goplausible.xyz/images/Agent.png" alt="${provider === 'twitter'? 'X' : provider === 'google'? 'Google' : provider === 'linkedin'? 'Linkedin': provider === 'github'? 'GitHub': ''}" style="width:64px; height:64px; border-radius:50%; object-fit:cover; margin-bottom:1rem;" />
 
     <h2><strong>👋 Hey ${provider === 'twitter'? '@':''}${from}</strong></h2>
     
@@ -368,7 +368,7 @@ export function registerArc26Tools(server: McpServer, env: Env, props: Props): v
           uuid,
           qrPng: `https://goplausible.xyz/api/arc26/image/${uuid}.jpeg`,
           from: props.email,
-          label: `Algorand X Agent`,
+          label: `Algorand ${props.provider === 'twitter'? 'X' : props.provider === 'google'? 'Google' : props.provider === 'linkedin'? 'Linkedin': props.provider === 'github'? 'GitHub': ''} Agent`,
           label2: `${uriType}`,
           amount
         })
