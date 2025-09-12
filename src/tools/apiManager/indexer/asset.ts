@@ -26,48 +26,48 @@ function createIndexerClient(indexerUrl: string | undefined): algosdk.Indexer | 
  */
 export function registerIndexerAssetTools(server: McpServer,env: Env): void {
   // Lookup asset by ID
-  server.tool(
-    'api_indexer_lookup_asset_by_id',
-    'Get asset information from indexer',
-    { 
-      assetId: z.number().int().describe('Asset ID')
-    },
-    async ({ assetId }) => {
+  // server.tool(
+  //   'indexer_lookup_asset_by_id',
+  //   'Get asset information from indexer',
+  //   { 
+  //     assetId: z.number().int().describe('Asset ID')
+  //   },
+  //   async ({ assetId }) => {
       
-      if (!env.ALGORAND_INDEXER) {
-        return {
-          content: [{
-            type: 'text',
-            text: 'Algorand indexer URL not configured'
-          }]
-        };
-      }
+  //     if (!env.ALGORAND_INDEXER) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: 'Algorand indexer URL not configured'
+  //         }]
+  //       };
+  //     }
       
-      try {
-        // Create indexer client
-        const indexerClient = createIndexerClient(env.ALGORAND_INDEXER);
-        if (!indexerClient) {
-          throw new Error('Failed to create Algorand indexer client');
-        }
+  //     try {
+  //       // Create indexer client
+  //       const indexerClient = createIndexerClient(env.ALGORAND_INDEXER);
+  //       if (!indexerClient) {
+  //         throw new Error('Failed to create Algorand indexer client');
+  //       }
         
-        // Lookup asset by ID
-        const response = await indexerClient.lookupAssetByID(Number(assetId)).do();
+  //       // Lookup asset by ID
+  //       const response = await indexerClient.lookupAssetByID(Number(assetId)).do();
         
-        return ResponseProcessor.processResponse(response);
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error looking up asset: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
+  //       return ResponseProcessor.processResponse(response);
+  //     } catch (error: any) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: `Error looking up asset: ${error.message || 'Unknown error'}`
+  //         }]
+  //       };
+  //     }
+  //   }
+  // );
   
   // Lookup asset balances
   server.tool(
-    'api_indexer_lookup_asset_balances',
+    'indexer_lookup_asset_balances',
     'Get accounts that hold a specific asset',
     { 
       assetId: z.number().int().describe('Asset ID'),
@@ -127,7 +127,7 @@ export function registerIndexerAssetTools(server: McpServer,env: Env): void {
   
   // Search for assets
   server.tool(
-    'api_indexer_search_for_assets',
+    'indexer_search_for_assets',
     'Search for assets with various criteria',
     {
       name: z.string().optional().describe('Filter by asset name'),

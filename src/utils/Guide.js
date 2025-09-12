@@ -19,7 +19,7 @@ Each asset opt-in or app opt-in increases the MBR by another 0.1 ALGO.
 Always include these MBR requirements when calculating how much the user needs before approving a transaction.
 
 2- **Verify Asset Opt-In**:
-   - For asset-related transactions, ensure the wallet has opted into the asset using the api_algod_get_account_asset_info tool.
+   - For asset-related transactions, ensure the wallet has opted into the asset using the algod_get_account_asset_info tool.
    - If not opted in, use the asset_optin tool to opt in before proceeding.
 
 3- Transaction Fees:
@@ -131,7 +131,7 @@ As an LLM agent, here's how to quickly perform basic Algorand operations using d
 
 5. Verify the result:
    \`\`\`
-   use_tool: api_algod_get_transaction_info
+   use_tool: algod_get_transaction_info
    parameters: {
      "txid": "[transaction_id_from_step_4]"
    }
@@ -172,7 +172,7 @@ As an LLM agent, here's how to quickly perform basic Algorand operations using d
 
 5. Verify the result:
    \`\`\`
-   use_tool: api_algod_get_account_asset_info
+   use_tool: algod_get_account_asset_info
    parameters: {
      "address": "[wallet_address]",
      "assetId": 31566704  // USDC on Algorand Mainnet
@@ -216,7 +216,7 @@ As an LLM agent, here's how to quickly perform basic Algorand operations using d
 
 5. Verify the result:
    \`\`\`
-   use_tool: api_algod_get_transaction_info
+   use_tool: algod_get_transaction_info
    parameters: {
      "txid": "[transaction_id_from_step_4]"
    }
@@ -259,7 +259,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 2. Account Information Tools
    - Type: Account data retrieval
-   - Examples: \`api_algod_get_account_info\`, \`check_account_balance\`
+   - Examples: \`algod_get_account_info\`, \`check_account_balance\`
    - Purpose: Access account information
    - Note: Requires valid Algorand address
 
@@ -315,12 +315,12 @@ Here are frequently used assets on Algorand Mainnet for reference:
    - Note: This will generate a new Algorand account and replace the existing one
 
 2. Account Information Tools
-   - Tool: \`api_algod_get_account_info\`
+   - Tool: \`algod_get_account_info\`
    - Purpose: Get detailed information for a given Algorand account address
    - Parameters: \`{ address: string }\`
    - Returns: Account data including balance, status, apps, and assets
 
-   - Tool: \`api_indexer_lookup_account_by_id\`
+   - Tool: \`indexer_lookup_account_by_id\`
    - Purpose: Get comprehensive account information from the indexer
    - Parameters: \`{ address: string }\`
    - Returns: Full account details including participation information
@@ -466,11 +466,11 @@ Here are frequently used assets on Algorand Mainnet for reference:
      \`\`\`
 
 7. API Query Tools
-   - Tool: \`api_algod_get_account_info\`
+   - Tool: \`algod_get_account_info\`
    - Purpose: Get account details
    - Parameters: \`{ address: string }\`
 
-   - Tool: \`api_indexer_lookup_account_transactions\`
+   - Tool: \`indexer_lookup_account_transactions\`
    - Purpose: Get account transaction history
    - Parameters: \`{ address: string }\`
 
@@ -581,7 +581,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 7. Verify transaction confirmation:
    \`\`\`
-   use_tool: api_indexer_lookup_transaction_by_id
+   use_tool: indexer_lookup_transaction_by_id
    parameters: {
      "txid": "[transaction_id_from_step_6]"
    }
@@ -599,7 +599,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 3. Check if already opted in (optional):
    \`\`\`
-   use_tool: api_algod_get_account_asset_info
+   use_tool: algod_get_account_asset_info
    parameters: {
      "address": "[user_address]",
      "assetId": 31566704  // USDC on Algorand Mainnet
@@ -633,7 +633,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 7. Verify opt-in success:
    \`\`\`
-   use_tool: api_algod_get_account_asset_info
+   use_tool: algod_get_account_asset_info
    parameters: {
      "address": "[user_address]",
      "assetId": 12345
@@ -668,7 +668,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 5. Check sender's asset balance:
    \`\`\`
-   use_tool: api_algod_get_account_asset_info
+   use_tool: algod_get_account_asset_info
    parameters: {
      "address": "[sender_address]",
      "assetId": 31566704  // USDC on Algorand Mainnet
@@ -677,7 +677,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 6. Verify recipient has opted in:
    \`\`\`
-   use_tool: api_algod_get_account_asset_info
+   use_tool: algod_get_account_asset_info
    parameters: {
      "address": "[recipient_address]",
      "assetId": 31566704  // USDC on Algorand Mainnet
@@ -713,7 +713,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 10. Verify transfer success:
    \`\`\`
-   use_tool: api_indexer_lookup_transaction_by_id
+   use_tool: indexer_lookup_transaction_by_id
    parameters: {
      "txid": "[transaction_id_from_step_9]"
    }
@@ -731,7 +731,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 3. Check if wallet is already opted-in to USDC:
    \`\`\`
-   use_tool: api_algod_get_account_asset_info
+   use_tool: algod_get_account_asset_info
    parameters: {
      "address": "[user_address]",
      "assetId": 31566704  // USDC ASA ID on Algorand Mainnet
@@ -765,7 +765,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 8. Verify opt-in success:
    \`\`\`
-   use_tool: api_algod_get_account_asset_info
+   use_tool: algod_get_account_asset_info
    parameters: {
      "address": "[user_address]",
      "assetId": 31566704
@@ -788,7 +788,7 @@ Note: For opt-out of asset, first get asset info and then use asset creator addr
 
 3. Check sender's USDC balance:
    \`\`\`
-   use_tool: api_algod_get_account_asset_info
+   use_tool: algod_get_account_asset_info
    parameters: {
      "address": "[sender_address]",
      "assetId": 31566704  // USDC ASA ID on Algorand Mainnet
@@ -797,7 +797,7 @@ Note: For opt-out of asset, first get asset info and then use asset creator addr
 
 4. Verify recipient has opted in to USDC:
    \`\`\`
-   use_tool: api_algod_get_account_asset_info
+   use_tool: algod_get_account_asset_info
    parameters: {
      "address": "[recipient_address]",
      "assetId": 31566704
@@ -833,7 +833,7 @@ Note: For opt-out of asset, first get asset info and then use asset creator addr
 
 9. Verify transfer success:
    \`\`\`
-   use_tool: api_indexer_lookup_transaction_by_id
+   use_tool: indexer_lookup_transaction_by_id
    parameters: {
      "txid": "[transaction_id_from_step_8]"
    }

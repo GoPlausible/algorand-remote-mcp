@@ -97,15 +97,15 @@ Algorand Remote MCP is built on the Model Context Protocol (MCP), which provides
 - `call_application`: Call a smart contract application
 
 ### API Integration
-- `api_algod_get_account_info`: Get account details from Algorand node
-- `api_algod_get_transaction_info`: Get transaction details from Algorand node
-- `api_indexer_lookup_account_by_id`: Get account details from indexer
+- `algod_get_account_info`: Get account details from Algorand node
+- `algod_get_transaction_info`: Get transaction details from Algorand node
+- `indexer_lookup_account_by_id`: Get account details from indexer
 - `api_nfd_get_nfd`: Get NFD address information
 
 ### Utility Tools
 - `validate_address`: Validate an Algorand address
-- `encode_obj`: Encode an object to msgpack format
-- `decode_obj`: Decode msgpack bytes to an object
+<!-- - `encode_obj`: Encode an object to msgpack format
+- `decode_obj`: Decode msgpack bytes to an object -->
 - `compile_teal`: Compile TEAL source code
 - `algorand_mcp_guide`: Access comprehensive guide for using Algorand Remote MCP
 
@@ -292,38 +292,38 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 45. `generate_algorand_uri` - Generate a URI following the ARC-26 specification
 
 ### API Access
-46. `api_algod_get_account_info` - Get current account balance, assets, and auth address from algod
-47. `api_algod_get_account_application_info` - Get account-specific application information
-48. `api_algod_get_account_asset_info` - Get account-specific asset information
-49. `api_algod_get_application_info` - Get application details from algod
-50. `api_algod_get_application_box_value` - Get application box contents
-51. `api_algod_get_application_boxes` - Get all application boxes
-52. `api_algod_get_application_state` - Get application global state
-53. `api_algod_get_asset_info` - Get asset details from algod
-54. `api_algod_get_asset_holding` - Get asset holding information for an account
+46. `algod_get_account_info` - Get current account balance, assets, and auth address from algod
+47. `algod_get_account_application_info` - Get account-specific application information
+48. `algod_get_account_asset_info` - Get account-specific asset information
+49. `algod_get_application_info` - Get application details from algod
+50. `algod_get_application_box_value` - Get application box contents
+51. `algod_get_application_boxes` - Get all application boxes
+52. `algod_get_application_state` - Get application global state
+53. `algod_get_asset_info` - Get asset details from algod
+54. `algod_get_asset_holding` - Get asset holding information for an account
 55. `asset_verification_status` - Get the verification status of an Algorand asset from Pera Wallet
 56. `asset_details_info` - Get detailed information about an Algorand asset from Pera Wallet
-57. `api_algod_get_transaction_info` - Get transaction details by transaction ID
-58. `api_algod_get_pending_transactions` - Get pending transactions from algod mempool
+57. `algod_get_transaction_info` - Get transaction details by transaction ID
+58. `algod_get_pending_transactions` - Get pending transactions from algod mempool
 
 ### Indexer API Access
-59. `api_indexer_lookup_account_by_id` - Get account information from indexer
-60. `api_indexer_lookup_account_assets` - Get account assets
-61. `api_indexer_lookup_account_app_local_states` - Get account application local states
-62. `api_indexer_lookup_account_created_applications` - Get applications created by an account
-63. `api_indexer_search_for_accounts` - Search for accounts with various criteria
-64. `api_indexer_lookup_applications` - Get application information from indexer
-65. `api_indexer_lookup_application_logs` - Get application log messages
-66. `api_indexer_search_for_applications` - Search for applications with various criteria
-67. `api_indexer_lookup_application_box` - Get application box by name
-68. `api_indexer_lookup_application_boxes` - Get all application boxes
-69. `api_indexer_lookup_asset_by_id` - Get asset information from indexer
-70. `api_indexer_lookup_asset_balances` - Get accounts that hold a specific asset
-71. `api_indexer_search_for_assets` - Search for assets with various criteria
-72. `api_indexer_lookup_transaction_by_id` - Get transaction details from indexer
-73. `api_indexer_lookup_account_transactions` - Get transactions related to an account
-74. `api_indexer_search_for_transactions` - Search for transactions with various criteria
-75. `api_indexer_search` - Search the Algorand indexer for accounts, transactions, assets, or applications
+59. `indexer_lookup_account_by_id` - Get account information from indexer
+60. `indexer_lookup_account_assets` - Get account assets
+61. `indexer_lookup_account_app_local_states` - Get account application local states
+62. `indexer_lookup_account_created_apps` - Get applications created by an account
+63. `indexer_search_for_accounts` - Search for accounts with various criteria
+64. `indexer_lookup_applications` - Get application information from indexer
+65. `indexer_lookup_application_logs` - Get application log messages
+66. `indexer_search_for_applications` - Search for applications with various criteria
+67. `indexer_lookup_application_box` - Get application box by name
+68. `indexer_lookup_application_boxes` - Get all application boxes
+69. `indexer_lookup_asset_by_id` - Get asset information from indexer
+70. `indexer_lookup_asset_balances` - Get accounts that hold a specific asset
+71. `indexer_search_for_assets` - Search for assets with various criteria
+72. `indexer_lookup_transaction_by_id` - Get transaction details from indexer
+73. `indexer_lookup_account_transactions` - Get transactions related to an account
+74. `indexer_search_for_transactions` - Search for transactions with various criteria
+75. `indexer_search` - Search the Algorand indexer for accounts, transactions, assets, or applications
 
 ### NFD (Algorand Name Service) Operations
 76. `api_nfd_get_nfd` - Get NFD domain information by name

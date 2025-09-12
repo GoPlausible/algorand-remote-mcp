@@ -27,7 +27,7 @@ function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | nu
 export function registerAccountApiTools(server: McpServer,env: Env): void {
   // Get account information
   server.tool(
-    'api_algod_get_account_info',
+    'algod_get_account_info',
     'Get current account balance, assets, and auth address from algod',
     { 
       address: z.string().describe('The account public key')
@@ -72,7 +72,7 @@ export function registerAccountApiTools(server: McpServer,env: Env): void {
   
   // Get account application information
   server.tool(
-    'api_algod_get_account_application_info',
+    'algod_get_account_application_info',
     'Get account-specific application information from algod',
     { 
       address: z.string().describe('The account public key'),
@@ -118,7 +118,7 @@ export function registerAccountApiTools(server: McpServer,env: Env): void {
   
   // Get account asset information
   server.tool(
-    'api_algod_get_account_asset_info',
+    'algod_get_account_asset_info',
     'Get account-specific asset information from algod',
     { 
       address: z.string().describe('The account public key'),

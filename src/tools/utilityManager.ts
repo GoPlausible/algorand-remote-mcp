@@ -106,98 +106,98 @@ export function registerUtilityTools(server: McpServer,env: Env, props: Props): 
   );
   
   // Convert bytes to BigInt
-  server.tool(
-    'bytes_to_bigint',
-    'Convert bytes to a BigInt',
-    { 
-      bytes: z.string().describe('Bytes in hexadecimal format to convert to a BigInt') 
-    },
-    async ({ bytes }) => {
-      try {
-        const bytesBuffer = Buffer.from(bytes, 'hex');
-        const value = BigInt('0x' + bytesBuffer.toString('hex')).toString();
-        return ResponseProcessor.processResponse({ value });
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error converting bytes to BigInt: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
+  // server.tool(
+  //   'bytes_to_bigint',
+  //   'Convert bytes to a BigInt',
+  //   { 
+  //     bytes: z.string().describe('Bytes in hexadecimal format to convert to a BigInt') 
+  //   },
+  //   async ({ bytes }) => {
+  //     try {
+  //       const bytesBuffer = Buffer.from(bytes, 'hex');
+  //       const value = BigInt('0x' + bytesBuffer.toString('hex')).toString();
+  //       return ResponseProcessor.processResponse({ value });
+  //     } catch (error: any) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: `Error converting bytes to BigInt: ${error.message || 'Unknown error'}`
+  //         }]
+  //       };
+  //     }
+  //   }
+  // );
   
   // Convert BigInt to bytes
-  server.tool(
-    'bigint_to_bytes',
-    'Convert a BigInt to bytes',
-    { 
-      value: z.string().describe('BigInt value as a string to convert to bytes'),
-      size: z.number().int().positive().describe('Size of the resulting byte array')
-    },
-    async ({ value, size }) => {
-      try {
-        const bigIntValue = BigInt(value);
-        const hex = bigIntValue.toString(16).padStart(size * 2, '0');
-        const bytes = Buffer.from(hex, 'hex').toString('hex');
-        return ResponseProcessor.processResponse({ bytes });
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error converting BigInt to bytes: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
+  // server.tool(
+  //   'bigint_to_bytes',
+  //   'Convert a BigInt to bytes',
+  //   { 
+  //     value: z.string().describe('BigInt value as a string to convert to bytes'),
+  //     size: z.number().int().positive().describe('Size of the resulting byte array')
+  //   },
+  //   async ({ value, size }) => {
+  //     try {
+  //       const bigIntValue = BigInt(value);
+  //       const hex = bigIntValue.toString(16).padStart(size * 2, '0');
+  //       const bytes = Buffer.from(hex, 'hex').toString('hex');
+  //       return ResponseProcessor.processResponse({ bytes });
+  //     } catch (error: any) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: `Error converting BigInt to bytes: ${error.message || 'Unknown error'}`
+  //         }]
+  //       };
+  //     }
+  //   }
+  // );
   
   // Encode uint64
-  server.tool(
-    'encode_uint64',
-    'Encode a uint64 to bytes',
-    { 
-      value: z.string().describe('Uint64 value as a string to encode into bytes') 
-    },
-    async ({ value }) => {
-      try {
-        const bigIntValue = BigInt(value);
-        const bytes = Buffer.from(bigIntValue.toString(16).padStart(16, '0'), 'hex').toString('hex');
-        return ResponseProcessor.processResponse({ bytes });
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error encoding uint64: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
+  // server.tool(
+  //   'encode_uint64',
+  //   'Encode a uint64 to bytes',
+  //   { 
+  //     value: z.string().describe('Uint64 value as a string to encode into bytes') 
+  //   },
+  //   async ({ value }) => {
+  //     try {
+  //       const bigIntValue = BigInt(value);
+  //       const bytes = Buffer.from(bigIntValue.toString(16).padStart(16, '0'), 'hex').toString('hex');
+  //       return ResponseProcessor.processResponse({ bytes });
+  //     } catch (error: any) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: `Error encoding uint64: ${error.message || 'Unknown error'}`
+  //         }]
+  //       };
+  //     }
+  //   }
+  // );
   
   // Decode uint64
-  server.tool(
-    'decode_uint64',
-    'Decode bytes to a uint64',
-    { 
-      bytes: z.string().describe('Bytes in hexadecimal format to decode into a uint64') 
-    },
-    async ({ bytes }) => {
-      try {
-        const bytesBuffer = Buffer.from(bytes, 'hex');
-        const value = BigInt('0x' + bytesBuffer.toString('hex')).toString();
-        return ResponseProcessor.processResponse({ value });
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error decoding uint64: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
+  // server.tool(
+  //   'decode_uint64',
+  //   'Decode bytes to a uint64',
+  //   { 
+  //     bytes: z.string().describe('Bytes in hexadecimal format to decode into a uint64') 
+  //   },
+  //   async ({ bytes }) => {
+  //     try {
+  //       const bytesBuffer = Buffer.from(bytes, 'hex');
+  //       const value = BigInt('0x' + bytesBuffer.toString('hex')).toString();
+  //       return ResponseProcessor.processResponse({ value });
+  //     } catch (error: any) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: `Error decoding uint64: ${error.message || 'Unknown error'}`
+  //         }]
+  //       };
+  //     }
+  //   }
+  // );
   
   // Verify bytes with signature
   server.tool(
@@ -264,51 +264,51 @@ export function registerUtilityTools(server: McpServer,env: Env, props: Props): 
   );
   
   // Encode object to msgpack
-  server.tool(
-    'encode_obj',
-    'Encode an object to msgpack format',
-    { 
-      obj: z.any().describe('Object to encode') 
-    },
-    async ({ obj }) => {
-      try {
-        const encoded = algosdk.encodeObj(obj);
-        return ResponseProcessor.processResponse({
-          encoded: Buffer.from(encoded).toString('base64')
-        });
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error encoding object: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
+  // server.tool(
+  //   'encode_obj',
+  //   'Encode an object to msgpack format',
+  //   { 
+  //     obj: z.any().describe('Object to encode') 
+  //   },
+  //   async ({ obj }) => {
+  //     try {
+  //       const encoded = algosdk.encodeObj(obj);
+  //       return ResponseProcessor.processResponse({
+  //         encoded: Buffer.from(encoded).toString('base64')
+  //       });
+  //     } catch (error: any) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: `Error encoding object: ${error.message || 'Unknown error'}`
+  //         }]
+  //       };
+  //     }
+  //   }
+  // );
   
   // Decode msgpack to object
-  server.tool(
-    'decode_obj',
-    'Decode msgpack bytes to an object',
-    { 
-      bytes: z.string().describe('Base64-encoded msgpack bytes to decode') 
-    },
-    async ({ bytes }) => {
-      try {
-        const bytesBuffer = Buffer.from(bytes, 'base64');
-        const decoded = algosdk.decodeObj(bytesBuffer);
-        return ResponseProcessor.processResponse(decoded);
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error decoding object: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
+  // server.tool(
+  //   'decode_obj',
+  //   'Decode msgpack bytes to an object',
+  //   { 
+  //     bytes: z.string().describe('Base64-encoded msgpack bytes to decode') 
+  //   },
+  //   async ({ bytes }) => {
+  //     try {
+  //       const bytesBuffer = Buffer.from(bytes, 'base64');
+  //       const decoded = algosdk.decodeObj(bytesBuffer);
+  //       return ResponseProcessor.processResponse(decoded);
+  //     } catch (error: any) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: `Error decoding object: ${error.message || 'Unknown error'}`
+  //         }]
+  //       };
+  //     }
+  //   }
+  // );
 
   // Get agent guide for Algorand Remote MCP
   server.tool(

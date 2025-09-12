@@ -27,7 +27,7 @@ function createIndexerClient(indexerUrl: string | undefined): algosdk.Indexer | 
 export function registerIndexerTransactionTools(server: McpServer,env: Env): void {
   // Lookup transaction by ID
   server.tool(
-    'api_indexer_lookup_transaction_by_id',
+    'indexer_lookup_transaction_by_id',
     'Get transaction details from indexer',
     { 
       txid: z.string().describe('Transaction ID')
@@ -67,7 +67,7 @@ export function registerIndexerTransactionTools(server: McpServer,env: Env): voi
   
   // Lookup account transactions
   server.tool(
-    'api_indexer_lookup_account_transactions',
+    'indexer_lookup_account_transactions',
     'Get transactions related to an account',
     { 
       address: z.string().describe('Account address'),
@@ -160,7 +160,7 @@ export function registerIndexerTransactionTools(server: McpServer,env: Env): voi
   
   // Search for transactions
   server.tool(
-    'api_indexer_search_for_transactions',
+    'indexer_search_for_transactions',
     'Search for transactions with various criteria',
     {
       limit: z.number().int().optional().describe('Maximum number of transactions to return'),

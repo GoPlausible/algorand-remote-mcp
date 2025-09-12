@@ -26,51 +26,51 @@ function createIndexerClient(indexerUrl: string | undefined): algosdk.Indexer | 
  */
 export function registerIndexerApplicationTools(server: McpServer,env: Env): void {
   // Lookup applications
-  server.tool(
-    'api_indexer_lookup_applications',
-    'Get application information from indexer',
-    { 
-      appId: z.number().int().describe('Application ID')
-    },
-    async ({ appId }) => {
+  // server.tool(
+  //   'indexer_lookup_applications',
+  //   'Get application information from indexer',
+  //   { 
+  //     appId: z.number().int().describe('Application ID')
+  //   },
+  //   async ({ appId }) => {
       
-      if (!env.ALGORAND_INDEXER) {
-        return {
-          content: [{
-            type: 'text',
-            text: 'Algorand indexer URL not configured'
-          }]
-        };
-      }
+  //     if (!env.ALGORAND_INDEXER) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: 'Algorand indexer URL not configured'
+  //         }]
+  //       };
+  //     }
       
-      try {
-        // Create indexer client
-        const indexerClient = createIndexerClient(env.ALGORAND_INDEXER);
-        if (!indexerClient) {
-          throw new Error('Failed to create Algorand indexer client');
-        }
+  //     try {
+  //       // Create indexer client
+  //       const indexerClient = createIndexerClient(env.ALGORAND_INDEXER);
+  //       if (!indexerClient) {
+  //         throw new Error('Failed to create Algorand indexer client');
+  //       }
         
-        // Lookup application by ID
-        const response = await indexerClient.lookupApplications(Number(appId)).do();
+  //       // Lookup application by ID
+  //       const response = await indexerClient.lookupApplications(Number(appId)).do();
         
-        // Return just the application object (not the whole response)
-        return ResponseProcessor.processResponse({
-          application: response.application || {}
-        });
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error looking up application: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
+  //       // Return just the application object (not the whole response)
+  //       return ResponseProcessor.processResponse({
+  //         application: response.application || {}
+  //       });
+  //     } catch (error: any) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: `Error looking up application: ${error.message || 'Unknown error'}`
+  //         }]
+  //       };
+  //     }
+  //   }
+  // );
   
   // Lookup application logs
   server.tool(
-    'api_indexer_lookup_application_logs',
+    'indexer_lookup_application_logs',
     'Get application log messages',
     { 
       appId: z.number().int().describe('Application ID'),
@@ -138,7 +138,7 @@ export function registerIndexerApplicationTools(server: McpServer,env: Env): voi
   
   // Search for applications
   server.tool(
-    'api_indexer_search_for_applications',
+    'indexer_search_for_applications',
     'Search for applications with various criteria',
     {
       limit: z.number().int().optional().describe('Maximum number of applications to return'),
@@ -196,7 +196,7 @@ export function registerIndexerApplicationTools(server: McpServer,env: Env): voi
   
   // Lookup application box
   server.tool(
-    'api_indexer_lookup_application_box',
+    'indexer_lookup_application_box',
     'Get application box by name',
     { 
       appId: z.number().int().describe('Application ID'),
@@ -275,7 +275,7 @@ export function registerIndexerApplicationTools(server: McpServer,env: Env): voi
   
   // Lookup application boxes
   server.tool(
-    'api_indexer_lookup_application_boxes',
+    'indexer_lookup_application_boxes',
     'Get all application boxes',
     { 
       appId: z.number().int().describe('Application ID'),

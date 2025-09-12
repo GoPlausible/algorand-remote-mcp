@@ -27,7 +27,7 @@ function createAlgoClient(algodUrl: string, token:string): algosdk.Algodv2 | nul
 export function registerAssetApiTools(server: McpServer,env: Env): void {
   // Get asset information
   server.tool(
-    'api_algod_get_asset_info',
+    'algod_get_asset_info',
     'Get asset details from algod',
     { 
       assetId: z.number().int().describe('The asset ID')
@@ -89,7 +89,7 @@ export function registerAssetApiTools(server: McpServer,env: Env): void {
   
   // Get asset holding information
   server.tool(
-    'api_algod_get_asset_holding',
+    'algod_get_asset_holding',
     'Get asset holding information for an account',
     { 
       address: z.string().describe('Account address'),

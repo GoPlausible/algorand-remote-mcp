@@ -27,7 +27,7 @@ function createAlgoClient(algodUrl: string, token:string): algosdk.Algodv2 | nul
 export function registerTransactionApiTools(server: McpServer,env: Env): void {
   // Get transaction information by ID
   server.tool(
-    'api_algod_get_transaction_info',
+    'algod_get_transaction_info',
     'Get transaction details from algod by transaction ID',
     { 
       txid: z.string().describe('The transaction ID')
@@ -68,7 +68,7 @@ export function registerTransactionApiTools(server: McpServer,env: Env): void {
   
   // Get pending transactions
   server.tool(
-    'api_algod_get_pending_transactions',
+    'algod_get_pending_transactions',
     'Get pending transactions from algod mempool',
     {
       maxResults: z.number().int().min(1).max(1000).default(50).describe('Maximum number of transactions to return')

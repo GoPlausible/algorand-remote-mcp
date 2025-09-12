@@ -27,7 +27,7 @@ function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | nu
 export function registerApplicationApiTools(server: McpServer,env: Env): void {
   // Get application information
   server.tool(
-    'api_algod_get_application_info',
+    'algod_get_application_info',
     'Get application details from algod',
     { 
       appId: z.number().int().describe('The application ID')
@@ -67,7 +67,7 @@ export function registerApplicationApiTools(server: McpServer,env: Env): void {
   
   // Get application box (storage) value
   server.tool(
-    'api_algod_get_application_box_value',
+    'algod_get_application_box_value',
     'Get application box contents from algod',
     { 
       appId: z.number().int().describe('The application ID'),
@@ -120,7 +120,7 @@ export function registerApplicationApiTools(server: McpServer,env: Env): void {
   
   // Get application boxes
   server.tool(
-    'api_algod_get_application_boxes',
+    'algod_get_application_boxes',
     'Get all application boxes from algod',
     { 
       appId: z.number().int().describe('The application ID'),
@@ -180,7 +180,7 @@ export function registerApplicationApiTools(server: McpServer,env: Env): void {
   
   // Get application state
   server.tool(
-    'api_algod_get_application_state',
+    'algod_get_application_state',
     'Get application global state from algod',
     { 
       appId: z.number().int().describe('The application ID')

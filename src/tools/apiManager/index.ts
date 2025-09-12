@@ -80,7 +80,7 @@ export function registerApiTools(server: McpServer,env: Env, props: Props): void
   
   // Algorand indexer search tool
   server.tool(
-    'api_indexer_search',
+    'indexer_search',
     'Search the Algorand indexer for accounts, transactions, assets, or applications',
     {
       type: z.enum(['accounts', 'transactions', 'assets', 'applications']).describe('Type of entity to search'),

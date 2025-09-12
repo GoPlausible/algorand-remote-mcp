@@ -26,48 +26,48 @@ function createIndexerClient(indexerUrl: string | undefined): algosdk.Indexer | 
  */
 export function registerIndexerAccountTools(server: McpServer,env: Env): void {
   // Lookup account by ID
-  server.tool(
-    'api_indexer_lookup_account_by_id',
-    'Get account information from indexer',
-    { 
-      address: z.string().describe('Account address')
-    },
-    async ({ address }) => {
+  // server.tool(
+  //   'indexer_lookup_account_by_id',
+  //   'Get account information from indexer',
+  //   { 
+  //     address: z.string().describe('Account address')
+  //   },
+  //   async ({ address }) => {
       
-      if (!env.ALGORAND_INDEXER) {
-        return {
-          content: [{
-            type: 'text',
-            text: 'Algorand indexer URL not configured'
-          }]
-        };
-      }
+  //     if (!env.ALGORAND_INDEXER) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: 'Algorand indexer URL not configured'
+  //         }]
+  //       };
+  //     }
       
-      try {
-        // Create indexer client
-        const indexerClient = createIndexerClient(env.ALGORAND_INDEXER);
-        if (!indexerClient) {
-          throw new Error('Failed to create Algorand indexer client');
-        }
+  //     try {
+  //       // Create indexer client
+  //       const indexerClient = createIndexerClient(env.ALGORAND_INDEXER);
+  //       if (!indexerClient) {
+  //         throw new Error('Failed to create Algorand indexer client');
+  //       }
         
-        // Lookup account by ID
-        const response = await indexerClient.lookupAccountByID(String(address)).do();
+  //       // Lookup account by ID
+  //       const response = await indexerClient.lookupAccountByID(String(address)).do();
         
-        return ResponseProcessor.processResponse(response);
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error looking up account: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
+  //       return ResponseProcessor.processResponse(response);
+  //     } catch (error: any) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: `Error looking up account: ${error.message || 'Unknown error'}`
+  //         }]
+  //       };
+  //     }
+  //   }
+  // );
   
   // Lookup account assets
   server.tool(
-    'api_indexer_lookup_account_assets',
+    'indexer_lookup_account_assets',
     'Get account assets',
     { 
       address: z.string().describe('Account address'),
@@ -126,7 +126,7 @@ export function registerIndexerAccountTools(server: McpServer,env: Env): void {
   
   // Lookup account app local states
   server.tool(
-    'api_indexer_lookup_account_app_local_states',
+    'indexer_lookup_account_app_local_states',
     'Get account application local states',
     { 
       address: z.string().describe('Account address')
@@ -166,7 +166,7 @@ export function registerIndexerAccountTools(server: McpServer,env: Env): void {
   
   // Lookup account created applications
   server.tool(
-    'api_indexer_lookup_account_created_applications',
+    'indexer_lookup_account_created_apps',
     'Get applications created by this account',
     { 
       address: z.string().describe('Account address')
@@ -209,7 +209,7 @@ export function registerIndexerAccountTools(server: McpServer,env: Env): void {
   
   // Search for accounts
   server.tool(
-    'api_indexer_search_for_accounts',
+    'indexer_search_for_accounts',
     'Search for accounts with various criteria',
     {
       limit: z.number().int().optional().describe('Maximum number of accounts to return'),
