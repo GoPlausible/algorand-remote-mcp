@@ -2029,9 +2029,10 @@ class OAuthProviderImpl {
    * @param clientId - The client ID to look up
    * @returns The client information, or null if not found
    */
-  getClient(env: any, clientId: string): Promise<ClientInfo | null> {
+  async getClient(env: any, clientId: string): Promise<ClientInfo | null> {
     const clientKey = `client:${clientId}`;
-    return env.OAUTH_KV.get(clientKey, { type: 'json' });
+    const client = await env.OAUTH_KV.get(clientKey, { type: 'json' });
+    return client
   }
 
   /**

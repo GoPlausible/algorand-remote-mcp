@@ -165,4 +165,152 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
       }
     }
   );
+
+  server.tool(
+    'fetch',
+    'Fetch markdown content for specified knowledge documents',
+    {
+       id: z.string().describe('Unique ID of the document (e.g. "ARCs:specs:arc-0020.md")')
+    },
+    async ({ id }) => {
+
+      try {
+        if (!env.PLAUSIBLE_AI) {
+          console.error('R2 bucket not available');
+          return {
+            content: [{
+              type: 'text',
+              text: 'R2 bucket not available for knowledge documents'
+            }]
+          };
+        }
+        let results = [];
+        try {
+          // Format the document key for R2 path
+          // The docKey will be something like "ARCs:specs:arc-0020.md"
+          // We need to convert the colons to forward slashes for the R2 path
+          const r2Key = id.replace(/:/g, '/');
+          console.log(`Looking for document at key: ${r2Key}`);
+
+          // Get the document from R2 bucket
+          // @ts-ignore - We've checked PLAUSIBLE_AI exists above
+          let object = await env.PLAUSIBLE_AI.get(r2Key);
+
+          // If not found, try listing objects with this prefix to see what's available
+          if (!object) {
+            console.log(`Object not found at ${r2Key}, trying to list similar objects`);
+            // @ts-ignore - We've checked PLAUSIBLE_AI exists above
+            const similarObjects = await env.PLAUSIBLE_AI.list({
+              prefix: r2Key.split('/')[0], // Get just the first segment
+              delimiter: '/'
+            });
+
+            console.log(`Found ${similarObjects.objects.length} similar objects`);
+            if (similarObjects.objects.length > 0) {
+              // console.log(`Similar objects: ${similarObjects.objects.map(o => o.key).join(', ')}`);
+
+              // Try an exact match from the list of similar objects
+              const exactMatch = similarObjects.objects.find(o =>
+                o.key.replace(/\//g, ':') === id
+              );
+
+              if (exactMatch) {
+                // console.log(`Found exact match: ${exactMatch.key}`);
+                // @ts-ignore - We've checked PLAUSIBLE_AI exists above
+                object = await env.PLAUSIBLE_AI.get(exactMatch.key);
+              }
+            }
+          }
+
+          if (!object) {
+            console.error(`Document not found: ${id}`);
+            return `Document not found: ${id}`;
+          }
+
+          // Get the text content
+          const content = await object.text();
+          results.push(content);
+        } catch (error) {
+          console.error(`Failed to read document ${id}:`, error);
+          return `Failed to read document ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        }
+
+        return ResponseProcessor.processResponse({
+          documents: results
+        });
+      } catch (error: any) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Error retrieving knowledge documents: ${error.message || 'Unknown error'}`
+          }]
+        };
+      }
+    }
+  );
+
+  // List available knowledge documents
+  server.tool(
+    'search',
+    'Search available knowledge documents by category prefix',
+    {
+      query: z.string().describe('Search query string'),
+    },
+    async ({ query }) => {
+
+      try {
+        if (!env.PLAUSIBLE_AI) {
+          console.error('R2 bucket not available');
+          return {
+            content: [{
+              type: 'text',
+              text: 'R2 bucket not available for knowledge documents'
+            }]
+          };
+        }
+
+        // Format the prefix for R2 listing
+        // If no specific prefix given, don't use any prefix to list all objects at root
+        const r2Prefix = query ? `${query.replace(/:/g, '/')}` : '';
+        console.log(`Listing objects with prefix: '${r2Prefix}'`);
+
+        // List objects from the R2 bucket with the given prefix
+        // @ts-ignore - We've checked PLAUSIBLE_AI exists above
+        const objects = await env.PLAUSIBLE_AI.list({
+          prefix: r2Prefix,
+          delimiter: '/'
+        });
+
+        console.log(`Found ${objects.objects.length} objects and ${objects.delimitedPrefixes.length} prefixes`);
+
+
+
+        // Format the results
+        const results = {
+          files: objects.objects.map((obj) => {
+            // Convert R2 path back to document key format
+            const key = obj.key.replace('taxonomy/', '').replace(/\//g, ':');
+            return {
+              key,
+              size: obj.size,
+              uploaded: obj.uploaded instanceof Date ? obj.uploaded.toISOString() : String(obj.uploaded)
+            };
+          }),
+          commonPrefixes: objects.delimitedPrefixes.map((prefix) => {
+            // Convert R2 path prefix back to document key format
+            return prefix.replace('taxonomy/', '').replace(/\//g, ':');
+          })
+        };
+
+        return ResponseProcessor.processResponse(results);
+      } catch (error: any) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Error listing knowledge documents: ${error.message || 'Unknown error'}`
+          }]
+        };
+      }
+    }
+  );
 }

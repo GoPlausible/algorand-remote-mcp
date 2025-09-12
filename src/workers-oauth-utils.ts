@@ -739,6 +739,12 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
                   <img src="https://content.linkedin.com/content/dam/me/business/en-us/amp/brand-site/v2/bg/LI-Bug.svg.original.svg" alt="LinkedIn Logo" class="provider-logo">
                   <span>Continue with LinkedIn</span>
                 </button>
+
+                <button type="submit" class="provider-button" style="background-color: #ffffff; border-color: #e1e4e8; color: #24292e; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);" name="provider" value="twitter" onclick="document.getElementById('provider_preference').value='twitter';">
+                  <img src="https://about.x.com/content/dam/about-twitter/x/brand-toolkit/logo-black.png.twimg.1920.png" alt="X Logo" class="provider-logo">
+                  <span>Continue with X</span>
+                </button>
+
               </div>
               
               <div class="actions">
@@ -755,10 +761,7 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
   `;
   /* 
   // Removed because Twitter X has suspended @GoPlausible account based on afalse flag from their automated systems. Appeal sent but till that time the button is commented!
-       <button type="submit" class="provider-button" style="background-color: #ffffff; border-color: #e1e4e8; color: #24292e; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);" name="provider" value="twitter" onclick="document.getElementById('provider_preference').value='twitter';">
-                  <img src="https://about.x.com/content/dam/about-twitter/x/brand-toolkit/logo-black.png.twimg.1920.png" alt="X Logo" class="provider-logo">
-                  <span>Continue with X</span>
-                </button>
+
 
   */
   console.log("[WORKER_OAUTH_UTILS] Generated HTML content for approval dialog");

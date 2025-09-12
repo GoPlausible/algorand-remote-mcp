@@ -123,11 +123,6 @@ export async function getPublicKey(env: Env, keyName: string, provider: string):
   }
   // Check if the public key is cached
   console.log(`Fetching public key for ${keyName} from vault`);
-  // const cachedKey = await env.PUBLIC_KEY_CACHE.get(keyName);
-  // if (cachedKey) {
-  //   console.log('Public key retrieved from cache:', cachedKey);
-  //   return { success: true, publicKey: cachedKey };
-  // }
 
   try {
     const response = await env.HCV_WORKER.fetch(`${env.HCV_WORKER_URL}/${provider}/transit/publickey/${keyName}`, {
@@ -142,11 +137,6 @@ export async function getPublicKey(env: Env, keyName: string, provider: string):
 
     const result = await response.json();
     console.log('Public key retrieved successfully:', result);
-    // if (!cachedKey){
-    //   // Cache the public key for future use
-    //   await env.PUBLIC_KEY_CACHE.put(keyName, result.public_key/* , { expirationTtl: 3600 } */); // Cache for 1 hour
-    //   console.log('Public key cached successfully');
-    // }
     return { success: true, publicKey: result.public_key };
   } catch (error: any) {
     console.error('Error getting public key from vault:', error.message || 'Unknown error');

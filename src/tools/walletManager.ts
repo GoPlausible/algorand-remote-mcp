@@ -108,7 +108,6 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           console.log(`Deleted entity ID for ${providerEmail} from KV store`);
           await env.VAULT_ENTITIES.delete(providerEntity);
           console.log(`Deleted entity ID ${providerEntity} from KV store`);
-          // await env.PUBLIC_KEY_CACHE.delete(props.email);
           console.log(`Cleared public key cache for user: ${props.email}`);
           const entityResult = await createNewEntity(env, props.email, props.provider);
           console.log(`New entity created: ${entityResult}`);
@@ -469,11 +468,6 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         const responseData = await response.json();
         console.log('Logout response:', responseData);
 
-        // // Clear local cache
-        // if (props.email) {
-        //   await env.PUBLIC_KEY_CACHE.delete(props.email);
-        //   console.log(`Cleared cache for user: ${props.email}`);
-        // }
 
         // Return response with clear instructions for the client
         return ResponseProcessor.processResponse({

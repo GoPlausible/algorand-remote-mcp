@@ -43,6 +43,7 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 	async init() {
 		// Configure ResponseProcessor with pagination settings
 		console.log("Initializing Algorand Remote MCP...");
+		console.log('COOKIE_ENCRYPTION_KEY: ',this.env.COOKIE_ENCRYPTION_KEY)
 		console.log("Current state:", this.state);
 		console.log("Props name:", this.props?.name);
 		console.log("Props email:", this.props?.email);
