@@ -45,7 +45,7 @@ function buildHTMLPage({
   <meta charset="utf-8" />
   <meta name="robots" content="index, follow">
   <meta name="author" property="og:author" content="did:algo:UTI7PAAS...R5PWSZ4I">
-  <meta itemprop="name" content="Algorand Agent on X ${label2} from ${from}">
+  <meta itemprop="name" content="Algorand Agent ${label2} from ${from}">
   <meta itemprop="description" content="${label2} for ${prettyAmount} to this Algorand address via ARC-26 URI.">
   <meta itemprop="image" content="${qrPng}" type="image/jpeg">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no" />
@@ -54,14 +54,14 @@ function buildHTMLPage({
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:site" content="@goplausible_ai">
   <meta name="twitter:creator" content="@GoPlausible">
-  <meta name="twitter:title" content="Algorand Agent on X ${label2} from ${from}">
+  <meta name="twitter:title" content="Algorand Agent  ${label2} from ${from}">
   <meta name="twitter:description" content="${label2} for ${prettyAmount} to this Algorand address via ARC-26 URI.">
   <meta name="twitter:image" content="${qrPng}" type="image/jpeg">
   <!-- Open Graph data -->
   <meta property="og:image" content="${qrPng}" type="image/jpeg""/>
   <meta property="og:domain" content="goplausible.xyz" />
   <meta property="og:url" content="https://goplausible.xyz/api/arc26/${uuid}" />
-  <meta property="og:title" content="Algorand Agent on X ${label2} from ${from}"/>
+  <meta property="og:title" content="Algorand Agent ${label2} from ${from}"/>
   <meta property="og:type" content="website" />
   <meta property="og:description" content="${label2} for ${prettyAmount} to this Algorand address via ARC-26 URI." />
 
@@ -114,9 +114,9 @@ function buildHTMLPage({
 <body>
   <div class="card">
     
-    <img src="https://agency.goplausible.xyz/images/Agent.png" alt="${provider === 'twitter'? 'X' : provider === 'google'? 'Google' : provider === 'linkedin'? 'Linkedin': provider === 'github'? 'GitHub': ''}" style="width:64px; height:64px; border-radius:50%; object-fit:cover; margin-bottom:1rem;" />
+    <img src="https://agency.goplausible.xyz/images/Agent.png" alt="${provider === 'twitter'? 'X' : provider === 'google'? 'Google' : provider === 'linkedin'? 'Linkedin': provider === 'github'? 'GitHub': provider === 'algorand'? 'Agency':''}" style="width:64px; height:64px; border-radius:50%; object-fit:cover; margin-bottom:1rem;" />
 
-    <h2><strong>👋 Hey ${provider === 'twitter'? '@':''}${from}</strong></h2>
+    <h2><strong>👋 Hey ${provider === 'twitter'? '@':''}${provider === 'algorand'? `${from.slice(0, 6)}...${from.slice(-6)}`: from}</strong></h2>
     
     <h3>Your ${label2}</h3>
     
@@ -130,7 +130,7 @@ function buildHTMLPage({
     
     <div class="uri">${uri}</div>
     <h2>${prettyLabel}</h2>
-    <img style="width:120px; height:40px;" src="https://storage.goplausible.xyz/ipfs/QmWjvCGPyL9zmA5B84WPqLYF27dL2nFgr1Lw6rMd7CpQPV/images/goPlausible-logo-type-h.png" alt="GoPlausible" />
+    <img style="width:120px; height:40px;" src="https://goplausible.mypinata.cloud/ipfs/QmWjvCGPyL9zmA5B84WPqLYF27dL2nFgr1Lw6rMd7CpQPV/images/goPlausible-logo-type-h.png" alt="GoPlausible" />
     <div style="margin-top: 1rem; font-size: 0.5rem; color: #718096;">
       <a href="https://goplausible.com/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a> &nbsp;|&nbsp;
       <a href="https://goplausible.com/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
@@ -368,7 +368,7 @@ export function registerArc26Tools(server: McpServer, env: Env, props: Props): v
           uuid,
           qrPng: `https://goplausible.xyz/api/arc26/image/${uuid}.jpeg`,
           from: props.email,
-          label: `Algorand ${props.provider === 'twitter'? 'X' : props.provider === 'google'? 'Google' : props.provider === 'linkedin'? 'Linkedin': props.provider === 'github'? 'GitHub': ''} Agent`,
+          label: `Algorand ${props.provider === 'twitter'? 'X' : props.provider === 'google'? 'Google' : props.provider === 'linkedin'? 'Linkedin': props.provider === 'github'? 'GitHub': props.provider === 'algorand'? 'Agency':''} Agent`,
           label2: `${uriType}`,
           amount
         })
