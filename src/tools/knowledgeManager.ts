@@ -156,11 +156,11 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
             })
           };
           return {
-          content: [{
-            type: 'text',
-            text: JSON.stringify(results, null, 2)
-          }]
-        };
+            content: [{
+              type: 'text',
+              text: JSON.stringify(results, null, 2)
+            }]
+          };
         } catch (error: any) {
           return {
             content: [{
@@ -282,62 +282,90 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
   // List available knowledge documents
   server.tool(
     'search',
-    'Search available knowledge documents by category prefix',
+    'Search available knowledge documents by category as query. Empty query lists all top-level categories',
     {
       query: z.string().describe('Search query string'),
     },
     async ({ query }) => {
 
-      try {
-        if (!env.PLAUSIBLE_AI) {
-          console.error('R2 bucket not available');
+      if (query && query.length > 0) {
+        try {
+          if (!env.PLAUSIBLE_AI) {
+            console.error('R2 bucket not available');
+            return {
+              content: [{
+                type: 'text',
+                text: 'R2 bucket not available for knowledge documents'
+              }]
+            };
+          }
+
+          // Format the prefix for R2 listing
+          // If no specific prefix given, don't use any prefix to list all objects at root
+          const r2Prefix = query ? `${query.replace(/:/g, '/')}` : '';
+          console.log(`Listing objects with prefix: '${r2Prefix}'`);
+
+          // List objects from the R2 bucket with the given prefix
+          // @ts-ignore - We've checked PLAUSIBLE_AI exists above
+          const objects = await env.PLAUSIBLE_AI.list({
+            prefix: r2Prefix,
+            delimiter: '/'
+          });
+
+          console.log(`Found ${objects.objects.length} objects and ${objects.delimitedPrefixes.length} prefixes`);
+
+
+
+          // Format the results
+          const results = {
+            files: objects.objects.map((obj) => {
+              // Convert R2 path back to document key format
+              const key = obj.key.replace('taxonomy/', '').replace(/\//g, ':');
+              return {
+                key,
+                size: obj.size,
+                uploaded: obj.uploaded instanceof Date ? obj.uploaded.toISOString() : String(obj.uploaded)
+              };
+            }),
+            commonPrefixes: objects.delimitedPrefixes.map((prefix) => {
+              // Convert R2 path prefix back to document key format
+              return prefix.replace('taxonomy/', '').replace(/\//g, ':');
+            })
+          };
+
           return {
             content: [{
               type: 'text',
-              text: 'R2 bucket not available for knowledge documents'
+              text: JSON.stringify(results, null, 2)
+            }]
+          };
+        } catch (error: any) {
+          return {
+            content: [{
+              type: 'text',
+              text: `Error listing knowledge documents: ${error.message || 'Unknown error'}`
             }]
           };
         }
-
-        // Format the prefix for R2 listing
-        // If no specific prefix given, don't use any prefix to list all objects at root
-        const r2Prefix = query ? `${query.replace(/:/g, '/')}` : '';
-        console.log(`Listing objects with prefix: '${r2Prefix}'`);
-
-        // List objects from the R2 bucket with the given prefix
-        // @ts-ignore - We've checked PLAUSIBLE_AI exists above
-        const objects = await env.PLAUSIBLE_AI.list({
-          prefix: r2Prefix,
-          delimiter: '/'
-        });
-
-        console.log(`Found ${objects.objects.length} objects and ${objects.delimitedPrefixes.length} prefixes`);
-
-
-
-        // Format the results
+      } else {
         const results = {
-          files: objects.objects.map((obj) => {
-            // Convert R2 path back to document key format
-            const key = obj.key.replace('taxonomy/', '').replace(/\//g, ':');
-            return {
-              key,
-              size: obj.size,
-              uploaded: obj.uploaded instanceof Date ? obj.uploaded.toISOString() : String(obj.uploaded)
-            };
-          }),
-          commonPrefixes: objects.delimitedPrefixes.map((prefix) => {
-            // Convert R2 path prefix back to document key format
-            return prefix.replace('taxonomy/', '').replace(/\//g, ':');
-          })
-        };
-
-        return ResponseProcessor.processResponse(results);
-      } catch (error: any) {
+          'arcs': 'Algorand Request for Comments',
+          'sdks': 'Software Development Kits',
+          'algokit': 'AlgoKit',
+          'algokit-utils': 'AlgoKit Utils',
+          'tealscript': 'TEALScript',
+          'puya': 'Puya',
+          'liquid-auth': 'Liquid Auth',
+          'python': 'Python Development',
+          'developers': 'Developer Documentation',
+          'clis': 'CLI Tools',
+          'nodes': 'Node Management',
+          'details': 'Developer Details'
+        }
         return {
           content: [{
             type: 'text',
-            text: `Error listing knowledge documents: ${error.message || 'Unknown error'}`
+            text: JSON.stringify(results, null, 2)
           }]
         };
       }
