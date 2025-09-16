@@ -20,7 +20,8 @@ import {
 	registerArc26Tools,
 	registerApiTools,
 	registerKnowledgeTools,
-	registerWalletTools
+	registerWalletTools,
+	registerTinymanTools
 } from './tools';
 import { registerWalletResources, registerKnowledgeResources, registerGuideResource } from './resources';
 
@@ -73,14 +74,15 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 		this.registerGuideResources();
 
 		// Register tools by category
-		this.registerBasicUtilityTools();
+		await this.registerWalletTools();
+		this.registerKnowledgeTools();
+		this.registerArc26Tools();
+		this.registerAlgodTools();
+		this.registerApiTools();
 		this.registerAccountTools();
 		await this.registerTransactionTools();
-		this.registerAlgodTools();
-		this.registerArc26Tools();
-		this.registerApiTools();
-		this.registerKnowledgeTools();
-		await this.registerWalletTools();
+		this.registerBasicUtilityTools();
+		await this.registerTinymanTools()
 		// Additional tool categories will be added here
 	}
 
@@ -182,6 +184,13 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 	private async registerWalletTools() {
 		// Register wallet management tools
 		await registerWalletTools(this.server, this.env, this.props);
+	}
+	/**
+	 * Register Wallet tools for wallet information access
+	 */
+	private async registerTinymanTools() {
+		// Register wallet management tools
+		await registerTinymanTools(this.server, this.env, this.props);
 	}
 	onStateUpdate(state: State) {
 		// console.log({ stateUpdate: state });

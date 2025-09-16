@@ -302,7 +302,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 53. `algod_get_asset_info` - Get asset details from algod
 54. `algod_get_asset_holding` - Get asset holding information for an account
 55. `asset_verification_status` - Get the verification status of an Algorand asset from Pera Wallet
-56. `asset_details_info` - Get detailed information about an Algorand asset from Pera Wallet
+56. `verified_asset_details_info` - Get detailed information about an Algorand asset from Pera Wallet
 57. `algod_get_transaction_info` - Get transaction details by transaction ID
 58. `algod_get_pending_transactions` - Get pending transactions from algod mempool
 

@@ -431,17 +431,17 @@ export interface Env {
   /**
    * Algorand network to use (mainnet, testnet, etc.)
    */
-  ALGORAND_NETWORK?: string;
+  ALGORAND_NETWORK: string;
 
   /**
    * Algorand node URL for API access (base URL)
    */
-  ALGORAND_ALGOD?: string;
+  ALGORAND_ALGOD: string;
 
   /**
    * Algorand node API URL with version (e.g., with /v2)
    */
-  ALGORAND_ALGOD_API?: string;
+  ALGORAND_ALGOD_API: string;
 
   /**
    * Algorand node port if different from the default
@@ -482,13 +482,14 @@ export interface Env {
    * API key for Algorand node access if required
    */
   ALGORAND_TOKEN?: string;
+  
 
   /**
    * Items per page for pagination (default in state)
    */
   ITEMS_PER_PAGE?: string;
 
-
+VERIFIED_ASSETS?: KVNamespace;
   OAUTH_KV?: KVNamespace;
   HCV_WORKER_URL?: string; // Hashicorp Vault Worker binding for secure secret storage
 

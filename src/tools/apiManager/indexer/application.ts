@@ -194,149 +194,149 @@ export function registerIndexerApplicationTools(server: McpServer,env: Env): voi
     }
   );
   
-  // Lookup application box
-  server.tool(
-    'indexer_lookup_application_box',
-    'Get application box by name',
-    { 
-      appId: z.number().int().describe('Application ID'),
-      boxName: z.string().describe('Box name (string, base64, or number)')
-    },
-    async ({ appId, boxName }) => {
+  // // Lookup application box
+  // server.tool(
+  //   'indexer_lookup_application_box',
+  //   'Get application box by name',
+  //   { 
+  //     appId: z.number().int().describe('Application ID'),
+  //     boxName: z.string().describe('Box name (string, base64, or number)')
+  //   },
+  //   async ({ appId, boxName }) => {
       
-      if (!env.ALGORAND_INDEXER) {
-        return {
-          content: [{
-            type: 'text',
-            text: 'Algorand indexer URL not configured'
-          }]
-        };
-      }
+  //     if (!env.ALGORAND_INDEXER) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: 'Algorand indexer URL not configured'
+  //         }]
+  //       };
+  //     }
       
-      try {
-        // Create indexer client
-        const indexerClient = createIndexerClient(env.ALGORAND_INDEXER);
-        if (!indexerClient) {
-          throw new Error('Failed to create Algorand indexer client');
-        }
+  //     try {
+  //       // Create indexer client
+  //       const indexerClient = createIndexerClient(env.ALGORAND_INDEXER);
+  //       if (!indexerClient) {
+  //         throw new Error('Failed to create Algorand indexer client');
+  //       }
         
-        // Convert box name to bytes
-        let boxNameBytes: Buffer;
+  //       // Convert box name to bytes
+  //       let boxNameBytes: Buffer;
         
-        // Check if string is a valid number
-        if (!isNaN(Number(boxName))) {
-          boxNameBytes = Buffer.from(boxName);
-        }
-        // Check if string is a valid Algorand address
-        else if (algosdk.isValidAddress(boxName)) {
-          boxNameBytes = Buffer.from(boxName);
-        }
-        // Try to decode as base64, if it fails then treat as regular string
-        else {
-          try {
-            // Test if the string is valid base64
-            Buffer.from(boxName, 'base64').toString('base64');
-            // If we get here, it's valid base64
-            boxNameBytes = Buffer.from(boxName, 'base64');
-          } catch {
-            // If base64 decoding fails, treat as regular string
-            boxNameBytes = Buffer.from(boxName);
-          }
-        }
+  //       // Check if string is a valid number
+  //       if (!isNaN(Number(boxName))) {
+  //         boxNameBytes = Buffer.from(boxName);
+  //       }
+  //       // Check if string is a valid Algorand address
+  //       else if (algosdk.isValidAddress(boxName)) {
+  //         boxNameBytes = Buffer.from(boxName);
+  //       }
+  //       // Try to decode as base64, if it fails then treat as regular string
+  //       else {
+  //         try {
+  //           // Test if the string is valid base64
+  //           Buffer.from(boxName, 'base64').toString('base64');
+  //           // If we get here, it's valid base64
+  //           boxNameBytes = Buffer.from(boxName, 'base64');
+  //         } catch {
+  //           // If base64 decoding fails, treat as regular string
+  //           boxNameBytes = Buffer.from(boxName);
+  //         }
+  //       }
         
-        // Lookup box
-        const response = await indexerClient.lookupApplicationBoxByIDandName(Number(appId), boxNameBytes).do();
+  //       // Lookup box
+  //       const response = await indexerClient.lookupApplicationBoxByIDandName(Number(appId), boxNameBytes).do();
         
-        // Add a human-readable value if possible
-        let valueAsString = "";
-        try {
-          // Try to decode base64 string to text
-          valueAsString = Buffer.from(response.value || '', 'base64').toString('utf8');
-        } catch (e) {
-          valueAsString = "(Cannot decode value)";
-        }
+  //       // Add a human-readable value if possible
+  //       let valueAsString = "";
+  //       try {
+  //         // Try to decode base64 string to text
+  //         valueAsString = Buffer.from(response.value || '', 'base64').toString('utf8');
+  //       } catch (e) {
+  //         valueAsString = "(Cannot decode value)";
+  //       }
         
-        const enhancedResponse = {
-          ...response,
-          valueAsString
-        };
+  //       const enhancedResponse = {
+  //         ...response,
+  //         valueAsString
+  //       };
         
-        return ResponseProcessor.processResponse(enhancedResponse);
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error looking up application box: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
+  //       return ResponseProcessor.processResponse(enhancedResponse);
+  //     } catch (error: any) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: `Error looking up application box: ${error.message || 'Unknown error'}`
+  //         }]
+  //       };
+  //     }
+  //   }
+  // );
   
-  // Lookup application boxes
-  server.tool(
-    'indexer_lookup_application_boxes',
-    'Get all application boxes',
-    { 
-      appId: z.number().int().describe('Application ID'),
-      maxBoxes: z.number().int().optional().describe('Maximum number of boxes to return')
-    },
-    async ({ appId, maxBoxes }) => {
+  // // Lookup application boxes
+  // server.tool(
+  //   'indexer_lookup_application_boxes',
+  //   'Get all application boxes',
+  //   { 
+  //     appId: z.number().int().describe('Application ID'),
+  //     maxBoxes: z.number().int().optional().describe('Maximum number of boxes to return')
+  //   },
+  //   async ({ appId, maxBoxes }) => {
       
-      if (!env.ALGORAND_INDEXER) {
-        return {
-          content: [{
-            type: 'text',
-            text: 'Algorand indexer URL not configured'
-          }]
-        };
-      }
+  //     if (!env.ALGORAND_INDEXER) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: 'Algorand indexer URL not configured'
+  //         }]
+  //       };
+  //     }
       
-      try {
-        // Create indexer client
-        const indexerClient = createIndexerClient(env.ALGORAND_INDEXER);
-        if (!indexerClient) {
-          throw new Error('Failed to create Algorand indexer client');
-        }
+  //     try {
+  //       // Create indexer client
+  //       const indexerClient = createIndexerClient(env.ALGORAND_INDEXER);
+  //       if (!indexerClient) {
+  //         throw new Error('Failed to create Algorand indexer client');
+  //       }
         
-        // Setup search
-        let search = indexerClient.searchForApplicationBoxes(Number(appId));
+  //       // Setup search
+  //       let search = indexerClient.searchForApplicationBoxes(Number(appId));
         
-        if (maxBoxes !== undefined) {
-          search = search.limit(Number(maxBoxes));
-        }
+  //       if (maxBoxes !== undefined) {
+  //         search = search.limit(Number(maxBoxes));
+  //       }
         
-        // Execute search
-        const response = await search.do();
+  //       // Execute search
+  //       const response = await search.do();
         
-        // Format the response to include readable box names if possible
-        const enhancedBoxes = (response.boxes || []).map(box => {
-          try {
-            // Try to decode base64 string to text directly
-            const nameAsString = Buffer.from(box.name || '', 'base64').toString('utf8');
-            return {
-              ...box,
-              nameAsString
-            };
-          } catch (e) {
-            return {
-              ...box,
-              nameAsString: "(Cannot decode name)"
-            };
-          }
-        });
+  //       // Format the response to include readable box names if possible
+  //       const enhancedBoxes = (response.boxes || []).map(box => {
+  //         try {
+  //           // Try to decode base64 string to text directly
+  //           const nameAsString = Buffer.from(box.name || '', 'base64').toString('utf8');
+  //           return {
+  //             ...box,
+  //             nameAsString
+  //           };
+  //         } catch (e) {
+  //           return {
+  //             ...box,
+  //             nameAsString: "(Cannot decode name)"
+  //           };
+  //         }
+  //       });
         
-        return ResponseProcessor.processResponse({
-          boxes: enhancedBoxes
-        });
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error looking up application boxes: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
+  //       return ResponseProcessor.processResponse({
+  //         boxes: enhancedBoxes
+  //       });
+  //     } catch (error: any) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: `Error looking up application boxes: ${error.message || 'Unknown error'}`
+  //         }]
+  //       };
+  //     }
+  //   }
+  // );
 }

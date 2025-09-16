@@ -57,7 +57,11 @@
     {
       "binding": "ARC26_KV",
       "id": "90b157592d5b40dfae2c501a8d4f8291"
-    }
+    },
+    {
+      "binding": "VERIFIED_ASSETS",
+      "id": "60fa6525420a4588b33acd87ee437b77"
+    },
   ],
   "observability": {
     "enabled": false

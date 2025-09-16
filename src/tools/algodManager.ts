@@ -170,99 +170,99 @@ export function registerAlgodTools(server: McpServer,env: Env, props: Props): vo
     }
   );
   
-  // Simulate raw transactions
-  server.tool(
-    'simulate_raw_transactions',
-    'Simulate raw transactions',
-    { 
-      txns: z.array(z.string()).describe('Array of base64-encoded transactions to simulate')
-    },
-    async ({ txns }) => {
+  // // Simulate raw transactions
+  // server.tool(
+  //   'simulate_raw_transactions',
+  //   'Simulate raw transactions',
+  //   { 
+  //     txns: z.array(z.string()).describe('Array of base64-encoded transactions to simulate')
+  //   },
+  //   async ({ txns }) => {
 
       
-      if (!env.ALGORAND_ALGOD) {
-        return {
-          content: [{
-            type: 'text',
-            text: 'Algorand node URL not configured'
-          }]
-        };
-      }
+  //     if (!env.ALGORAND_ALGOD) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: 'Algorand node URL not configured'
+  //         }]
+  //       };
+  //     }
       
-      try {
-        // Create algod client
-        const algodClient = createAlgoClient(env.ALGORAND_ALGOD, env.ALGORAND_TOKEN || '');
-        if (!algodClient) {
-          throw new Error('Failed to create Algorand client');
-        }
+  //     try {
+  //       // Create algod client
+  //       const algodClient = createAlgoClient(env.ALGORAND_ALGOD, env.ALGORAND_TOKEN || '');
+  //       if (!algodClient) {
+  //         throw new Error('Failed to create Algorand client');
+  //       }
         
-        // Decode base64 transactions
-        const txnsBytes = txns.map(txn => Buffer.from(txn, 'base64'));
+  //       // Decode base64 transactions
+  //       const txnsBytes = txns.map(txn => Buffer.from(txn, 'base64'));
         
-        // Simulate transactions
-        const response = await algodClient.simulateRawTransactions(txnsBytes).do();
+  //       // Simulate transactions
+  //       const response = await algodClient.simulateRawTransactions(txnsBytes).do();
         
-        return ResponseProcessor.processResponse({
-          result: response
-        });
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error simulating transactions: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
+  //       return ResponseProcessor.processResponse({
+  //         result: response
+  //       });
+  //     } catch (error: any) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: `Error simulating transactions: ${error.message || 'Unknown error'}`
+  //         }]
+  //       };
+  //     }
+  //   }
+  // );
   
-  // Simplified simulation tool for encoded transactions
-  server.tool(
-    'simulate_transactions',
-    'Simulate encoded transactions',
-    { 
-      encodedTxns: z.array(z.string()).describe('Array of base64-encoded transactions to simulate'),
-      options: z.object({
-        allowEmptySignatures: z.boolean().optional().describe('Allow transactions without signatures'),
-        allowMoreLogging: z.boolean().optional().describe('Enable additional logging during simulation')
-      }).optional().describe('Simulation options')
-    },
-    async ({ encodedTxns, options }) => {
+  // // Simplified simulation tool for encoded transactions
+  // server.tool(
+  //   'simulate_transactions',
+  //   'Simulate encoded transactions',
+  //   { 
+  //     encodedTxns: z.array(z.string()).describe('Array of base64-encoded transactions to simulate'),
+  //     options: z.object({
+  //       allowEmptySignatures: z.boolean().optional().describe('Allow transactions without signatures'),
+  //       allowMoreLogging: z.boolean().optional().describe('Enable additional logging during simulation')
+  //     }).optional().describe('Simulation options')
+  //   },
+  //   async ({ encodedTxns, options }) => {
       
-      if (!env.ALGORAND_ALGOD) {
-        return {
-          content: [{
-            type: 'text',
-            text: 'Algorand node URL not configured'
-          }]
-        };
-      }
+  //     if (!env.ALGORAND_ALGOD) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: 'Algorand node URL not configured'
+  //         }]
+  //       };
+  //     }
       
-      try {
-        // Create algod client
-        const algodClient = createAlgoClient(env.ALGORAND_ALGOD, env.ALGORAND_TOKEN || '');
-        if (!algodClient) {
-          throw new Error('Failed to create Algorand client');
-        }
+  //     try {
+  //       // Create algod client
+  //       const algodClient = createAlgoClient(env.ALGORAND_ALGOD, env.ALGORAND_TOKEN || '');
+  //       if (!algodClient) {
+  //         throw new Error('Failed to create Algorand client');
+  //       }
         
-        // Decode base64 transactions
-        const txnsBytes = encodedTxns.map(txn => Buffer.from(txn, 'base64'));
+  //       // Decode base64 transactions
+  //       const txnsBytes = encodedTxns.map(txn => Buffer.from(txn, 'base64'));
         
-        // Use raw transaction simulation which doesn't require complex object types
-        // and is more compatible with the worker environment
-        const response = await algodClient.simulateRawTransactions(txnsBytes).do();
+  //       // Use raw transaction simulation which doesn't require complex object types
+  //       // and is more compatible with the worker environment
+  //       const response = await algodClient.simulateRawTransactions(txnsBytes).do();
         
-        return ResponseProcessor.processResponse({
-          result: response
-        });
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error simulating transactions: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
+  //       return ResponseProcessor.processResponse({
+  //         result: response
+  //       });
+  //     } catch (error: any) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: `Error simulating transactions: ${error.message || 'Unknown error'}`
+  //         }]
+  //       };
+  //     }
+  //   }
+  // );
 }

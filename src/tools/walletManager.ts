@@ -262,48 +262,48 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
     }
   );
 
-  // Get wallet role UUID
-  server.tool(
-    'get_wallet_role',
-    'Get the role UUID for the configured wallet to be used to login into Hashicorp Vault with OIDC',
-    {},
-    async () => {
-      try {
-        let providerEmail = `${props.provider}--${props.email}`
-        const entityId = await env.VAULT_ENTITIES?.get(providerEmail);
-        let providerEntity = `${props.provider}--${entityId}`
-        console.log(`Entity ID for ${providerEmail} from KV store:`, providerEntity);
-        let roleId = null;
-        if (!!entityId) {
-          console.log(`Fetching role ID from KV for entity ${providerEntity}`);
-          roleId = await env.VAULT_ENTITIES?.get(providerEntity);
-          console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
-        }
-        if (!entityId) {
-          return {
-            content: [{
-              type: 'text',
-              text: 'No active agent wallet configured'
-            }]
-          };
-        }
+  // // Get wallet role UUID
+  // server.tool(
+  //   'get_wallet_role',
+  //   'Get the role UUID for the configured wallet to be used to login into Hashicorp Vault with OIDC',
+  //   {},
+  //   async () => {
+  //     try {
+  //       let providerEmail = `${props.provider}--${props.email}`
+  //       const entityId = await env.VAULT_ENTITIES?.get(providerEmail);
+  //       let providerEntity = `${props.provider}--${entityId}`
+  //       console.log(`Entity ID for ${providerEmail} from KV store:`, providerEntity);
+  //       let roleId = null;
+  //       if (!!entityId) {
+  //         console.log(`Fetching role ID from KV for entity ${providerEntity}`);
+  //         roleId = await env.VAULT_ENTITIES?.get(providerEntity);
+  //         console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
+  //       }
+  //       if (!entityId) {
+  //         return {
+  //           content: [{
+  //             type: 'text',
+  //             text: 'No active agent wallet configured'
+  //           }]
+  //         };
+  //       }
 
-        return ResponseProcessor.processResponse({
-          role: roleId,
-          user: props.email,
-          provider: props.provider,
+  //       return ResponseProcessor.processResponse({
+  //         role: roleId,
+  //         user: props.email,
+  //         provider: props.provider,
 
-        });
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Failed to get address: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
+  //       });
+  //     } catch (error: any) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: `Failed to get address: ${error.message || 'Unknown error'}`
+  //         }]
+  //       };
+  //     }
+  //   }
+  // );
 
   // Get wallet account information
   server.tool(

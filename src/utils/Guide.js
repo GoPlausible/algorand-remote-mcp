@@ -417,7 +417,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
      \`\`\`
    - Returns: Verification tier (verified, unverified, or suspicious) and explorer URL
 
-   - Tool: \`asset_details_info\`
+   - Tool: \`verified_asset_details_info\`
    - Purpose: Get detailed information about an Algorand asset from Pera Wallet
    - Parameters:
      \`\`\`
@@ -537,7 +537,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
    - Verify asset balances before transfers
    - Handle clawback operations carefully
    - Check asset verification status using \`asset_verification_status\` to avoid scam tokens
-   - Get detailed asset information using \`asset_details_info\` before interacting with assets
+   - Get detailed asset information using \`verified_asset_details_info\` before interacting with assets
    - Pay attention to verification tier (verified, unverified, or suspicious) when working with assets
 
 ## Complete Workflow Examples for LLM Agents
@@ -660,7 +660,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 4. Get detailed asset information (optional):
    \`\`\`
-   use_tool: asset_details_info
+   use_tool: verified_asset_details_info
    parameters: {
      "assetId": 31566704  // USDC on Algorand Mainnet
    }

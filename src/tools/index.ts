@@ -10,3 +10,4 @@ export * from './arc26Manager';
 export * from './apiManager';
 export * from './knowledgeManager';
 export * from './walletManager';
+export * from './tinymanManager';
