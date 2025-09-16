@@ -95,6 +95,23 @@ The Algorand transaction types are:
 
 As an LLM agent, here's how to quickly perform basic Algorand operations using direct tool invocation pattern using send payment, asset transfer and asset optin as examples:
 
+### Using Knowledge tools
+ - Use list_knowledge_docs to list knowledge document names in a category you send as prefix.
+ - Choose your specific knowledge document from result of list_knowledge_docs by sending category as prefix and use get_knowledge_doc to get the content of that document by name (e.g. 'arcs:specs:arc-0003.md' or 'algokit:cli:features:tasks:analyze.md').
+ - Knowledge Categories are:
+   'arcs': 'Algorand Request for Comments'
+   'sdks': 'Software Development Kits'
+   'algokit': 'AlgoKit'
+   'algokit-utils': 'AlgoKit Utils'
+   'tealscript': 'TEALScript'
+   'puya': 'Puya'
+   'liquid-auth': 'Liquid Auth'
+   'python': 'Python Development'
+   'developers': 'Developer Documentation'
+   'clis': 'CLI Tools'
+   'nodes': 'Node Management'
+   'details': 'Developer Details'
+   
 ### Minimal Working Example - Send Payment
 
 1. First, retrieve wallet information:

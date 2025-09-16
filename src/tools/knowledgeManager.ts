@@ -155,7 +155,12 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
               return prefix.replace('taxonomy/', '').replace(/\//g, ':');
             })
           };
-          return ResponseProcessor.processResponse(results);
+          return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify(results, null, 2)
+          }]
+        };
         } catch (error: any) {
           return {
             content: [{
@@ -181,7 +186,12 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
           'nodes': 'Node Management',
           'details': 'Developer Details'
         }
-        return ResponseProcessor.processResponse(results);
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify(results, null, 2)
+          }]
+        };
       }
     }
   );
