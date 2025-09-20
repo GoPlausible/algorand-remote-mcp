@@ -32,8 +32,8 @@ export function registerAccountTools(server: McpServer,env: Env, props: Props): 
   // View address from mnemonic (without storing the private key)
   server.tool(
     'mnemonic_to_address',
-    'View the Algorand address associated with a mnemonic (without storing the private key)',
-    { mnemonic: z.string().describe('Mnemonic phrase to view address for') },
+    'View the Algorand address and secret key associated with a mnemonic ',
+    { mnemonic: z.string().describe('Mnemonic phrase to view address and secrte key for') },
     async ({ mnemonic }) => {
       try {
         // This only derives the address from the mnemonic without storing the private key
@@ -41,13 +41,38 @@ export function registerAccountTools(server: McpServer,env: Env, props: Props): 
         
         return ResponseProcessor.processResponse({
           address: sk.addr,
-          message: 'This only shows the address associated with the mnemonic. For security reasons, the private key is not stored in the vault. Use create_account to generate a new secure keypair in the vault.'
+          sk: Buffer.from(sk.sk).toString('hex'),
+          message: 'This shows the address and sk associated with the mnemonic. For security reasons, the private key is not stored anywhere and solely for user external use purposes.'
         });
       } catch (error: any) {
         return {
           content: [{
             type: 'text',
             text: `Error deriving address from mnemonic: ${error.message || 'Unknown error'}`
+          }]
+        };
+      }
+    }
+  );
+
+  server.tool(
+    'address_to_public_key',
+    'View the Algorand public key associated with an Algorand address. returns the public key in hex format.',
+    { address: z.string().describe('Address to get public key for') },
+    async ({ address }) => {
+      try {
+       
+        const pk = algosdk.decodeAddress(address);
+        
+        return ResponseProcessor.processResponse({
+          publickey: Buffer.from(pk.publicKey).toString('hex'),
+          message: 'This shows the public key associated with the given Algorand address.'
+        });
+      } catch (error: any) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Error getting public key from address: ${error.message || 'Unknown error'}`
           }]
         };
       }
