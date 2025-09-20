@@ -27,7 +27,7 @@ export function registerNfdApiTools(server: McpServer,env: Env): void {
       try {
         const apiBase = env.NFD_API_URL || 'https://api.nf.domains';
         
-        let url = `${apiBase}/nfd/${encodeURIComponent(name)}`;
+        let url = `${apiBase}/nfd/${encodeURIComponent(name.toLowerCase())}`;
         const params = new URLSearchParams();
         
         if (view === 'brief') {
