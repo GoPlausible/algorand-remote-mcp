@@ -28,7 +28,7 @@ function createAlgoClient(algodUrl: string , token:string): algosdk.Algodv2 | nu
 export function registerAlgodTools(server: McpServer,env: Env, props: Props): void {
   // Compile TEAL code
   server.tool(
-    'compile_teal',
+    'sdk_compile_teal',
     'Compile TEAL source code',
     { 
       source: z.string().describe('Logic that executes when the app is called (TEAL source)')
@@ -81,7 +81,7 @@ export function registerAlgodTools(server: McpServer,env: Env, props: Props): vo
   
   // Disassemble TEAL bytecode
   server.tool(
-    'disassemble_teal',
+    'sdk_disassemble_teal',
     'Disassemble TEAL bytecode into source code',
     { 
       bytecode: z.string().describe('TEAL bytecode to disassemble (base64-encoded)')
@@ -126,7 +126,7 @@ export function registerAlgodTools(server: McpServer,env: Env, props: Props): vo
   
   // Send raw transaction
   server.tool(
-    'send_raw_transaction',
+    'sdk_send_raw_transaction',
     'Submit signed transactions to the Algorand network',
     { 
       signedTxns: z.array(z.string()).describe('Array of base64-encoded signed transactions')
@@ -172,7 +172,7 @@ export function registerAlgodTools(server: McpServer,env: Env, props: Props): vo
   
   // // Simulate raw transactions
   // server.tool(
-  //   'simulate_raw_transactions',
+  //   'sdk_simulate_raw_transactions',
   //   'Simulate raw transactions',
   //   { 
   //     txns: z.array(z.string()).describe('Array of base64-encoded transactions to simulate')
@@ -218,7 +218,7 @@ export function registerAlgodTools(server: McpServer,env: Env, props: Props): vo
   
   // // Simplified simulation tool for encoded transactions
   // server.tool(
-  //   'simulate_transactions',
+  //   'sdk_simulate_transactions',
   //   'Simulate encoded transactions',
   //   { 
   //     encodedTxns: z.array(z.string()).describe('Array of base64-encoded transactions to simulate'),

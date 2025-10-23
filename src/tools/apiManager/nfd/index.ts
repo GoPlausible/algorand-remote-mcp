@@ -66,7 +66,7 @@ export function registerNfdApiTools(server: McpServer,env: Env): void {
   // Get NFDs for address
   server.tool(
     'api_nfd_get_nfds_for_address',
-    'Get all NFD domains owned by an address',
+    'Get all NFD names owned by an Algorand address',
     {
       address: z.string().describe('Algorand address'),
       limit: z.number().optional().default(50).describe('Maximum number of results'),

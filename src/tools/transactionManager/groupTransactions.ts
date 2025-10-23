@@ -194,8 +194,8 @@ async function buildTransaction(
 export function registerGroupTransactionTools(server: McpServer, env: Env, props: Props): void {
   // Assign group ID to transactions
   server.tool(
-    'assign_group_id',
-    'When manually creating transactions individually, assign a group ID to a set of transactions for atomic execution',
+    'sdk_assign_group_id',
+    'To group transactions in atomic way (one fails all fail), assign a group ID to a set of transactions for atomic execution',
     {
       encodedTxns: z.array(z.string()).describe('Array of base64-encoded unsigned transactions')
     },
@@ -207,6 +207,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
             Buffer.from(txn, 'base64')
           );
         });
+        console.log(decodedTxns);
 
         // Assign group ID
         const txnGroup = algosdk.assignGroupID(decodedTxns);
@@ -215,6 +216,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
         const groupedTxns = txnGroup.map(txn =>
           Buffer.from(algosdk.encodeUnsignedTransaction(txn)).toString('base64')
         );
+        console.log(groupedTxns);
 
         // Return the transactions with group IDs
         return ResponseProcessor.processResponse({
@@ -234,7 +236,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
 
   // Create atomic transaction group
   server.tool(
-    'create_atomic_group',
+    'sdk_create_atomic_group',
     'Create an atomic transaction group from multiple transactions of types pay, axfer, acfg, appl, afrz or keyreg',
     {
       transactions: z.array(z.object({
@@ -297,7 +299,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
 
   // Atomic transaction signing helper
   server.tool(
-    'sign_atomic_group',
+    'wallet_sign_atomic_group',
     'Sign an atomic transaction group',
     {
       encodedTxns: z.array(z.string()).describe('Array of base64-encoded unsigned transactions'),
@@ -448,7 +450,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
 
   // Submit atomic transaction group
   server.tool(
-    'submit_atomic_group',
+    'sdk_submit_atomic_group',
     'Submit a signed atomic transaction group to the Algorand network',
     {
       signedTxns: z.array(z.string()).describe('Array of base64-encoded signed transactions')
@@ -476,15 +478,16 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
 
         // Submit the transaction group
         const response = await algodClient.sendRawTransaction(decodedTxns).do();
-        console.log('Transaction ID:', response.txId);
+        const txId = response.txId || response.txid;
+        console.log('Transaction ID:', txId);
 
         // Wait for confirmation
-        const confirmedTxn = await algosdk.waitForConfirmation(algodClient, response.txId, 4);
+        const confirmedTxn = await algosdk.waitForConfirmation(algodClient, txId, 10);
         console.log('Confirmed transaction:', confirmedTxn);
 
         return ResponseProcessor.processResponse({
           confirmed: true,
-          txID: response.txId,
+          txID: txId,
           confirmedRound: confirmedTxn['confirmed-round'],
           txnResult: confirmedTxn
         });

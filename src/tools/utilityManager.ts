@@ -16,7 +16,7 @@ import { Env, Props } from '../types';
 export function registerUtilityTools(server: McpServer,env: Env, props: Props): void {
   // Validate address
   server.tool(
-    'validate_address',
+    'sdk_validate_address',
     'Check if an Algorand address is valid',
     { 
       address: z.string().describe('Address in standard Algorand format (58 characters)') 
@@ -38,7 +38,7 @@ export function registerUtilityTools(server: McpServer,env: Env, props: Props): 
   
   // Encode address
   server.tool(
-    'encode_address',
+    'sdk_encode_address',
     'Encode a public key to an Algorand address',
     { 
       publicKey: z.string().describe('Public key in hexadecimal format to encode into an address') 
@@ -61,7 +61,7 @@ export function registerUtilityTools(server: McpServer,env: Env, props: Props): 
   
   // Decode address
   server.tool(
-    'decode_address',
+    'sdk_decode_address',
     'Decode an Algorand address to a public key',
     { 
       address: z.string().describe('Address in standard Algorand format (58 characters) to decode') 
@@ -85,7 +85,7 @@ export function registerUtilityTools(server: McpServer,env: Env, props: Props): 
   
   // Get application address
   server.tool(
-    'get_application_address',
+    'sdk_app_address_by_id',
     'Get the address for a given application ID',
     { 
       appId: z.number().int().positive().describe('Application ID to get the address for') 
@@ -107,7 +107,7 @@ export function registerUtilityTools(server: McpServer,env: Env, props: Props): 
   
   // Convert bytes to BigInt
   // server.tool(
-  //   'bytes_to_bigint',
+  //   'sdk_bytes_to_bigint',
   //   'Convert bytes to a BigInt',
   //   { 
   //     bytes: z.string().describe('Bytes in hexadecimal format to convert to a BigInt') 
@@ -130,7 +130,7 @@ export function registerUtilityTools(server: McpServer,env: Env, props: Props): 
   
   // Convert BigInt to bytes
   // server.tool(
-  //   'bigint_to_bytes',
+  //   'sdk_bigint_to_bytes',
   //   'Convert a BigInt to bytes',
   //   { 
   //     value: z.string().describe('BigInt value as a string to convert to bytes'),
@@ -155,7 +155,7 @@ export function registerUtilityTools(server: McpServer,env: Env, props: Props): 
   
   // Encode uint64
   // server.tool(
-  //   'encode_uint64',
+  //   'sdk_encode_uint64',
   //   'Encode a uint64 to bytes',
   //   { 
   //     value: z.string().describe('Uint64 value as a string to encode into bytes') 
@@ -178,7 +178,7 @@ export function registerUtilityTools(server: McpServer,env: Env, props: Props): 
   
   // Decode uint64
   // server.tool(
-  //   'decode_uint64',
+  //   'sdk_decode_uint64',
   //   'Decode bytes to a uint64',
   //   { 
   //     bytes: z.string().describe('Bytes in hexadecimal format to decode into a uint64') 
@@ -201,7 +201,7 @@ export function registerUtilityTools(server: McpServer,env: Env, props: Props): 
   
   // Verify bytes with signature
   server.tool(
-    'verify_bytes',
+    'sdk_verify_bytes',
     'Verify a signature against bytes with an Algorand address',
     { 
       bytes: z.string().describe('Bytes in hexadecimal format to verify'),
@@ -238,8 +238,8 @@ export function registerUtilityTools(server: McpServer,env: Env, props: Props): 
   
   // Sign bytes
   server.tool(
-    'sign_bytes',
-    'Sign bytes with a secret key',
+    'sdk_sign_bytes',
+    'Sign bytes with a secret key (different from wallet byets signing and requires sk)',
     { 
       bytes: z.string().describe('Bytes in hexadecimal format to sign'),
       sk: z.string().describe('Secret key in hexadecimal format to sign the bytes with')

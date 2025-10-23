@@ -30,6 +30,7 @@ function buildHTMLPage({
   label?: string;
   label2?: string;
   amount?: number;
+  decimals?: number;
 }): string {
 
   const prettyLabel = label || "Algorand QRCode";
@@ -331,6 +332,7 @@ export function registerArc26Tools(server: McpServer, env: Env, props: Props): v
       address: z.string().describe('Algorand address (58 characters)'),
       // label: z.string().optional().describe('Optional label for the address'),
       amount: z.number().optional().describe('Amount in microAlgos (for payment) or asset units (for asset transfer)'),
+      decimals: z.number().optional().describe('The decimals of the asset (integer number like 6 for USDC or Algo)'),
       assetId: z.number().optional().describe('Asset ID (for asset transfer)'),
       note: z.string().optional().describe('Optional note')
     },
@@ -359,7 +361,7 @@ export function registerArc26Tools(server: McpServer, env: Env, props: Props): v
 
         const uuid = crypto.randomUUID().replaceAll('-', '');
 
-        await env.ARC26_KV?.put(`image--${uuid}`, qrCode, { expirationTtl: 86400 * 7 }); // Cache for 7 days
+        await env.ARC26_KV?.put(`image--${uuid}`, qrCode, { expirationTtl: 86400 }); // Cache for 1 day
 
         const htmlPage = buildHTMLPage({
           provider: props.provider,
@@ -372,7 +374,7 @@ export function registerArc26Tools(server: McpServer, env: Env, props: Props): v
           label2: `${uriType}`,
           amount
         })
-        await env.ARC26_KV?.put(`id--${uuid}`, htmlPage, { expirationTtl: 86400 * 7 }); // Cache for 7 days
+        await env.ARC26_KV?.put(`id--${uuid}`, htmlPage, { expirationTtl: 86400 }); // Cache for 1 day
 
         return ResponseProcessor.processResponse({
           label: `Algorand ARC-26 QR Code link (valid for 7 days)`,

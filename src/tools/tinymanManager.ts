@@ -358,11 +358,11 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
         // Submit the signed transactions
         const txnBlob = Buffer.concat(signedTxns.map(stxn => Buffer.from(stxn)));
         const swapExecutionResponse = await algodClient.sendRawTransaction(txnBlob).do();
-        
+        const txId = swapExecutionResponse.txId || swapExecutionResponse.txid;
         // Wait for confirmation
-        const confirmedTxn = await algosdk.waitForConfirmation(algodClient, swapExecutionResponse.txId, 4);
+        const confirmedTxn = await algosdk.waitForConfirmation(algodClient, txId, 5);
         console.log('[TINYMAN_SWAP] Swap Execution Response:', {
-          txId: swapExecutionResponse.txId,
+          txId: txId,
           confirmedRound: confirmedTxn['confirmed-round']
         });
 
@@ -371,7 +371,7 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
             type: 'text',
             text: JSON.stringify({
               success: true,
-              txId: swapExecutionResponse.txId,
+              txId: txId,
               confirmedRound: confirmedTxn['confirmed-round'],
               quote: fixedInputSwapQuote
             })
@@ -704,11 +704,11 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
         // Submit the signed transactions
         const txnBlob = Buffer.concat(signedTxns.map(stxn => Buffer.from(stxn)));
         const swapExecutionResponse = await algodClient.sendRawTransaction(txnBlob).do();
-        
+        const txId = swapExecutionResponse.txId || swapExecutionResponse.txid;
         // Wait for confirmation
-        const confirmedTxn = await algosdk.waitForConfirmation(algodClient, swapExecutionResponse.txId, 4);
+        const confirmedTxn = await algosdk.waitForConfirmation(algodClient, txId, 5);
         console.log('[TINYMAN_SWAP] Swap Execution Response:', {
-          txId: swapExecutionResponse.txId,
+          txId: txId,
           confirmedRound: confirmedTxn['confirmed-round']
         });
 
@@ -717,7 +717,7 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
             type: 'text',
             text: JSON.stringify({
               success: true,
-              txId: swapExecutionResponse.txId,
+              txId: txId,
               confirmedRound: confirmedTxn['confirmed-round'],
               quote: fixedOutputSwapQuote
             })

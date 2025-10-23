@@ -58,7 +58,7 @@ function processNote(note?: string): Uint8Array | undefined {
 export function registerAppTransactionTools(server: McpServer,env: Env, props: Props): void {
   // Create application (smart contract)
   server.tool(
-    'create_application',
+    'sdk_txn_create_application',
     'Create a new smart contract application on Algorand',
     { 
       creator: z.string().describe('Creator address'),
@@ -158,7 +158,7 @@ export function registerAppTransactionTools(server: McpServer,env: Env, props: P
   
   // Update application
   server.tool(
-    'update_application',
+    'sdk_txn_update_application',
     'Update an existing smart contract application on Algorand',
     { 
       sender: z.string().describe('Sender address (must be the app creator)'),
@@ -249,7 +249,7 @@ export function registerAppTransactionTools(server: McpServer,env: Env, props: P
   
   // Delete application
   server.tool(
-    'delete_application',
+    'sdk_txn_delete_application',
     'Delete an existing smart contract application on Algorand',
     { 
       sender: z.string().describe('Sender address (must be the app creator)'),
@@ -326,7 +326,7 @@ export function registerAppTransactionTools(server: McpServer,env: Env, props: P
   
   // Close out from application
   server.tool(
-    'closeout_application',
+    'sdk_txn_closeout_application',
     'Close out from an Algorand application',
     { 
       account: z.string().describe('Account address to close out'),
@@ -403,7 +403,7 @@ export function registerAppTransactionTools(server: McpServer,env: Env, props: P
   
   // Clear application state
   server.tool(
-    'clear_application',
+    'sdk_txn_clear_application',
     'Clear state for an Algorand application',
     { 
       account: z.string().describe('Account address to clear state for'),
@@ -480,7 +480,7 @@ export function registerAppTransactionTools(server: McpServer,env: Env, props: P
   
   // Call application
   server.tool(
-    'call_application',
+    'sdk_txn_call_application',
     'Call a smart contract application on Algorand',
     { 
       sender: z.string().describe('Sender address'),
@@ -581,7 +581,7 @@ export function registerAppTransactionTools(server: McpServer,env: Env, props: P
   
   // Opt-in to application
   server.tool(
-    'optin_application',
+    'sdk_optin_application',
     'Opt-in to an Algorand application',
     { 
       account: z.string().describe('Account address to opt-in'),

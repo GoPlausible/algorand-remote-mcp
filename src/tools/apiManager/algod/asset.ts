@@ -316,7 +316,7 @@ export function registerAssetApiTools(server: McpServer, env: Env): void {
   );
   // Get asset verification status from Pera Wallet
   server.tool(
-    'asset_verification_status',
+    'pera_asset_verification_status',
     'Get the verification status of an Algorand asset from Pera Wallet',
     {
       assetId: z.number().int().min(0).max(9223372036854776000)
@@ -366,7 +366,7 @@ export function registerAssetApiTools(server: McpServer, env: Env): void {
 
   // Get detailed asset information from Pera Wallet
   server.tool(
-    'verified_asset_details_info',
+    'pera_verified_asset_details',
     'Get detailed information about an Algorand asset from Pera Wallet',
     {
       assetId: z.number().int().min(0).max(9223372036854776000)
@@ -409,8 +409,8 @@ export function registerAssetApiTools(server: McpServer, env: Env): void {
   );
   // Get verified asset(s) by name
   server.tool(
-    'verified_asset_search',
-    'Search verified Algorand asset(s) by asset name, unit name, or creator address',
+    'pera_verified_asset_search',
+    'Search PeraWallet verified Algorand asset(s) by asset name, unit name, or creator address',
     {
       query: z.string().min(1).describe('Asset name, unit name, or creator address to search for')
     },

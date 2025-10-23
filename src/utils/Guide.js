@@ -20,7 +20,7 @@ Always include these MBR requirements when calculating how much the user needs b
 
 2- **Verify Asset Opt-In**:
    - For asset-related transactions, ensure the wallet has opted into the asset using the algod_get_account_asset_info tool.
-   - If not opted in, use the asset_optin tool to opt in before proceeding.
+   - If not opted in, use the sdk_txn_asset_optin tool to opt in before proceeding.
 
 3- Transaction Fees:
 
@@ -34,8 +34,8 @@ If sending multiple transactions, add 1000 µAlgos per transaction to your total
 
 Always fetch the most recent wallet balance before attempting to sign or send.
 
-5- Tip-Jar QR Code Generation:
-If Algo balance or asset balance is insufficient, use the generate_algorand_qrcode tool to provide a “tip-jar” QR code so the user can top up immediately.
+5- Tip-Jar top up QR Code Generation:
+If Algo balance or asset balance is insufficient, use the generate_algorand_qrcode tool to provide a “tip-jar” top up QR code so the user can top up immediately.
 This only happens for Algo and Asset top-ups. Give the generated QRCode links to user to scan with PeraWallet (important) and top up.
 
 When generating a QR code for funding, use the generate_algorand_qrcode tool with parameters:
@@ -55,7 +55,7 @@ If both Algo and Asset top-ups are required, always handle ALGO funding first, t
 ⚠️ **AGENTS MUST PERFORM THESE ACTIONS AT THE START OF EACH SESSION WITH ALGORAND-REMOTE-MCP:**
 
 **Check Wallet Configuration:**
-   - Tool: \`get_wallet_info\`
+   - Tool: \`wallet_get_info\`
    - Purpose: Verify wallet exists and is correctly configured
    - Action Required: Use this tool FIRST in EVERY session
    \`\`\`
@@ -71,11 +71,11 @@ If both Algo and Asset top-ups are required, always handle ALGO funding first, t
 
 | Step | Action | Tool | Purpose |
 |------|--------|------|---------|
-| 1 | Check wallet | \`get_wallet_info\` | Verify wallet configuration |
+| 1 | Check wallet | \`wallet_get_info\` | Verify wallet configuration |
 | 2 | Get blockchain data | API query tools | Retrieve necessary information |
 | 3 | Create transactions | Transaction tools | Prepare blockchain operations |
-| 4 | Sign transactions | \`sign_transaction\` | Authorize operations |
-| 5 | Submit transactions | \`submit_transaction\` | Execute on blockchain |
+| 4 | Sign transaction/s | \`wallet_sign_transaction\` or \`wallet_sign_atomic_group\` | Authorize operations |
+| 5 | Submit transaction/s | \`sdk_submit_transaction\` or \`sdk_submit_atomic_group\` | Execute on blockchain |
 | 6 | Verify results | API query tools | Confirm operation success |
 
 ## Quick Start for LLM Agents (⚠️ Always present to user as "Quick Start Workflows" at each session start)
@@ -91,7 +91,7 @@ The Algorand transaction types are:
 - **keyreg**: Key registration transaction (register participation keys for consensus)
 
 > Use the correct transaction type when creating or analyzing transactions. Each type has specific required parameters and behaviors.
-> Use create_atomic_group tool to create a group of transactions that will be executed atomically (all or nothing).
+> Use sdk_create_atomic_group tool to create a group of transactions that will be executed atomically (all or nothing).
 
 As an LLM agent, here's how to quickly perform basic Algorand operations using direct tool invocation pattern using send payment, asset transfer and asset optin as examples:
 
@@ -112,132 +112,6 @@ As an LLM agent, here's how to quickly perform basic Algorand operations using d
    'nodes': 'Node Management'
    'details': 'Developer Details'
    
-### Minimal Working Example - Send Payment
-
-1. First, retrieve wallet information:
-   \`\`\`
-   use_tool: "get_wallet_info"
-   parameters: {}
-   \`\`\`
-
-2. If wallet exists, create a payment transaction:
-   \`\`\`
-   use_tool: "create_payment_transaction"
-   parameters: {
-     "from": "[sender_address]",
-     "to": "receiver_address",
-     "amount": 1000000
-   }
-   \`\`\`
-
-3. Sign the transaction:
-   \`\`\`
-   use_tool: sign_transaction
-   parameters: {
-     "encodedTxn": "[encoded_transaction_from_step_2]"
-   }
-   \`\`\`
-
-4. Submit the transaction:
-   \`\`\`
-   use_tool: submit_transaction
-   parameters: {
-     "signedTxn": "[signed_transaction_from_step_3]"
-   }
-   \`\`\`
-
-5. Verify the result:
-   \`\`\`
-   use_tool: algod_get_transaction_info
-   parameters: {
-     "txid": "[transaction_id_from_step_4]"
-   }
-   \`\`\`
-
-### Minimal Working Example - Optin to Asset
-
-1. First, retrieve wallet information:
-   \`\`\`
-   use_tool: "get_wallet_info"
-   parameters: {}
-   \`\`\`
-
-2. If wallet exists, create an asset opt-in transaction:
-   \`\`\`
-   use_tool: "asset_optin"
-   parameters: {
-     "address": "[wallet_address]",
-     "assetID": 31566704  // USDC on Algorand Mainnet
-   }
-   \`\`\`
-
-3. Sign the transaction:
-   \`\`\`
-   use_tool: sign_transaction
-   parameters: {
-     "encodedTxn": "[encoded_transaction_from_step_2]"
-   }
-   \`\`\`
-
-4. Submit the transaction:
-   \`\`\`
-   use_tool: submit_transaction
-   parameters: {
-     "signedTxn": "[signed_transaction_from_step_3]"
-   }
-   \`\`\`
-
-5. Verify the result:
-   \`\`\`
-   use_tool: algod_get_account_asset_info
-   parameters: {
-     "address": "[wallet_address]",
-     "assetId": 31566704  // USDC on Algorand Mainnet
-   }
-   \`\`\`
-
-### Minimal Working Example - Send Asset
-
-1. First, retrieve wallet information:
-   \`\`\`
-   use_tool: "get_wallet_info"
-   parameters: {}
-   \`\`\`
-
-2. If wallet exists, create an asset transfer transaction:
-   \`\`\`
-   use_tool: "transfer_asset"
-   parameters: {
-     "from": "[sender_address]",
-     "to": "receiver_address",
-     "assetID": 31566704,  // USDC on Algorand Mainnet
-     "amount": 1000000     // 1 USDC (6 decimals)
-   }
-   \`\`\`
-
-3. Sign the transaction:
-   \`\`\`
-   use_tool: sign_transaction
-   parameters: {
-     "encodedTxn": "[encoded_transaction_from_step_2]"
-   }
-   \`\`\`
-
-4. Submit the transaction:
-   \`\`\`
-   use_tool: submit_transaction
-   parameters: {
-     "signedTxn": "[signed_transaction_from_step_3]"
-   }
-   \`\`\`
-
-5. Verify the result:
-   \`\`\`
-   use_tool: algod_get_transaction_info
-   parameters: {
-     "txid": "[transaction_id_from_step_4]"
-   }
-   \`\`\`
 
 ## Common Algorand Mainnet Assets (⚠️ Always present to user as "Common used assets" table at each session start)
 
@@ -268,259 +142,96 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 > **Note**: The following tools are directly accessible to LLM agents.
 
-1. Wallet Management Tools
-   - Type: Wallet data retrieval
-   - Examples: \`get_wallet_address\`, \`get_wallet_info\` and \`get_wallet_balance\`
+1. Wallet Management Tools (Tool name starts with wallet_)
+   - Type: Wallet accounts, signing and verification tools availavle to agents to use
+   - Important tools: \`wallet_get_address\`, \`wallet_get_info\` ,\`wallet_sign_atomic_group\`, \`wallet_sign_transaction\`, \`wallet_get_assets\`, \`wallet_get_publickey\`, \`wallet_reset_account\`
    - Purpose: Access configured wallet information
    - Note: Requires proper server configuration
-
-2. Account Information Tools
+   
+2. Account Information Tools (For accounts other than Agent wallet accounts)
    - Type: Account data retrieval
-   - Examples: \`algod_get_account_info\`, \`check_account_balance\`
+   - Important tools: \`algod_get_account_info\`, \`sdk_check_account_balance\`
    - Purpose: Access account information
    - Note: Requires valid Algorand address
 
-3. Transaction Tools
-   - Type: Blockchain transaction creation and submission
-   - Examples: \`create_payment_transaction\`, \`submit_transaction\`
-   - Purpose: Create and submit transactions
+3. Transaction Generation Tools (Tool name starts with sdk_txn_)
+   - Type: Blockchain transaction creation
+   - Important tools: \`sdk_txn_payment_transaction\`, \`sdk_txn_asset_optin\`, \`sdk_txn_transfer_asset\`
+   - Purpose: Create transactions for apps, assets, payments, etc.
    - Note: Requires proper parameter validation
 
-4. Asset Management Tools
-   - Type: ASA operations
-   - Examples: \`asset_optin\`, \`transfer_asset\`
-   - Purpose: Manage Algorand Standard Assets
-   - Note: Requires asset IDs and proper authorization
-
-## Available Tools
-
-1. Wallet Management Tools
-   - Tool: \`get_wallet_address\`
-   - Purpose: Get the address for the configured wallet
-   - Parameters: None
-   - Returns: Address of the configured wallet
-
-   - Tool: \`get_wallet_info\`
-   - Purpose: Get account information for the configured wallet
-   - Parameters: None
-   - Returns: Full account details including balance and assets
-
-   - Tool: \`get_wallet_assets\`
-   - Purpose: Get assets owned by the configured wallet
-   - Parameters: None
-   - Returns: List of assets owned by the wallet
-
-   - Tool: \`get_wallet_mnemonic\`
-   - Purpose: Get the mnemonic for the configured wallet
-   - Parameters: None
-   - Returns: The mnemonic phrase (sensitive!)
-
-   - Tool: \`get_wallet_publickey\`
-   - Purpose: Get the public key for the configured wallet
-   - Parameters: None
-   - Returns: The public key in hex format
-
-   - Tool: \`get_wallet_secretkey\`
-   - Purpose: Get the secret key for the configured wallet
-   - Parameters: None
-   - Returns: The secret key in hex format (sensitive!)
-   
-   - Tool: \`reset_wallet_account\`
-   - Purpose: Reset the wallet account for the configured user
-   - Parameters: None
-   - Returns: Address of the new wallet
-   - Note: This will generate a new Algorand account and replace the existing one
-
-2. Account Information Tools
-   - Tool: \`algod_get_account_info\`
-   - Purpose: Get detailed information for a given Algorand account address
-   - Parameters: \`{ address: string }\`
-   - Returns: Account data including balance, status, apps, and assets
-
-   - Tool: \`indexer_lookup_account_by_id\`
-   - Purpose: Get comprehensive account information from the indexer
-   - Parameters: \`{ address: string }\`
-   - Returns: Full account details including participation information
-
-   - Tool: \`check_balance\`
-   - Purpose: Get simplified account balance
-   - Parameters: \`{ address: string }\`
-   - Returns: Account balance in microAlgos
-
-3. Account Management Tools
-   - Tool: \`create_account\`
-   - Purpose: Create new Algorand account
-   - Returns: Address and mnemonic
-
-   - Tool: \`mnemonic_to_address\`
-   - Purpose: View the address associated with a mnemonic (without storing the private key)
-   - Parameters: \`{ mnemonic: string }\`
-   - Note: This only shows the address and does not store the private key in the vault
-
-   - Tool: \`check_balance\`
-   - Purpose: Check account balance
-   - Parameters: \`{ address: string }\`
-
-4. Transaction Management Tools
-   - Tool: \`create_payment_transaction\`
-   - Purpose: Create payment transaction
-   - Parameters:
-     \`\`\`
-     {
-       from: string,
-       to: string,
-       amount: number,
-       note?: string
-     }
-     \`\`\`
-
-   - Tool: \`sign_transaction\`
-   - Purpose: Sign transaction with your agent account
-   - Parameters:
-     \`\`\`
-     {
-       encodedTxn: string  // Base64 encoded
-     }
-     \`\`\`
-
-   - Tool: \`submit_transaction\`
-   - Purpose: Submit signed transaction
-   - Parameters: \`{ signedTxn: string }\`
+4. Transaction Submission and Management Tools
+   - Type: Transaction submission and management
+   - Important tools: \`sdk_submit_atomic_group\`, \`sdk_submit_transaction\`, \`indexer_lookup_account_transactions\`, \`indexer_lookup_transaction_by_id\`
 
 5. Asset Management Tools
-   - Tool: \`create_asset\`
-   - Purpose: Create new Algorand Standard Asset
-   - Parameters:
-     \`\`\`
-     {
-       creator: string,
-       name: string,
-       unitName: string,
-       totalSupply: number,
-       decimals: number,
-       ...
-     }
-     \`\`\`
+   - Type: Asset data retrieval
+   - Important tools: \`algod_get_asset_info\`, \`algod_get_asset_holding\`
+   - Purpose: Access asset information
+   - Note: Requires valid Asset ID and/or Algorand address
 
-   - Tool: \`asset_optin\`
-   - Purpose: Opt-in to an ASA
-   - Parameters:
-     \`\`\`
-     {
-       address: string,
-       assetID: number
-     }
-     \`\`\`
+6. Verified Asset Tools
+   - Type: PeraWallet Verified Asset data retrieval
+   - Important tools: \`pera_asset_verification_status\`, \`pera_verified_asset_details\`, \`pera_verified_asset_search\`
+   - Purpose: Access verified assets information to be used for swapping, trading, accepting assets, etc.
+   - Note: Requires valid Asset ID and/or search query (asset name, unit name, or creator address)
 
-   - Tool: \`transfer_asset\`
-   - Purpose: Transfer an ASA
-   - Parameters:
-     \`\`\`
-     {
-       from: string,
-       to: string,
-       assetID: number,
-       amount: number
-     }
-     \`\`\`
+7. Application Management Tools
+   - Type: Smart contract application information retrieval and management
+   - Important tools: \`sdk_txn_create_application\`, \`sdk_txn_call_application\`, \`sdk_txn_update_application\`
+   - Purpose: Create and manage Algorand smart contract applications
+   - Notes: Requires proper application parameters
 
-   - Tool: \`asset_verification_status\`
-   - Purpose: Get the verification status of an Algorand asset from Pera Wallet
-   - Parameters:
-     \`\`\`
-     {
-       assetId: number
-     }
-     \`\`\`
-   - Returns: Verification tier (verified, unverified, or suspicious) and explorer URL
-
-   - Tool: \`verified_asset_details_info\`
-   - Purpose: Get detailed information about an Algorand asset from Pera Wallet
-   - Parameters:
-     \`\`\`
-     {
-       assetId: number
-     }
-     \`\`\`
-   - Returns: Comprehensive asset information including name, supply, creator, USD value, etc.
-
-6. Application Management Tools
-   - Tool: \`create_application\`
-   - Purpose: Create smart contract
-   - Parameters:
-     \`\`\`
-     {
-       creator: string,
-       approvalProgram: string,
-       clearProgram: string,
-       ...
-     }
-     \`\`\`
-
-   - Tool: \`call_application\`
-   - Purpose: Call smart contract
-   - Parameters:
-     \`\`\`
-     {
-       sender: string,
-       appId: number,
-       appArgs?: string[],
-       ...
-     }
-     \`\`\`
-
-   - Tool: \`update_application\`
-   - Purpose: Update smart contract
-   - Parameters:
-     \`\`\`
-     {
-       sender: string,
-       appId: number,
-       approvalProgram: string,
-       clearProgram: string,
-       ...
-     }
-     \`\`\`
-
-7. API Query Tools
+8. NFD API Query Tools
+   - Type: Algorand blockchain data retrieval
+   - Important tools:  \`api_nfd_get_nfd\`, \`api_nfd_get_nfds_for_address\`
    - Tool: \`algod_get_account_info\`
    - Purpose: Get account details
-   - Parameters: \`{ address: string }\`
-
-   - Tool: \`indexer_lookup_account_transactions\`
-   - Purpose: Get account transaction history
-   - Parameters: \`{ address: string }\`
-
-   - Tool: \`api_nfd_get_nfd\`
-   - Purpose: Get NFD address info (use depositAccount for transactions)
-   - Parameters:
-     \`\`\`
-     {
-       name: string,
-       view?: "brief" | "full",
-       includeSales?: boolean
-     }
-     \`\`\`
-
-      ### Important Note for NFD Transactions
+   - Note: 
       - When retrieving NFD data for NFD Address like emg110.algo, transactions should be targeted to depositAccount and not any other field!
       - Always verify the depositAccount field from the NFD data response for transaction operations.
 
+      - Tool: \`api_nfd_get_nfd\`
+      - Purpose: Get NFD address info (use depositAccount for transactions)
+      - Parameters:
+      \`\`\`
+      {
+         name: string,
+         view?: "brief" | "full",
+         includeSales?: boolean
+      }
+      \`\`\`
 
-8. Utility Tools
-   - Tool: \`validate_address\`
+      - Tool: \`api_nfd_get_nfds_for_address\`
+      - Purpose: Get all NFD names owned by an Algorand address
+      - Parameters:
+      \`\`\`
+      {
+         address: string,
+         view?: "brief" | "full",
+         limit?: number
+         offset?: number
+      }
+      \`\`\`
+
+9. Utility Tools
+   - Type: Miscellaneous utility functions
+   - Important tools: \`sdk_validate_address\`, \`sdk_encode_obj\`, \`sdk_decode_obj\`, \`sdk_compile_teal\`
+   Note:
+
+   - Tool: \`sdk_validate_address\`
    - Purpose: Validate Algorand address
    - Parameters: \`{ address: string }\`
 
-   - Tool: \`encode_obj\`
+   - Tool: \`sdk_encode_obj\`
    - Purpose: Encode object to msgpack
    - Parameters: \`{ obj: any }\`
 
-   - Tool: \`decode_obj\`
+   - Tool: \`sdk_decode_obj\`
    - Purpose: Decode msgpack to object
    - Parameters: \`{ bytes: string }\`
 
-   - Tool: \`compile_teal\`
+   - Tool: \`sdk_compile_teal\`
    - Purpose: Compile TEAL program
    - Parameters: \`{ source: string }\`
 
@@ -553,137 +264,56 @@ Here are frequently used assets on Algorand Mainnet for reference:
    - Always opt-in before receiving assets
    - Verify asset balances before transfers
    - Handle clawback operations carefully
-   - Check asset verification status using \`asset_verification_status\` to avoid scam tokens
-   - Get detailed asset information using \`verified_asset_details_info\` before interacting with assets
+   - Check asset verification status using \`pera_asset_verification_status\` to avoid scam tokens
+   - Get detailed asset information using \`pera_verified_asset_details\` before interacting with assets
    - Pay attention to verification tier (verified, unverified, or suspicious) when working with assets
 
 ## Complete Workflow Examples for LLM Agents
 
 ### Algo Payment Workflow
 
-1. Retrieve wallet information:
+1. Retrieve wallet information and use account address as sender_address:
    \`\`\`
-   use_tool: get_wallet_info
+   use_tool: wallet_get_info
    parameters: {}
    \`\`\`
 
-2. Get sender address from the response.
-
-3. Create payment transaction:
+2. Create payment transaction:
    \`\`\`
-   use_tool: create_payment_transaction
+   use_tool: sdk_txn_payment_transaction
    parameters: {
-     "from": "[sender_address]",
-     "to": "[receiver_address]",
+     "sender": "[sender_address]",
+     "receiver": "[receiver_address]",
      "amount": 1000000,
-     "note": "Payment example"
+     "note": "Payment note (optional)"
    }
    \`\`\`
 
-4. Sign the transaction:
+3. Sign the transaction:
    \`\`\`
-   use_tool: sign_transaction
+   use_tool: wallet_sign_transaction
    parameters: {
-     "encodedTxn": "[transaction_from_step_3]"
+     "encodedTxn": "[encoded_transaction_from_step_2]"
    }
    \`\`\`
 
-6. Submit the transaction:
+4. Submit the transaction and get the transaction ID:
    \`\`\`
-   use_tool: submit_transaction
+   use_tool: sdk_submit_transaction
    parameters: {
-     "signedTxn": "[signed_transaction_from_step_5]"
-   }
-   \`\`\`
-
-7. Verify transaction confirmation:
-   \`\`\`
-   use_tool: indexer_lookup_transaction_by_id
-   parameters: {
-     "txid": "[transaction_id_from_step_6]"
+     "signedTxn": "[signed_transaction_from_step_3]"
    }
    \`\`\`
 
 ### Asset Opt-In Workflow
 
-1. Retrieve wallet information:
+1. Retrieve wallet information and use account address as sender_address:
    \`\`\`
-   use_tool: get_wallet_info
+   use_tool: wallet_get_info
    parameters: {}
    \`\`\`
 
-2. Get user address from the response.
-
-3. Check if already opted in (optional):
-   \`\`\`
-   use_tool: algod_get_account_asset_info
-   parameters: {
-     "address": "[user_address]",
-     "assetId": 31566704  // USDC on Algorand Mainnet
-   }
-   \`\`\`
-
-4. Create asset opt-in transaction:
-   \`\`\`
-   use_tool: asset_optin
-   parameters: {
-     "address": "[user_address]",
-     "assetID": 31566704  // USDC on Algorand Mainnet
-   }
-   \`\`\`
-
-5. Sign the transaction:
-   \`\`\`
-   use_tool: sign_transaction
-   parameters: {
-     "encodedTxn": "[transaction_from_step_4]"
-   }
-   \`\`\`
-
-6. Submit the transaction:
-   \`\`\`
-   use_tool: submit_transaction
-   parameters: {
-     "signedTxn": "[signed_transaction_from_step_6]"
-   }
-   \`\`\`
-
-7. Verify opt-in success:
-   \`\`\`
-   use_tool: algod_get_account_asset_info
-   parameters: {
-     "address": "[user_address]",
-     "assetId": 12345
-   }
-   \`\`\`
-
-### Asset Transfer Workflow
-
-1. Retrieve wallet information:
-   \`\`\`
-   use_tool: get_wallet_info
-   parameters: {}
-   \`\`\`
-
-2. Get sender address from the response.
-
-3. Check asset verification status (recommended):
-   \`\`\`
-   use_tool: asset_verification_status
-   parameters: {
-     "assetId": 31566704  // USDC on Algorand Mainnet
-   }
-   \`\`\`
-
-4. Get detailed asset information (optional):
-   \`\`\`
-   use_tool: verified_asset_details_info
-   parameters: {
-     "assetId": 31566704  // USDC on Algorand Mainnet
-   }
-   \`\`\`
-
-5. Check sender's asset balance:
+2. Check if already opted in (optional):
    \`\`\`
    use_tool: algod_get_account_asset_info
    parameters: {
@@ -692,7 +322,66 @@ Here are frequently used assets on Algorand Mainnet for reference:
    }
    \`\`\`
 
-6. Verify recipient has opted in:
+3. Create asset opt-in transaction:
+   \`\`\`
+   use_tool: sdk_txn_asset_optin
+   parameters: {
+     "address": "[sender_address]",
+     "assetID": 31566704  // USDC on Algorand Mainnet
+   }
+   \`\`\`
+
+4. Sign the transaction:
+   \`\`\`
+   use_tool: wallet_sign_transaction
+   parameters: {
+     "encodedTxn": "[encoded_transaction_from_step_3]"
+   }
+   \`\`\`
+
+5. Submit the transaction and get the transaction ID:
+   \`\`\`
+   use_tool: sdk_submit_transaction
+   parameters: {
+     "signedTxn": "[signed_transaction_from_step_4]"
+   }
+   \`\`\`
+
+
+### Asset Transfer Workflow
+
+1. Retrieve wallet information and use account address as sender_address:
+   \`\`\`
+   use_tool: wallet_get_info
+   parameters: {}
+   \`\`\`
+
+2. Check asset verification status (optional and just to be able to warn user if asset is not verified):
+   \`\`\`
+   use_tool: pera_asset_verification_status
+   parameters: {
+     "assetId": 31566704  // USDC on Algorand Mainnet
+   }
+   \`\`\`
+
+3. Get detailed asset information (optional):
+   \`\`\`
+   use_tool: pera_verified_asset_details
+   parameters: {
+     "assetId": 31566704  // USDC on Algorand Mainnet
+   }
+   \`\`\`
+
+4. Check sender's asset balance:
+   \`\`\`
+   use_tool: algod_get_account_asset_info
+   parameters: {
+     "address": "[sender_address]",
+     "assetId": 31566704  // USDC on Algorand Mainnet
+   }
+   \`\`\`
+
+5. Verify recipient has opted in:
    \`\`\`
    use_tool: algod_get_account_asset_info
    parameters: {
@@ -701,103 +390,86 @@ Here are frequently used assets on Algorand Mainnet for reference:
    }
    \`\`\`
 
-7. Create asset transfer transaction:
+6. Create asset transfer transaction:
    \`\`\`
-   use_tool: transfer_asset
+   use_tool: sdk_txn_transfer_asset
    parameters: {
-     "from": "[sender_address]",
-     "to": "[recipient_address]",
+     "sender": "[sender_address]",
+     "receiver": "[recipient_address]",
      "assetID": 31566704,  // USDC on Algorand Mainnet
      "amount": 1000000     // 1 USDC (6 decimals)
    }
    \`\`\`
 
-8. Sign the transaction:
+7. Sign the transaction:
    \`\`\`
-   use_tool: sign_transaction
+   use_tool: wallet_sign_transaction
    parameters: {
-     "encodedTxn": "[transaction_from_step_7]"
+     "encodedTxn": "[transaction_from_step_6]"
    }
    \`\`\`
 
-9. Submit the transaction:
+8. Submit the transaction and get the transaction ID:
    \`\`\`
-   use_tool: submit_transaction
+   use_tool: sdk_submit_transaction
    parameters: {
-     "signedTxn": "[signed_transaction_from_step_8]"
+     "signedTxn": "[signed_transaction_from_step_7]"
    }
    \`\`\`
 
-10. Verify transfer success:
-   \`\`\`
-   use_tool: indexer_lookup_transaction_by_id
-   parameters: {
-     "txid": "[transaction_id_from_step_9]"
-   }
-   \`\`\`
+
 
 ### USDC Opt-In Example (Mainnet)
 
-1. Retrieve wallet information:
+1. Retrieve wallet information and use account address as sender_address:
    \`\`\`
-   use_tool: get_wallet_info
+   use_tool: wallet_get_info
    parameters: {}
    \`\`\`
 
-2. Get user address from the response.
-
-3. Check if wallet is already opted-in to USDC:
+2. Check if wallet is already opted-in to USDC:
    \`\`\`
    use_tool: algod_get_account_asset_info
    parameters: {
-     "address": "[user_address]",
+     "address": "[sender_address]",
      "assetId": 31566704  // USDC ASA ID on Algorand Mainnet
    }
    \`\`\`
 
-4. If not opted-in, create USDC opt-in transaction:
+3. If not opted-in, create USDC opt-in transaction:
    \`\`\`
-   use_tool: asset_optin
+   use_tool: sdk_txn_asset_optin
    parameters: {
-     "address": "[user_address]",
+     "address": "[sender_address]",
      "assetID": 31566704  // USDC ASA ID
    }
    \`\`\`
 
-5. Sign the transaction:
+4. Sign the transaction:
    \`\`\`
-   use_tool: sign_transaction
+   use_tool: wallet_sign_transaction
    parameters: {
-     "encodedTxn": "[transaction_from_step_4]"
+     "encodedTxn": "[transaction_from_step_3]"
    }
    \`\`\`
 
-7. Submit the transaction:
+5. Submit the transaction and get the transaction ID:
    \`\`\`
-   use_tool: submit_transaction
+   use_tool: sdk_submit_transaction
    parameters: {
-     "signedTxn": "[signed_transaction_from_step_6]"
+     "signedTxn": "[signed_transaction_from_step_4]"
    }
    \`\`\`
 
-8. Verify opt-in success:
-   \`\`\`
-   use_tool: algod_get_account_asset_info
-   parameters: {
-     "address": "[user_address]",
-     "assetId": 31566704
-   }
-   \`\`\`
-
-9. Inform the user that they can now receive USDC on Algorand.
+6. Inform the user that they can now receive USDC on Algorand.
 
 Note: For opt-out of asset, first get asset info and then use asset creator address for both to and closeRemainderTo fields in the asset transfer transaction with amount 0.
 
 ### USDC Transfer Example (Mainnet)
 
-1. Retrieve wallet information:
+1. Retrieve wallet information and use account address as sender_address:
    \`\`\`
-   use_tool: get_wallet_info
+   use_tool: wallet_get_info
    parameters: {}
    \`\`\`
 
@@ -823,10 +495,10 @@ Note: For opt-out of asset, first get asset info and then use asset creator addr
 
 5. Create USDC transfer transaction (remember USDC has 6 decimals):
    \`\`\`
-   use_tool: transfer_asset
+   use_tool: sdk_txn_transfer_asset
    parameters: {
-     "from": "[sender_address]",
-     "to": "[recipient_address]",
+     "sender": "[sender_address]",
+     "receiver": "[recipient_address]",
      "assetID": 31566704,
      "amount": 1000000  // 1 USDC (1,000,000 microUSDC)
    }
@@ -834,34 +506,28 @@ Note: For opt-out of asset, first get asset info and then use asset creator addr
 
 6. Sign the transaction:
    \`\`\`
-   use_tool: sign_transaction
+   use_tool: wallet_sign_transaction
    parameters: {
      "encodedTxn": "[transaction_from_step_5]"
    }
    \`\`\`
 
-8. Submit the transaction:
+7. Submit the transaction and get the transaction ID:
    \`\`\`
-   use_tool: submit_transaction
+   use_tool: sdk_submit_transaction
    parameters: {
-     "signedTxn": "[signed_transaction_from_step_7]"
+     "signedTxn": "[signed_transaction_from_step_6]"
    }
    \`\`\`
 
-9. Verify transfer success:
-   \`\`\`
-   use_tool: indexer_lookup_transaction_by_id
-   parameters: {
-     "txid": "[transaction_id_from_step_8]"
-   }
-   \`\`\`
 
-> **Note**: This system is configured for Algorand Mainnet. The examples above use USDC (ASA ID: 31566704). For TestNet testing, you would need to use different asset IDs for test assets. The workflow patterns remain the same, just substitute the appropriate asset ID for your target network.
+
+> **Note**: This system is configured for Algorand Mainnet. The examples above use USDC (ASA ID: 31566704). For TestNet testing, you would need to use different asset IDs for test assets. This system does not currently support TestNet.
 
 ## Working with Atomic Transaction Groups
 
 1. Atomic Group Creation
-   - Tool: \`create_atomic_group\`
+   - Tool: \`sdk_create_atomic_group\`
    - Purpose: Create multiple transactions as one unit
    - Parameters:
      \`\`\`
@@ -875,7 +541,7 @@ Note: For opt-out of asset, first get asset info and then use asset creator addr
      \`\`\`
 
 2. Signing Groups
-   - Tool: \`sign_atomic_group\`
+   - Tool: \`wallet_sign_atomic_group\`
    - Purpose: Sign transaction group
    - Parameters:
      \`\`\`
@@ -886,7 +552,7 @@ Note: For opt-out of asset, first get asset info and then use asset creator addr
      \`\`\`
 
 3. Submitting Groups
-   - Tool: \`submit_atomic_group\`
+   - Tool: \`sdk_submit_atomic_group\`
    - Purpose: Sign and submit transaction group
    - Parameters:
      \`\`\`
@@ -896,7 +562,7 @@ Note: For opt-out of asset, first get asset info and then use asset creator addr
      \`\`\`
 
 Note: When manually creating individual transactions for Transaction Grouping and before signing them, you must assign a group ID to the transactions using the \`assign_group_id\` tool.
-   - Tool: \`assign_group_id\`
+   - Tool: \`sdk_assign_group_id\`
    - Purpose: Group transactions for atomic execution
    - Parameters: \`{ encodedTxns: string[] }\`
    - Effect: All transactions succeed or all fail
@@ -907,7 +573,7 @@ If operations are not working properly, verify:
 
 1. **Wallet Configuration:**
    - Is wallet information retrievable with wallet tools?
-   - Does the \`get_wallet_info\` tool return valid information?
+   - Does the \`wallet_get_info\` tool return valid information?
    - If wallet tools return errors, suggest wallet configuration to the user
 
 2. **Network Configuration:**

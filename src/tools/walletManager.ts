@@ -67,7 +67,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
   // }
   //Reset wallet account
   server.tool(
-    'reset_wallet_account',
+    'wallet_reset_account',
     'Reset the wallet account for the configured user',
     {},
     async () => {
@@ -168,7 +168,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
   );
   // Get wallet public key
   server.tool(
-    'get_wallet_publickey',
+    'wallet_get_publickey',
     'Get the public key for the configured wallet',
     {},
     async () => {
@@ -216,7 +216,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
   // Get wallet address
   server.tool(
-    'get_wallet_address',
+    'wallet_get_address',
     'Get the address for the configured wallet',
     {},
     async () => {
@@ -264,7 +264,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
   // // Get wallet role UUID
   // server.tool(
-  //   'get_wallet_role',
+  //   'wallet_get_role',
   //   'Get the role UUID for the configured wallet to be used to login into Hashicorp Vault with OIDC',
   //   {},
   //   async () => {
@@ -307,7 +307,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
   // Get wallet account information
   server.tool(
-    'get_wallet_info',
+    'wallet_get_info',
     'Get the account information for the configured wallet',
     {},
     async () => {
@@ -375,7 +375,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
   // Get wallet assets
   server.tool(
-    'get_wallet_assets',
+    'wallet_get_assets',
     'Get the assets for the configured wallet',
     {},
     async () => {
@@ -429,7 +429,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
 
   // Logout from OAuth provider
   server.tool(
-    'logout',
+    'wallet_logout',
     'Logout from the OAuth provider and clear authentication cookies',
     {},
     async () => {

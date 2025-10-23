@@ -80,17 +80,17 @@ Algorand Remote MCP is built on the Model Context Protocol (MCP), which provides
 - `get_wallet_info`: Get account information for the configured wallet
 - `get_wallet_assets`: Get assets owned by the configured wallet
 - `get_wallet_publickey`: Get the public key for the configured wallet
-- `reset_wallet_account`: Reset the wallet account for the configured user
+- `wallet_reset_account`: Reset the wallet account for the configured user
 - `logout`: Logout from the OAuth provider and clear authentication cookies
 
 ### Transaction Management
-- `create_payment_transaction`: Create a payment transaction
-- `sign_transaction`: Sign a transaction with the wallet's credentials
+- `sdk_txn_payment_transaction`: Create a payment transaction
+- `wallet_sign_transaction`: Sign a transaction with the wallet's credentials
 - `submit_transaction`: Submit a signed transaction to the network
 - `create_atomic_group`: Create an atomic transaction group from multiple transactions
 - `sign_atomic_group`: Sign an atomic transaction group
 - `submit_atomic_group`: Submit a signed atomic transaction group to the network
-- `asset_optin`: Create an asset opt-in transaction
+- `sdk_txn_asset_optin`: Create an asset opt-in transaction
 - `transfer_asset`: Create an asset transfer transaction
 - `create_asset`: Create a new Algorand Standard Asset
 - `create_application`: Create a new smart contract application
@@ -98,7 +98,7 @@ Algorand Remote MCP is built on the Model Context Protocol (MCP), which provides
 
 ### API Integration
 - `algod_get_account_info`: Get account details from Algorand node
-- `algod_get_transaction_info`: Get transaction details from Algorand node
+- `algod_get_pending_txn_info`: Get pending transaction details from Algorand node
 - `indexer_lookup_account_by_id`: Get account details from indexer
 - `api_nfd_get_nfd`: Get NFD address information
 
@@ -168,7 +168,7 @@ HCV_WORKER_URL=https://your-hashicorp-vault-worker.workers.dev
 ### Transaction Flow for Agents
 
 #### Individual Transactions
-1. Create transaction using appropriate tool (e.g., `create_payment_transaction`)
+1. Create transaction using appropriate tool (e.g., `sdk_txn_payment_transaction`)
 2. Sign transaction with wallet credentials using `sign_transaction`
 3. Submit transaction to network using `submit_transaction`
 4. Verify transaction success
@@ -254,12 +254,12 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 17. `get_wallet_address` - Get the address for the configured wallet
 18. `get_wallet_info` - Get the account information for the configured wallet
 19. `get_wallet_assets` - Get the assets for the configured wallet
-20. `reset_wallet_account` - Reset the wallet account for the configured user
+20. `wallet_reset_account` - Reset the wallet account for the configured user
 21. `logout` - Logout from the OAuth provider and clear authentication cookies
 
 ### Transaction Operations
-23. `create_payment_transaction` - Create a payment transaction on Algorand
-24. `sign_transaction` - Sign an Algorand transaction with your agent account
+23. `sdk_txn_payment_transaction` - Create a payment transaction on Algorand
+24. `wallet_sign_transaction` - Sign an Algorand transaction with your agent account
 25. `submit_transaction` - Submit a signed transaction to the Algorand network
 26. `create_key_registration_transaction` - Create a key registration transaction
 27. `assign_group_id` - Assign a group ID to a set of transactions for atomic execution
@@ -271,9 +271,9 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 33. `simulate_transactions` - Simulate encoded transactions
 
 ### Asset Operations
-33. `create_asset` - Create a new Algorand Standard Asset (ASA)
-34. `asset_optin` - Opt-in to an Algorand Standard Asset (ASA)
-35. `transfer_asset` - Transfer an Algorand Standard Asset (ASA)
+33. `sdk_txn_create_asset` - Create a new Algorand Standard Asset (ASA)
+34. `sdk_txn_asset_optin` - Opt-in to an Algorand Standard Asset (ASA)
+35. `sdk_txn_transfer_asset` - Transfer an Algorand Standard Asset (ASA)
 
 ### Application (Smart Contract) Operations
 36. `create_application` - Create a new smart contract application on Algorand
@@ -301,9 +301,10 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 52. `algod_get_application_state` - Get application global state
 53. `algod_get_asset_info` - Get asset details from algod
 54. `algod_get_asset_holding` - Get asset holding information for an account
-55. `asset_verification_status` - Get the verification status of an Algorand asset from Pera Wallet
-56. `verified_asset_details_info` - Get detailed information about an Algorand asset from Pera Wallet
-57. `algod_get_transaction_info` - Get transaction details by transaction ID
+55. `pera_asset_verification_status` - Get the verification status of an Algorand asset from Pera Wallet
+56. `pera_verified_asset_details` - Get detailed information about an Algorand asset from Pera Wallet
+56. `pera_verified_asset_search` - Search verified Algorand asset(s) by asset name, unit name, or creator address
+57. `algod_get_pending_txn_info` - Get pending transaction details by transaction ID
 58. `algod_get_pending_transactions` - Get pending transactions from algod mempool
 
 ### Indexer API Access

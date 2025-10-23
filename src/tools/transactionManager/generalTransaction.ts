@@ -43,6 +43,16 @@ function ConcatArrays(...arrs: ArrayLike<number>[]) {
 
   return c
 }
+ function uint8ToBase64(  uint8Array: Uint8Array): string {
+    let binary = '';
+    const len = uint8Array.length;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(uint8Array[i]);
+    }
+    const base64 = btoa(binary);
+    // convert to Base64URL (no padding)
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  }
 /**
  * Register general transaction management tools to the MCP server
  */
@@ -61,17 +71,18 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
 
   // Create payment transaction tool
   server.tool(
-    'create_payment_transaction',
+    'sdk_txn_payment_transaction',
     'Create a payment transaction on Algorand',
     {
-      from: z.string().describe('Sender address'),
-      to: z.string().describe('Receiver address'),
+      sender: z.string().describe('Sender address'),
+      receiver: z.string().describe('Receiver address'),
       amount: z.number().describe('Amount in microAlgos'),
+      fee: z.number().optional().describe('Transaction fee (in microAlgos)'),
       note: z.string().optional().describe('Optional transaction note'),
       closeRemainderTo: z.string().optional().describe('Optional close remainder to address'),
       rekeyTo: z.string().optional().describe('Optional rekey to address')
     },
-    async ({ from, to, amount, note, closeRemainderTo, rekeyTo }) => {
+    async ({ sender, receiver, amount, note, closeRemainderTo, rekeyTo, fee }) => {
 
       if (!env.ALGORAND_ALGOD) {
         return {
@@ -100,13 +111,13 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         }
 
         const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-          from,
-          to,
+          from: sender,
+          to: receiver,
           amount,
           note: noteBytes,
           closeRemainderTo,
           rekeyTo,
-          suggestedParams: params
+          suggestedParams: params.fee ? {...params, fee: params.fee, flatFee: true} : params
         });
 
         // Return the encoded transaction
@@ -114,10 +125,10 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
           txID: txn.txID(),
           encodedTxn: Buffer.from(algosdk.encodeUnsignedTransaction(txn)).toString('base64'),
           txnInfo: {
-            from,
-            to,
+             from: sender,
+          to: receiver,
             amount,
-            fee: params.fee,
+            fee: fee ? fee : txn.fee,
             firstRound: params.firstRound,
             lastRound: params.lastRound
           }
@@ -135,7 +146,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
 
   // Sign transaction with user's credentials
   server.tool(
-    'sign_transaction',
+    'wallet_sign_transaction',
     'Sign an Algorand transaction with your agent account',
     {
       encodedTxn: z.string().describe('Base64 encoded transaction')
@@ -231,12 +242,115 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         });
 
 
+       
+      } catch (error: any) {
         return {
           content: [{
             type: 'text',
-            text: 'No active agent wallet configured'
+            text: `Error signing transaction: ${error.message || 'Unknown error'}`
           }]
         };
+      }
+    }
+  );
+  // Sign transaction with user's mnemonic (for non-vault accounts)
+  server.tool(
+    'sdk_sign_transaction',
+    'Sign an Algorand transaction with your agent account',
+    {
+      encodedTxn: z.string().describe('Base64 encoded transaction'),
+      mnemonic: z.string().describe('25-word mnemonic for the signing account')
+    },
+    async ({ encodedTxn, mnemonic }) => {
+      try {
+        if (!props.email || !props.provider) {
+          throw new Error('Email and provider must be provided in props');
+        }
+        // console.log(`Ensuring account for ${props.email} with provider ${props.provider}`);
+
+        // // Ensure user has an account
+        // await ensureUserAccount(env, props.email || '', props.provider);
+
+        // For vault-based accounts, we need to manually construct the signed transaction
+
+        // Get the public key from the vault
+        const publicKeyResult = await getPublicKey(env, props.email, props.provider);
+
+        if (!publicKeyResult.success || !publicKeyResult.publicKey) {
+          throw new Error('Failed to get public key from vault');
+        }
+        console.log('Public key from vault:', publicKeyResult.publicKey);
+        console.log(`Signing transaction for ${props.email} with provider ${props.provider}`);
+        // Get the raw signature from the vault
+          // Decode the transaction
+        const txn = algosdk.decodeUnsignedTransaction(Buffer.from(encodedTxn, 'base64'));
+        console.log('Decoded transaction:', txn);
+        const goplausibleAccount = algosdk.mnemonicToSecretKey(mnemonic);
+                const signatureResult = algosdk.signTransaction(txn, goplausibleAccount.sk);
+    
+
+
+        if (!signatureResult.blob) {
+          throw new Error('Failed to get signature from vault');
+        }
+
+
+      
+
+        // Convert the base64 signature to Uint8Array
+        const signature = Buffer.from(signatureResult.blob, 'base64');
+        console.log('Signature:', signature);
+        const txID = signatureResult.txID;
+        console.log('TXID:', txID);
+
+
+        // Convert the base64 public key to Uint8Array
+        const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
+        console.log('Public key buffer:', publicKeyBuffer);
+
+        // Get the address from the public key
+        const signerAddr = algosdk.encodeAddress(publicKeyBuffer);
+        console.log('Signer address:', signerAddr);
+        const txnObj = txn.get_obj_for_encoding();
+        console.log('Transaction object for encoding:', txnObj);
+
+        // Create a Map for the signed transaction
+        const signedTxn: object = {
+          txn: txnObj,
+          sig: signature,
+        };
+        console.log('Signed transaction map:', signedTxn);
+
+        // Add AuthAddr if signing with a different key than From indicates
+        // Compare the actual bytes of the public keys, not their string representations
+        const fromPubKey = txn.from.publicKey;
+        let keysMatch = fromPubKey.length === publicKeyBuffer.length;
+        if (keysMatch) {
+          for (let i = 0; i < fromPubKey.length; i++) {
+            if (fromPubKey[i] !== publicKeyBuffer[i]) {
+              keysMatch = false;
+              break;
+            }
+          }
+        }
+
+        if (!keysMatch) {
+          // Only add sgnr if the keys are actually different
+          signedTxn.sgnr = algosdk.decodeAddress(signerAddr);
+        }
+
+        // Encode the signed transaction using MessagePack
+        const encodedSignedTxn: Uint8Array = new Uint8Array(msgpack.encode(signedTxn, { sortKeys: true, ignoreUndefined: true }))
+        console.log('Encoded signed transaction:', encodedSignedTxn);
+        console.log('TXN ID:', txn.txID());
+        // Return the base64 encoded signed transaction
+        return ResponseProcessor.processResponse({
+          txID: txID,
+          signedTxn: Buffer.from(encodedSignedTxn).toString('base64')
+        });
+
+
+       
       } catch (error: any) {
         return {
           content: [{
@@ -250,7 +364,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
 
   // Submit signed transaction
   server.tool(
-    'submit_transaction',
+    'sdk_submit_transaction',
     'Submit a signed transaction to the Algorand network',
     { signedTxn: z.string().describe('Base64 encoded signed transaction') },
     async ({ signedTxn }) => {
@@ -275,15 +389,16 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         const decodedTxn = Buffer.from(signedTxn, 'base64');
         console.log('Decoded signed transaction:', decodedTxn);
         const response = await algodClient.sendRawTransaction(new Uint8Array(decodedTxn)).do();
-        console.log('Transaction ID:', response.txId);
+        const txId = response.txId || response.txid;
+        console.log('Transaction ID:', txId);
         // Wait for confirmation
-        const confirmedTxn = await algosdk.waitForConfirmation(algodClient, response.txId, 4);
+        const confirmedTxn = await algosdk.waitForConfirmation(algodClient, txId, 5);
         console.log('Confirmed transaction:', confirmedTxn);
 
 
         return ResponseProcessor.processResponse({
           confirmed: true,
-          txID: response.txId,
+          txID: txId,
           confirmedRound: confirmedTxn['confirmed-round'],
           txnResult: confirmedTxn
         });
@@ -300,10 +415,10 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
 
   // Create key registration transaction
   server.tool(
-    'create_key_registration_transaction',
+    'sdk_txn_key_registration_transaction',
     'Create a key registration transaction on Algorand',
     {
-      from: z.string().describe('Sender address'),
+      sender: z.string().describe('Sender address'),
       voteKey: z.string().describe('The root participation public key (58 bytes base64 encoded)'),
       selectionKey: z.string().describe('VRF public key (32 bytes base64 encoded)'),
       stateProofKey: z.string().describe('State proof public key (64 bytes base64 encoded)'),
@@ -314,7 +429,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
       note: z.string().optional().describe('Transaction note field'),
       rekeyTo: z.string().optional().describe('Address to rekey the sender account to')
     },
-    async ({ from, voteKey, selectionKey, stateProofKey, voteFirst, voteLast,
+    async ({ sender, voteKey, selectionKey, stateProofKey, voteFirst, voteLast,
       voteKeyDilution, nonParticipation, note, rekeyTo }) => {
 
       if (!env.ALGORAND_ALGOD) {
@@ -353,7 +468,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         if (nonParticipation === true) {
           // Going offline
           txn = algosdk.makeKeyRegistrationTxnWithSuggestedParamsFromObject({
-            from,
+            from: sender,
             suggestedParams: params,
             nonParticipation: true,
             note: noteBytes,
@@ -362,7 +477,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         } else {
           // Normal key registration
           txn = algosdk.makeKeyRegistrationTxnWithSuggestedParamsFromObject({
-            from,
+            from: sender,
             voteKey,
             selectionKey,
             stateProofKey,
@@ -383,7 +498,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
           encodedTxn: Buffer.from(algosdk.encodeUnsignedTransaction(txn)).toString('base64'),
           txnInfo: {
             type: 'keyreg',
-            from,
+            from: sender,
             voteFirst,
             voteLast,
             fee: params.fee,
