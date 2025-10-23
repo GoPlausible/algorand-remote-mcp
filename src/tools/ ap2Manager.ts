@@ -18,31 +18,9 @@ import {
   getPublicKey,
   signWithTransit
 } from '../../utils/vaultManager';
-import * as msgpack from "algo-msgpack-with-bigint"
 
-/**
- * Create and validate an Algorand client
- */
-function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | null {
-  if (!algodUrl) {
-    console.error('Algorand node URL not configured');
-    return null;
-  }
 
-  return new algosdk.Algodv2(token, algodUrl, '');
-}
-function ConcatArrays(...arrs: ArrayLike<number>[]) {
-  const size = arrs.reduce((sum, arr) => sum + arr.length, 0)
-  const c = new Uint8Array(size)
 
-  let offset = 0
-  for (let i = 0; i < arrs.length; i++) {
-    c.set(arrs[i], offset)
-    offset += arrs[i].length
-  }
-
-  return c
-}
 /**
  * Register AP2 management tools to the MCP server
  */
@@ -217,8 +195,6 @@ export async function registerAp2Tools(server: McpServer, env: Env, props: Props
         console.log('Public key from vault:', publicKeyResult.publicKey);
         console.log(`Signing transaction for ${props.email} with provider ${props.provider}`);
         // Get the raw signature from the vault
-        const TAG: Buffer = Buffer.from("TX");
-        console.log('TAG:', Buffer.from("TX"));
         console.log('Encoded transaction buffer signing:', new Uint8Array(Buffer.from(encodedMandate, 'base64')));
         const finalEncodedTxn = new Uint8Array(Buffer.from(encodedMandate, 'base64'));
 
