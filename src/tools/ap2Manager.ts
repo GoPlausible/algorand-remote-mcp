@@ -5,7 +5,6 @@
 
 import algosdk from 'algosdk';
 import { z } from 'zod';
-import crypto from 'node:crypto';
 import { ResponseProcessor } from '../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type {
@@ -17,6 +16,69 @@ import {
   getPublicKey,
   signWithTransit
 } from '../utils/vaultManager';
+
+// Zod schemas for mandate types
+const AmountSchema = z.object({
+  currency: z.string().default('USDC'),
+  value: z.number()
+});
+
+const DisplayItemSchema = z.object({
+  label: z.string(),
+  amount: AmountSchema
+});
+
+// Schema for Intent Mandate data
+const IntentMandateSchema = z.object({
+  id: z.string(),
+  items: z.array(DisplayItemSchema),
+  total: z.number(),
+  currency: z.string().default('USDC'),
+  signature: z.string(),
+  merchant_public_key: z.string(),
+});
+
+// Schema for Cart Mandate data
+const CartMandateSchema = z.object({
+  id: z.string(),
+  items: z.array(DisplayItemSchema),
+  total: z.number(),
+  currency: z.string().default('USDC'),
+  signature: z.string(),
+  merchant_public_key: z.string(),
+  payment_requirements: z.object({}).passthrough()
+});
+
+// Schema for Payment Mandate data
+const PaymentMandateSchema = z.object({
+  id: z.string(),
+  total: z.number(),
+  currency: z.string().default('USDC'),
+  signature: z.string(),
+  payment_requirements: z.object({
+    id: z.string()
+  }).passthrough(),
+  refund_period: z.number(),
+  cart_request_id: z.string(),
+  merchant_agent: z.string(),
+  merchant_public_key: z.string()
+});
+
+// Parse incoming JSON string to validate mandate data based on type
+const parseMandateData = (mandateStr: string, type: string): any => {
+  const data = JSON.parse(mandateStr);
+
+  switch (type) {
+    case 'intent_mandate':
+      return IntentMandateSchema.parse(data);
+    case 'cart_mandate':
+      return CartMandateSchema.parse(data);
+    case 'payment_mandate':
+      return PaymentMandateSchema.parse(data);
+    default:
+      throw new Error(`Unsupported mandate type: ${type}`);
+  }
+};
 
 // Type definition for verifiable credential
 interface VerifiableCredential {
@@ -48,7 +110,6 @@ interface VerifiableCredential {
   };
 }
 
-
 /**
  * Generate a verifiable credential for an AP2 mandate
  * @param mandateType Type of mandate (intent, cart, payment)
@@ -59,11 +120,13 @@ interface VerifiableCredential {
 async function generateVerifiableCredential(env: Env, props: Props, mandateType: string, mandate: any, userPublicKey: string, merchantPublicKey: string): Promise<VerifiableCredential> {
   // Get the current timestamp in ISO format
   const timestamp = new Date().toISOString();
-
+  console.log('Generating VC at timestamp:', timestamp);
   // Generate a DID from the public key
   const publicKeyBuffer = Buffer.from(userPublicKey, 'base64');
   const userAddress = algosdk.encodeAddress(publicKeyBuffer);
   const merchantAddress = algosdk.encodeAddress(Buffer.from(merchantPublicKey, 'base64'))
+  console.log('User address for DID:', userAddress);
+  console.log('Merchant address for DID:', merchantAddress);
   const userDid = `did:algo:${userAddress}`;
   const merchantDid = mandateType !== 'intent_mandate' ? `did:algo:${merchantAddress}` : null;
 
@@ -90,7 +153,7 @@ async function generateVerifiableCredential(env: Env, props: Props, mandateType:
         ...mandate
       };
       // For cart mandates, the merchant is the issuer (typically)
-      issuer = merchantDid ? merchantDid : 'NA'; // 
+      issuer = merchantDid; // 
       break;
     case 'payment_mandate':
       vcType = 'PaymentMandateCredential';
@@ -103,6 +166,7 @@ async function generateVerifiableCredential(env: Env, props: Props, mandateType:
     default:
       throw new Error(`Unsupported mandate type: ${mandateType}`);
   }
+
   let signatureResult: any = { success: false, signature: null };
   if (mandateType === 'payment_mandate' || mandateType === 'intent_mandate') {
     const finalEncodedMandate = new Uint8Array(Buffer.from(JSON.stringify(mandateWithType)));
@@ -127,7 +191,7 @@ async function generateVerifiableCredential(env: Env, props: Props, mandateType:
     "issuer": {
       "id": issuer
     },
-    "holder": `${mandateType !== 'cart_mandate' ? userDid : merchantDid}`,
+    "holder": `${mandateType === 'cart_mandate' ? userDid : merchantDid}`,
     "issuanceDate": timestamp,
     "credentialSubject": {
       "mandate": mandateWithType
@@ -176,14 +240,50 @@ export async function registerAp2Tools(server: McpServer, env: Env, props: Props
   // Generate AP2 mandate tool
   server.tool(
     'generate_ap2_mandate',
-    'Create an AP2 intent,cart or payment mandate for AP2 process and flow',
+    'Create an AP2 intent, cart or payment mandate for AP2 process and flow using fields: id, type (mandate type), items, total, currency, merchant_public_key, payment_requirements, merchant_agent (id) and cart_request_id then returns an stringified object containing verifiableCredential and verifiableCredentialLink.',
     {
-      type: z.enum(['intent_mandate', 'cart_mandate', 'payment_mandate']).describe('Mandate type'),
-      mandate: z.string().describe('Details for the mandate in stringified JSON format')
+      mandate: z.object({
+        id: z.string().describe("Unique identifier for the mandate"),
+        type: z.enum(["intent_mandate", "cart_mandate", "payment_mandate"]).describe("Mandate type for AP2 flow"),
 
+        // Shared fields
+        currency: z.string().default("USDC").describe("Currency code, defaults to USDC"),
+        total: z.string().describe("Total amount in smallest unit given currency decimals (e.g., 1000000 = 1 USDC)"),
+        items: z
+          .array(
+            z.object({
+              label: z.string().describe("Item name or label"),
+              amount: z.object({
+                currency: z.string().default("USDC"),
+                value: z.string(),
+              }),
+            })
+          )
+          .describe("Array of items included in this mandate"),
+
+
+        merchant_public_key: z
+          .string()
+
+          .describe("Merchant's Algorand public key (base32 address or base64-encoded)"),
+
+        // Type-specific fields
+        payment_requirements: z
+          .object({
+            id: z.string().optional(),
+            payment_method: z.string().optional(),
+            network: z.string().optional(),
+            amount: z.string().optional(),
+          })
+          .optional()
+          .describe("Payment requirements object for cart/payment mandates"),
+
+        merchant_agent: z.string().optional().describe("DID or identifier of merchant agent"),
+        refund_period: z.string().optional().describe("Refund period in ISO-8601 duration format (e.g., P30D = 30 days)"),
+        cart_request_id: z.string().optional().describe("Associated cart or payment request ID"),
+      })
     },
-    async ({ type, mandate }) => {
-
+    async ({ mandate }) => {
       if (!env.ALGORAND_ALGOD) {
         return {
           content: [{
@@ -192,9 +292,27 @@ export async function registerAp2Tools(server: McpServer, env: Env, props: Props
           }]
         };
       }
-      const mandateData = JSON.parse(mandate);
+      const type = mandate.type;
+      console.log('Generating AP2 mandate of type:', type);
+
+
 
       try {
+        // Get the public key from the vault for VC generation
+        const publicKeyResult = await getPublicKey(env, props.email, props.provider);
+        if (!publicKeyResult.success || !publicKeyResult.publicKey) {
+          console.error('Failed to retrieve public key from vault');
+          throw new Error('Failed to get public key from vault for VC generation');
+        }
+        const shopperAddress = algosdk.encodeAddress(Buffer.from(publicKeyResult.publicKey, 'base64'));
+        // Parse and validate the mandate data based on type
+        const mandateData = mandate;
+        console.log('Parsed mandate data:', mandateData);
+        if (mandateData.merchant_public_key && mandateData.merchant_public_key.length === 58) {
+          mandateData.merchant_public_key = Buffer.from(algosdk.decodeAddress(mandateData.merchant_public_key).publicKey).toString('base64');
+          console.log('Converted merchant public key to base64:', mandateData.merchant_public_key);
+        }
+
         const mandateObj = type === 'intent_mandate' ? {
           "contents": {
             "id": mandateData.id,
@@ -204,6 +322,8 @@ export async function registerAp2Tools(server: McpServer, env: Env, props: Props
                 {
                   "supported_methods": "X402",
                   "data": {
+                    "shopper_public_key": publicKeyResult.publicKey,
+                    "shopper_address": shopperAddress,
                     "currency": mandateData.currency || "USDC"
                   }
                 }
@@ -228,7 +348,7 @@ export async function registerAp2Tools(server: McpServer, env: Env, props: Props
               }
             }
           },
-          "shopper_signature": mandateData.signature,
+          // "shopper_signature": mandateData.signature,
           "timestamp": Date.now()
         } : type === 'cart_mandate' ? {
           "contents": {
@@ -266,7 +386,7 @@ export async function registerAp2Tools(server: McpServer, env: Env, props: Props
               }
             }
           },
-          "merchant_signature": mandateData.signature,
+          // "merchant_signature": mandateData.signature,
           "timestamp": Date.now()
         } : {
           "payment_mandate_contents": {
@@ -295,157 +415,53 @@ export async function registerAp2Tools(server: McpServer, env: Env, props: Props
             "merchant_agent": mandateData.merchant_agent,
             "timestamp": Date.now()
           },
-          "user_authorization": mandateData.signature
+          // "user_authorization": mandateData.signature
         };
 
-        // Get the public key from the vault for VC generation
-        const publicKeyResult = await getPublicKey(env, props.email, props.provider);
-        if (!publicKeyResult.success || !publicKeyResult.publicKey) {
-          throw new Error('Failed to get public key from vault for VC generation');
-        }
+
 
         // Generate the verifiable credential
+        console.log('Generating verifiable credential with mandate object:', mandateObj);
+        console.log('Using public key:', publicKeyResult.publicKey);
         const verifiableCredential = await generateVerifiableCredential(
           env,
           props,
           type,
           mandateObj,
           publicKeyResult.publicKey,
-          mandateData.merchant_public_key,
+          mandateData.merchant_public_key, // Provide empty string as fallback for intent mandates
         );
-
-        // Return the encoded transaction
-        return ResponseProcessor.processResponse({
-          mandate: mandateObj,
-          vc: verifiableCredential,
-          type: type
+        // Persist VC to KV with 24h TTL
+        if (!env.A2A_AP2_STORE) {
+          throw new Error('A2A_AP2_STORE KV namespace not configured');
+        }
+        const key = `ap2-vc-${crypto.randomUUID()}`;
+        const value = JSON.stringify({
+          verifiableCredential,
+          type,
+          createdAt: new Date().toISOString()
         });
+        await env.A2A_AP2_STORE.put(key, value, { expirationTtl: 24 * 60 * 60 });
+        console.log('Stored VC in KV with key:', key);
+        console.log('Generated verifiable credential:', verifiableCredential);
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({
+              verifiableCredentialLink: key,
+              type: type,
+              verifiableCredential: verifiableCredential
+            }, null, 2)
+          }]
+        };
       } catch (error: any) {
         return {
           content: [{
             type: 'text',
-            text: `Error creating transaction: ${error.message || 'Unknown error'}`
+            text: `Error creating mandate: ${error.message || 'Unknown error'}`
           }]
         };
       }
     }
   );
-
-  // // Sign AP2 mandate with user's vault credentials
-  // server.tool(
-  //   'wallet_sign_mandate',
-  //   'Sign an AP2 mandate with your agent account',
-  //   {
-  //     type: z.enum(['intent_mandate', 'cart_mandate', 'payment_mandate']).describe('AP2 Mandate type'),
-  //     encodedMandate: z.string().describe('Base64 encoded AP2 mandate to sign')
-  //   },
-  //   async ({ encodedMandate, type }) => {
-  //     try {
-  //       if (!props.email || !props.provider) {
-  //         throw new Error('Email and provider must be provided in props');
-  //       }
-
-  //       // Get the public key from the vault
-  //       const publicKeyResult = await getPublicKey(env, props.email, props.provider);
-
-  //       if (!publicKeyResult.success || !publicKeyResult.publicKey) {
-  //         throw new Error('Failed to get public key from vault');
-  //       }
-  //       console.log('Public key from vault:', publicKeyResult.publicKey);
-  //       console.log(`Signing transaction for ${props.email} with provider ${props.provider}`);
-  //       // Get the raw signature from the vault
-  //       console.log('Encoded transaction buffer signing:', new Uint8Array(Buffer.from(encodedMandate, 'base64')));
-  //       const finalEncodedMandate = new Uint8Array(Buffer.from(encodedMandate, 'base64'));
-
-  //       const finalEncodedMandateBase64 = Buffer.from(finalEncodedMandate).toString('base64');
-  //       const signatureResult = await signWithTransit(env, finalEncodedMandateBase64, props.email, props.provider);
-
-
-  //       if (!signatureResult.success || !signatureResult.signature) {
-  //         throw new Error('Failed to get signature from vault');
-  //       }
-
-
-  //       // Decode the transaction
-  //       const mandate = JSON.parse(Buffer.from(encodedMandate, 'base64').toString());
-  //       console.log('Decoded AP2 Mandate:', mandate);
-
-  //       // Convert the base64 signature to Uint8Array
-  //       const signature = Buffer.from(signatureResult.signature, 'base64');
-  //       console.log('Mandate Type:', type);
-  //       console.log('Mandate Signature:', signature);
-
-
-  //       // Convert the base64 public key to Uint8Array
-  //       const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
-  //       console.log('Public key buffer:', publicKeyBuffer);
-
-  //       // Get the address from the public key
-  //       const signerAddr = algosdk.encodeAddress(publicKeyBuffer);
-  //       console.log('Signer address:', signerAddr);
-
-
-  //       // Return the base64 encoded signed mandate
-  //       return ResponseProcessor.processResponse({
-  //         signer: signerAddr,
-  //         mandate: mandate,
-  //         type: type,
-  //         signature: Buffer.from(signature).toString('base64')
-  //       });
-
-  //     } catch (error: any) {
-  //       return {
-  //         content: [{
-  //           type: 'text',
-  //           text: `Error signing AP2 mandate: ${error.message || 'Unknown error'}`
-  //         }]
-  //       };
-  //     }
-  //   }
-  // );
-
-  // // Generate a verifiable credential for an AP2 mandate
-  // server.tool(
-  //   'generate_ap2_vc',
-  //   'Generate a verifiable credential for an AP2 mandate',
-  //   {
-  //     type: z.enum(['intent_mandate', 'cart_mandate', 'payment_mandate']).describe('AP2 Mandate type'),
-  //     encodedMandate: z.string().describe('Base64 encoded AP2 mandate to create a VC for')
-  //   },
-  //   async ({ encodedMandate, type }) => {
-  //     try {
-  //       if (!props.email || !props.provider) {
-  //         throw new Error('Email and provider must be provided in props');
-  //       }
-
-  //       // Get the public key from the vault
-  //       const publicKeyResult = await getPublicKey(env, props.email, props.provider);
-
-  //       if (!publicKeyResult.success || !publicKeyResult.publicKey) {
-  //         throw new Error('Failed to get public key from vault');
-  //       }
-
-  //       // Decode the mandate
-  //       const mandateObj = JSON.parse(Buffer.from(encodedMandate, 'base64').toString());
-
-  //       // Generate the verifiable credential
-  //       const vc = generateVerifiableCredential(type, mandateObj, publicKeyResult.publicKey);
-
-  //       // Return the verifiable credential
-  //       return ResponseProcessor.processResponse({
-  //         mandate: mandateObj,
-  //         vc: vc,
-  //         type: type
-  //       });
-
-  //     } catch (error: any) {
-  //       return {
-  //         content: [{
-  //           type: 'text',
-  //           text: `Error generating verifiable credential: ${error.message || 'Unknown error'}`
-  //         }]
-  //       };
-  //     }
-  //   }
-  // );
 }

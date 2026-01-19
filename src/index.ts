@@ -18,9 +18,11 @@ import {
 	registerUtilityTools,
 	registerAlgodTools,
 	registerArc26Tools,
+	registerReceiptTools,
 	registerApiTools,
 	registerKnowledgeTools,
 	registerWalletTools,
+	registerAp2Tools,
 	registerTinymanTools
 } from './tools';
 import { registerWalletResources, registerKnowledgeResources, registerGuideResource } from './resources';
@@ -75,8 +77,10 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 
 		// Register tools by category
 		await this.registerWalletTools();
+		await this.registerAp2Tools();
 		this.registerKnowledgeTools();
 		this.registerArc26Tools();
+		this.registerReceiptTools();
 		this.registerAlgodTools();
 		this.registerApiTools();
 		this.registerAccountTools();
@@ -161,6 +165,13 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 		// Register ARC-26 URI generation tools
 		registerArc26Tools(this.server, this.env, this.props);
 	}
+	/**
+	 * Register Receipt URI generation tools
+	 */
+	private registerReceiptTools() {
+		// Register ARC-26 URI generation tools
+		registerReceiptTools(this.server, this.env, this.props);
+	}
 
 	/**
 	 * Register API integration tools
@@ -184,6 +195,13 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 	private async registerWalletTools() {
 		// Register wallet management tools
 		await registerWalletTools(this.server, this.env, this.props);
+	}
+	/**
+	 * Register AP2 tools 
+	 */
+	private async registerAp2Tools() {
+		// Register AP2 mandate tools
+		await registerAp2Tools(this.server, this.env, this.props);
 	}
 	/**
 	 * Register Wallet tools for wallet information access

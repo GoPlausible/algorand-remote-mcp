@@ -238,8 +238,8 @@ async function generateAlgorandQr(params: any): Promise<{ uri: string; qrCode: s
   console.log('Generated URI:', uri);
   const pngBuffer = await generate(uri, 'png', {
     ecLevel: 'H',
-    scale: 5,
-    margin: 3,
+    scale: 8,
+    margin: 2,
   });
   console.log('Generated PNG Buffer length:', pngBuffer.length);
 
@@ -377,7 +377,7 @@ export function registerArc26Tools(server: McpServer, env: Env, props: Props): v
         await env.ARC26_KV?.put(`id--${uuid}`, htmlPage, { expirationTtl: 86400 }); // Cache for 1 day
 
         return ResponseProcessor.processResponse({
-          label: `Algorand ARC-26 QR Code link (valid for 7 days)`,
+          label: `Algorand ARC-26 QR Code link (valid for 1 day)`,
           qrcode_link: `https://goplausible.xyz/api/arc26/${uuid}`,
         });
 

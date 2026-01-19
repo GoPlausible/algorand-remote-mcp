@@ -62,6 +62,10 @@
       "binding": "VERIFIED_ASSETS",
       "id": "60fa6525420a4588b33acd87ee437b77"
     },
+    {
+      "binding": "A2A_AP2_STORE",
+      "id": "e75975e4855442c488a258f44d8635ae"
+    }
   ],
   "observability": {
     "enabled": false

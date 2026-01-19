@@ -413,6 +413,7 @@ export interface Env {
    */
   HCV_WORKER?: any;
   VAULT_ENTITIES?: any;
+  A2A_AP2_STORE?: KVNamespace;
   /**
    * Durable Object namespace for the AlgorandRemoteMCP class
    */
@@ -482,14 +483,15 @@ export interface Env {
    * API key for Algorand node access if required
    */
   ALGORAND_TOKEN?: string;
-  
+
 
   /**
    * Items per page for pagination (default in state)
    */
   ITEMS_PER_PAGE?: string;
 
-VERIFIED_ASSETS?: KVNamespace;
+  VERIFIED_ASSETS?: KVNamespace;
+  ARC26_KV?: KVNamespace;
   OAUTH_KV?: KVNamespace;
   HCV_WORKER_URL?: string; // Hashicorp Vault Worker binding for secure secret storage
 

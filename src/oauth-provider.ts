@@ -2520,6 +2520,8 @@ class OAuthHelpersImpl implements OAuthHelpers {
       if (options.request.state) {
         console.log('[OAUTH_PROVIDER] Adding state to redirect URL:', options.request.state);
         redirectUrl.searchParams.set('state', options.request.state);
+         console.log('[OAUTH_PROVIDER] Adding client ID to redirect URL:', options.request.clientId);
+        redirectUrl.searchParams.set('client', options.request.clientId);
       }
       console.log('[OAUTH_PROVIDER] Redirect URL:', redirectUrl.toString());
       return { redirectTo: redirectUrl.toString() };
