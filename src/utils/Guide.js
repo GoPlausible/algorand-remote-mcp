@@ -60,10 +60,10 @@ If both Algo and Asset top-ups are required, always handle ALGO funding first, t
    - Action Required: Use this tool FIRST in EVERY session
    \`\`\`
 
-   proceed to perform blockchain operations
+   proceed to perform blockchain operations:
    - If no wallet or error response:
-     * Inform user that wallet configuration is missing
-     * Check wallet again to verify
+     * Inform user that wallet configuration is missing.
+     * Check wallet again to verify.
 
 ⚠️ **ALWAYS verify wallet configuration at the start of EVERY session before attempting any blockchain operations!**
 
@@ -83,12 +83,12 @@ If both Algo and Asset top-ups are required, always handle ALGO funding first, t
 ## Transactions management
 The Algorand transaction types are:
 
-- **pay**: Payment transaction (transfers ALGOs between accounts)
-- **axfer**: Asset transfer transaction (transfers Algorand Standard Assets, opt-in, clawback, etc.)
-- **acfg**: Asset configuration transaction (create, reconfigure, or destroy an Algorand Standard Asset)
-- **appl**: Application call transaction (create, call, update, or delete Algorand smart contracts)
-- **afrz**: Asset freeze transaction (freeze or unfreeze an asset for a specific account)
-- **keyreg**: Key registration transaction (register participation keys for consensus)
+- **pay**: Payment transaction (transfers ALGOs between accounts).
+- **axfer**: Asset transfer transaction (transfers Algorand Standard Assets, opt-in, clawback, etc.).
+- **acfg**: Asset configuration transaction (create, reconfigure, or destroy an Algorand Standard Asset).
+- **appl**: Application call transaction (create, call, update, or delete Algorand smart contracts).
+- **afrz**: Asset freeze transaction (freeze or unfreeze an asset for a specific account).
+- **keyreg**: Key registration transaction (register participation keys for consensus).
 
 > Use the correct transaction type when creating or analyzing transactions. Each type has specific required parameters and behaviors.
 > Use sdk_create_atomic_group tool to create a group of transactions that will be executed atomically (all or nothing).
@@ -99,18 +99,18 @@ As an LLM agent, here's how to quickly perform basic Algorand operations using d
  - Use list_knowledge_docs to list knowledge document names in a category you send as prefix.
  - Choose your specific knowledge document from result of list_knowledge_docs by sending category as prefix and use get_knowledge_doc to get the content of that document by name (e.g. 'arcs:specs:arc-0003.md' or 'algokit:cli:features:tasks:analyze.md').
  - Knowledge Categories are:
-   'arcs': 'Algorand Request for Comments'
-   'sdks': 'Software Development Kits'
-   'algokit': 'AlgoKit'
-   'algokit-utils': 'AlgoKit Utils'
-   'tealscript': 'TEALScript'
-   'puya': 'Puya'
-   'liquid-auth': 'Liquid Auth'
-   'python': 'Python Development'
-   'developers': 'Developer Documentation'
-   'clis': 'CLI Tools'
-   'nodes': 'Node Management'
-   'details': 'Developer Details'
+   'arcs': 'Algorand Request for Comments'.
+   'sdks': 'Software Development Kits'.
+   'algokit': 'AlgoKit'.
+   'algokit-utils': 'AlgoKit Utils'.
+   'tealscript': 'TEALScript'.
+   'puya': 'Puya'.
+   'liquid-auth': 'Liquid Auth'.
+   'python': 'Python Development'.
+   'developers': 'Developer Documentation'.
+   'clis': 'CLI Tools'.
+   'nodes': 'Node Management'.
+   'details': 'Developer Details'.
    
 
 ## Common Algorand Mainnet Assets (⚠️ Always present to user as "Common used assets" table at each session start)
@@ -142,133 +142,131 @@ Here are frequently used assets on Algorand Mainnet for reference:
 
 > **Note**: The following tools are directly accessible to LLM agents.
 
-1. Wallet Management Tools (Tool name starts with wallet_)
-   - Type: Wallet accounts, signing and verification tools availavle to agents to use
-   - Important tools: \`wallet_get_address\`, \`wallet_get_info\` ,\`wallet_sign_atomic_group\`, \`wallet_sign_transaction\`, \`wallet_get_assets\`, \`wallet_get_publickey\`, \`wallet_reset_account\`
-   - Purpose: Access configured wallet information
-   - Note: Requires proper server configuration
+1. Wallet Management Tools (Tool name starts with wallet_):
+   - Type: Wallet accounts, signing and verification tools availavle to agents to use.
+   - Important tools: \`wallet_get_address\`, \`wallet_get_info\` ,\`wallet_sign_atomic_group\`, \`wallet_sign_transaction\`, \`wallet_get_assets\`, \`wallet_get_publickey\`, \`wallet_reset_account\`.
+   - Purpose: Access configured wallet information.
+   - Note: wallet_reset_account is extremely sensitive tool that will delete existing keys and create new ones. All funds and assets under existing account will be lost forever! transfer the funds and assets to another account (Ask user for it) before proceeding! Warn user before proceeding.
    
-2. Account Information Tools (For accounts other than Agent wallet accounts)
-   - Type: Account data retrieval
-   - Important tools: \`algod_get_account_info\`, \`sdk_check_account_balance\`
-   - Purpose: Access account information
-   - Note: Requires valid Algorand address
+2. Account Information Tools (For accounts other than Agent wallet accounts):
+   - Type: Account data retrieval.
+   - Important tools: \`algod_get_account_info\`, \`sdk_check_account_balance\`.
+   - Purpose: Access account information.
+   - Note: Requires valid Algorand address.
 
-3. Transaction Generation Tools (Tool name starts with sdk_txn_)
-   - Type: Blockchain transaction creation
-   - Important tools: \`sdk_txn_payment_transaction\`, \`sdk_txn_asset_optin\`, \`sdk_txn_transfer_asset\`
+3. Transaction Generation Tools (Tool name starts with sdk_txn_):
+   - Type: Blockchain transaction creation.
+   - Important tools: \`sdk_txn_payment_transaction\`, \`sdk_txn_asset_optin\`, \`sdk_txn_transfer_asset\`.
    - Purpose: Create transactions for apps, assets, payments, etc.
-   - Note: Requires proper parameter validation
+   - Note: Requires proper parameter validation.
 
-4. Transaction Submission and Management Tools
-   - Type: Transaction submission and management
-   - Important tools: \`sdk_submit_atomic_group\`, \`sdk_submit_transaction\`, \`indexer_lookup_account_transactions\`, \`indexer_lookup_transaction_by_id\`
+4. Transaction Submission and Management Tools:
+   - Type: Transaction submission and management.
+   - Important tools: \`sdk_submit_atomic_group\`, \`sdk_submit_transaction\`, \`indexer_lookup_account_transactions\`, \`indexer_lookup_transaction_by_id\`.
 
-5. Asset Management Tools
-   - Type: Asset data retrieval
-   - Important tools: \`algod_get_asset_info\`, \`algod_get_asset_holding\`
-   - Purpose: Access asset information
-   - Note: Requires valid Asset ID and/or Algorand address
+5. Asset Management Tools:
+   - Type: Asset data retrieval.
+   - Important tools: \`algod_get_asset_info\`, \`algod_get_asset_holding\`.
+   - Purpose: Access asset information.
+   - Note: Requires valid Asset ID and/or Algorand address.
 
-6. Verified Asset Tools
-   - Type: PeraWallet Verified Asset data retrieval
-   - Important tools: \`pera_asset_verification_status\`, \`pera_verified_asset_details\`, \`pera_verified_asset_search\`
+6. Verified Asset Tools:
+   - Type: PeraWallet Verified Asset data retrieval.
+   - Important tools: \`pera_asset_verification_status\`, \`pera_verified_asset_details\`, \`pera_verified_asset_search\`.
    - Purpose: Access verified assets information to be used for swapping, trading, accepting assets, etc.
-   - Note: Requires valid Asset ID and/or search query (asset name, unit name, or creator address)
+   - Note: Requires valid Asset ID and/or search query (asset name, unit name, or creator address).
 
-7. Application Management Tools
-   - Type: Smart contract application information retrieval and management
-   - Important tools: \`sdk_txn_create_application\`, \`sdk_txn_call_application\`, \`sdk_txn_update_application\`
-   - Purpose: Create and manage Algorand smart contract applications
-   - Notes: Requires proper application parameters
+7. Application Management Tools:
+   - Type: Smart contract application information retrieval and management.
+   - Important tools: \`sdk_txn_create_application\`, \`sdk_txn_call_application\`, \`sdk_txn_update_application\`.
+   - Purpose: Create and manage Algorand smart contract applications.
+   - Notes: Requires proper application parameters.
 
-8. NFD API Query Tools
-   - Type: Algorand blockchain data retrieval
-   - Important tools:  \`api_nfd_get_nfd\`, \`api_nfd_get_nfds_for_address\`
-   - Tool: \`algod_get_account_info\`
-   - Purpose: Get account details
-   - Note: 
+8. NFD API Query Tools:
+   - Type: Algorand blockchain data retrieval.
+   - Important tools:  \`api_nfd_get_nfd\`, \`api_nfd_get_nfds_for_address\`.
+   - Notes: 
       - When retrieving NFD data for NFD Address like emg110.algo, transactions should be targeted to depositAccount and not any other field!
       - Always verify the depositAccount field from the NFD data response for transaction operations.
+   - Tool: \`api_nfd_get_nfd\`.
+   - Purpose: Get NFD address info (use depositAccount for transactions).
+   - Parameters:
+   \`\`\`
+   {
+      name: string,
+      view?: "brief" | "full",
+      includeSales?: boolean
+   }
+   \`\`\`
 
-      - Tool: \`api_nfd_get_nfd\`
-      - Purpose: Get NFD address info (use depositAccount for transactions)
-      - Parameters:
-      \`\`\`
-      {
-         name: string,
-         view?: "brief" | "full",
-         includeSales?: boolean
-      }
-      \`\`\`
-
-      - Tool: \`api_nfd_get_nfds_for_address\`
-      - Purpose: Get all NFD names owned by an Algorand address
-      - Parameters:
-      \`\`\`
-      {
-         address: string,
-         view?: "brief" | "full",
-         limit?: number
-         offset?: number
-      }
-      \`\`\`
+   - Tool: \`api_nfd_get_nfds_for_address\`.
+   - Purpose: Get all NFD names owned by an Algorand address.
+   - Parameters:
+   \`\`\`
+   {
+      address: string,
+      view?: "brief" | "full",
+      limit?: number
+      offset?: number
+   }
+   \`\`\`
 
 9. Utility Tools
    - Type: Miscellaneous utility functions
    - Important tools: \`sdk_validate_address\`, \`sdk_encode_obj\`, \`sdk_decode_obj\`, \`sdk_compile_teal\`
-   Note:
+   Notes:
+   These tools provide additional functionality for address validation, object encoding/decoding, and TEAL compilation.
 
-   - Tool: \`sdk_validate_address\`
-   - Purpose: Validate Algorand address
-   - Parameters: \`{ address: string }\`
+      - Tool: \`sdk_validate_address\`.
+      - Purpose: Validate Algorand address.
+      - Parameters: \`{ address: string }\`.
 
-   - Tool: \`sdk_encode_obj\`
-   - Purpose: Encode object to msgpack
-   - Parameters: \`{ obj: any }\`
+      - Tool: \`sdk_encode_obj\`.
+      - Purpose: Encode object to msgpack.
+      - Parameters: \`{ obj: any }\`.
 
-   - Tool: \`sdk_decode_obj\`
-   - Purpose: Decode msgpack to object
-   - Parameters: \`{ bytes: string }\`
+      - Tool: \`sdk_decode_obj\`.
+      - Purpose: Decode msgpack to object.
+      - Parameters: \`{ bytes: string }\`.
 
-   - Tool: \`sdk_compile_teal\`
-   - Purpose: Compile TEAL program
-   - Parameters: \`{ source: string }\`
+      - Tool: \`sdk_compile_teal\`.
+      - Purpose: Compile TEAL program.
+      - Parameters: \`{ source: string }\`.
 
 ## Best Practices for Algorand Operations
 
 1. **Transaction Security**
-   - Always verify transaction parameters
-   - Use suggested parameters from the network
-   - Include reasonable fees for timely processing
-   - Keep mnemonics and secret keys secure
-   - Use proper error handling for transactions
+   - Always verify transaction parameters.
+   - Use suggested parameters from the network.
+   - Include reasonable fees for timely processing.
+   - Keep mnemonics and secret keys secure.
+   - Use proper error handling for transactions.
 
 2. **Account Management**
-   - Verify account exists before operations
-   - Check sufficient balance for operations
-   - Verify asset opt-in before transfers
-   - Handle account rekey operations carefully
-   - Protect sensitive account information
+   - Verify account exists before operations.
+   - Check sufficient balance for operations.
+   - Verify asset opt-in before transfers.
+   - Handle account rekey operations carefully.
+   - Protect sensitive account information.
 
 3. **Smart Contract Interactions**
-   - Applications are deployed directly to mainnet (exercise caution)
-   - Verify application state before operations
-   - Use proper argument encoding
-   - Handle application state carefully
-   - Understand application approval logic
+   - Applications are deployed directly to mainnet (exercise caution).
+   - Verify application state before operations.
+   - Use proper argument encoding.
+   - Handle application state carefully.
+   - Understand application approval logic.
 
 4. **Asset Handling**
-   - Verify asset configuration before operations
-   - Check decimals for proper amount calculations
-   - Always opt-in before receiving assets
-   - Verify asset balances before transfers
-   - Handle clawback operations carefully
-   - Check asset verification status using \`pera_asset_verification_status\` to avoid scam tokens
-   - Get detailed asset information using \`pera_verified_asset_details\` before interacting with assets
-   - Pay attention to verification tier (verified, unverified, or suspicious) when working with assets
+   - Verify asset configuration before operations.
+   - Check decimals for proper amount calculations.
+   - Always opt-in before receiving assets.
+   - Verify asset balances before transfers.
+   - Handle clawback operations carefully.
+   - Check asset verification status using \`pera_asset_verification_status\` to avoid scam tokens.
+   - Get detailed asset information using \`pera_verified_asset_details\` before interacting with assets.
+   - Pay attention to verification tier (verified, unverified, or suspicious) when working with assets.
 
-## Complete Workflow Examples for LLM Agents
+## Complete common Workflows for LLM Agents
 
 ### Algo Payment Workflow
 
@@ -418,7 +416,7 @@ Here are frequently used assets on Algorand Mainnet for reference:
    \`\`\`
 
 
-
+## Transaction Examples for Common Use Cases
 ### USDC Opt-In Example (Mainnet)
 
 1. Retrieve wallet information and use account address as sender_address:
@@ -527,8 +525,8 @@ Note: For opt-out of asset, first get asset info and then use asset creator addr
 ## Working with Atomic Transaction Groups
 
 1. Atomic Group Creation
-   - Tool: \`sdk_create_atomic_group\`
-   - Purpose: Create multiple transactions as one unit
+   - Tool: \`sdk_create_atomic_group\`.
+   - Purpose: Create multiple transactions as one unit.
    - Parameters:
      \`\`\`
      {
@@ -541,8 +539,8 @@ Note: For opt-out of asset, first get asset info and then use asset creator addr
      \`\`\`
 
 2. Signing Groups
-   - Tool: \`wallet_sign_atomic_group\`
-   - Purpose: Sign transaction group
+   - Tool: \`wallet_sign_atomic_group\`.
+   - Purpose: Sign transaction group.
    - Parameters:
      \`\`\`
      {
@@ -552,8 +550,8 @@ Note: For opt-out of asset, first get asset info and then use asset creator addr
      \`\`\`
 
 3. Submitting Groups
-   - Tool: \`sdk_submit_atomic_group\`
-   - Purpose: Sign and submit transaction group
+   - Tool: \`sdk_submit_atomic_group\`.
+   - Purpose: Sign and submit transaction group.
    - Parameters:
      \`\`\`
      {
@@ -562,10 +560,10 @@ Note: For opt-out of asset, first get asset info and then use asset creator addr
      \`\`\`
 
 Note: When manually creating individual transactions for Transaction Grouping and before signing them, you must assign a group ID to the transactions using the \`assign_group_id\` tool.
-   - Tool: \`sdk_assign_group_id\`
-   - Purpose: Group transactions for atomic execution
-   - Parameters: \`{ encodedTxns: string[] }\`
-   - Effect: All transactions succeed or all fail
+   - Tool: \`sdk_assign_group_id\`.
+   - Purpose: Group transactions for atomic execution.
+   - Parameters: \`{ encodedTxns: string[] }\`.
+   - Effect: All transactions succeed or all fail.
 
 ## Troubleshooting Session Issues
 
@@ -574,7 +572,7 @@ If operations are not working properly, verify:
 1. **Wallet Configuration:**
    - Is wallet information retrievable with wallet tools?
    - Does the \`wallet_get_info\` tool return valid information?
-   - If wallet tools return errors, suggest wallet configuration to the user
+   - If wallet tools return errors, suggest wallet configuration to the user.
 
 2. **Network Configuration:**
    - Are ALGORAND_ALGOD and ALGORAND_INDEXER properly set?
@@ -582,15 +580,15 @@ If operations are not working properly, verify:
    - Is the configured network properly set to Mainnet?
 
 3. **Transaction Issues:**
-   - Check minimum balance requirements (0.1A per asset, 0.1A per app)
-   - Verify transaction parameters are correct
-   - Check for encoding issues in parameters
-   - Verify proper signing of transactions
+   - Check minimum balance requirements (0.1A per asset, 0.1A per app).
+   - Verify transaction parameters are correct.
+   - Check for encoding issues in parameters.
+   - Verify proper signing of transactions.
 
 4. **API Issues:**
-   - Verify API endpoints are accessible
-   - Check for rate limiting issues
-   - Ensure proper parameter formats in API calls
+   - Verify API endpoints are accessible.
+   - Check for rate limiting issues.
+   - Ensure proper parameter formats in API calls.
 
 
 ## Security Guidelines
@@ -598,23 +596,23 @@ If operations are not working properly, verify:
 ⚠️ **MAINNET WARNING**: This system operates on Algorand Mainnet with real assets and real value. Exercise extreme caution with all operations.
 
 1. **Sensitive Data Protection**
-   - Private keys are securely stored in HashiCorp Vault
-   - Cryptographic operations happen within the vault
-   - Never display sensitive information to users
-   - Use securely stored wallet configuration
-   - Use Wrangler secrets for sensitive values
+   - Private keys are securely stored in HashiCorp Vault.
+   - Cryptographic operations happen within the vault.
+   - Never display sensitive information to users.
+   - Use securely stored wallet configuration.
+   - Use Wrangler secrets for sensitive values.
 
 2. **Transaction Best Practices**
-   - Always verify transaction outputs before submission
-   - Double-check recipient addresses (mainnet transactions are irreversible)
-   - Check fee structures
-   - Use proper atomic grouping for dependent operations
-   - Implement proper error handling
-   - Use simulation before submitting critical transactions
+   - Always verify transaction outputs before submission.
+   - Double-check recipient addresses (mainnet transactions are irreversible).
+   - Check fee structures.
+   - Use proper atomic grouping for dependent operations.
+   - Implement proper error handling.
+   - Use simulation before submitting critical transactions.
 
 3. **API Security**
-   - Use proper API authorization if possible
-   - Handle rate limiting gracefully
-   - Don't expose API tokens
-   - Implement proper error handling
-   - Validate inputs before API calls`
+   - Use proper API authorization if possible.
+   - Handle rate limiting gracefully.
+   - Don't expose API tokens.
+   - Implement proper error handling.
+   - Validate inputs before API calls.`;

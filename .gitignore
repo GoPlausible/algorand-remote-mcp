@@ -181,4 +181,5 @@ dist
 package-lock.json
 Specs
 Specs/*
+mcp-lite/*
 

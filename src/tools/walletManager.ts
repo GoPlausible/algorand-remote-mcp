@@ -66,106 +66,106 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
   //   throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
   // }
   //Reset wallet account
-  // server.tool(
-  //   'wallet_reset_account',
-  //   'Reset the wallet account for the configured user',
-  //   {},
-  //   async () => {
-  //     try {
-  //       const publicKeyResult = await getPublicKey(env, props.email, props.provider);
-  //       const providerEmail = `${props.provider}--${props.email}`
-  //       let entityId: string | null = await env.VAULT_ENTITIES.get(providerEmail);
-  //       let providerEntity : string | null =  `${props.provider}--${entityId}`;
-  //       console.log(`Entity ID for ${providerEmail} from KV store:`, providerEntity);
-  //       let roleId = null;
-  //       if (!!entityId) {
-  //         console.log(`Fetching role ID from KV for entity ${entityId}`);
-  //         providerEntity = `${props.provider}--${entityId}`
-  //         roleId = await env.VAULT_ENTITIES.get(providerEntity);
-  //         console.log(`Role ID for ${entityId} from KV store:`, roleId);
-  //       }
-  //       if (!roleId || !entityId) {
-  //         console.log(`provider: ${props.provider}, email: ${props.email}, clientId: ${props.clientId}, userId: ${props.id}`);
-  //         throw new Error('Role or entity ID not found in KV store');
-  //       }
+  server.tool(
+    'wallet_reset_account',
+    'Reset the wallet account for the configured user. CAUTION: This will delete existing keys and create new ones. Warn user before proceeding.',
+    {},
+    async () => {
+      try {
+        const publicKeyResult = await getPublicKey(env, props.email, props.provider);
+        const providerEmail = `${props.provider}--${props.email}`
+        let entityId: string | null = await env.VAULT_ENTITIES.get(providerEmail);
+        let providerEntity : string | null =  `${props.provider}--${entityId}`;
+        console.log(`Entity ID for ${providerEmail} from KV store:`, providerEntity);
+        let roleId = null;
+        if (entityId) {
+          console.log(`Fetching role ID from KV for entity ${entityId}`);
+          providerEntity = `${props.provider}--${entityId}`
+          roleId = await env.VAULT_ENTITIES.get(providerEntity);
+          console.log(`Role ID for ${entityId} from KV store:`, roleId);
+        }
+        if (!roleId || !entityId) {
+          console.log(`provider: ${props.provider}, email: ${props.email}, clientId: ${props.clientId}, userId: ${props.id}`);
+          throw new Error('Role or entity ID not found in KV store');
+        }
 
-  //       if (publicKeyResult.success && !publicKeyResult.error) {
-  //         // For vault-based accounts, create a new keypair in the vault
-  //         console.log('Creating new vault-based keypair for user:', props.email);
+        if (publicKeyResult.success && !publicKeyResult.error) {
+          // For vault-based accounts, create a new keypair in the vault
+          console.log('Creating new vault-based keypair for user:', props.email);
 
-  //         // Delete existing keypair if it exists
-  //         // Note: This would require a delete endpoint in the vault worker
+          // Delete existing keypair if it exists
+          // Note: This would require a delete endpoint in the vault worker
 
-  //         // Create new keypair
-  //         await deleteKeypair(env, props.email, props.provider);
+          // Create new keypair
+          await deleteKeypair(env, props.email, props.provider);
 
-  //         await deleteEntity(env, props.email, entityId, roleId, props.provider);
-  //         console.log(`Deleted entity and role for ${props.email} with ID ${entityId}`);
+          await deleteEntity(env, props.email, entityId, roleId, props.provider);
+          console.log(`Deleted entity and role for ${props.email} with ID ${entityId}`);
 
-  //         let providerEmail = `${props.provider}--${props.email}`
-  //         let providerEntity = `${props.provider}--${entityId}`
-  //         await env.VAULT_ENTITIES.delete(providerEmail);
-  //         console.log(`Deleted entity ID for ${providerEmail} from KV store`);
-  //         await env.VAULT_ENTITIES.delete(providerEntity);
-  //         console.log(`Deleted entity ID ${providerEntity} from KV store`);
-  //         console.log(`Cleared public key cache for user: ${props.email}`);
-  //         const entityResult = await createNewEntity(env, props.email, props.provider);
-  //         console.log(`New entity created: ${entityResult}`);
-  //           await new Promise(resolve => setTimeout(resolve, 500));
-  //         const keypairResult = await createKeypair(env, props.email, props.provider);
+          let providerEmail = `${props.provider}--${props.email}`
+          let providerEntity = `${props.provider}--${entityId}`
+          await env.VAULT_ENTITIES.delete(providerEmail);
+          console.log(`Deleted entity ID for ${providerEmail} from KV store`);
+          await env.VAULT_ENTITIES.delete(providerEntity);
+          console.log(`Deleted entity ID ${providerEntity} from KV store`);
+          console.log(`Cleared public key cache for user: ${props.email}`);
+          const entityResult = await createNewEntity(env, props.email, props.provider);
+          console.log(`New entity created: ${entityResult}`);
+            await new Promise(resolve => setTimeout(resolve, 500));
+          const keypairResult = await createKeypair(env, props.email, props.provider);
 
-  //         if (!keypairResult.success) {
-  //           throw new Error(keypairResult.error || 'Failed to create keypair in vault');
-  //         }
-  //         console.log(`New keypair created: ${keypairResult}`);
-  //         // Get the address from the public key
-  //         console.log(`Getting public key for ${props.email} with provider ${props.provider}`);
+          if (!keypairResult.success) {
+            throw new Error(keypairResult.error || 'Failed to create keypair in vault');
+          }
+          console.log(`New keypair created: ${keypairResult}`);
+          // Get the address from the public key
+          console.log(`Getting public key for ${props.email} with provider ${props.provider}`);
         
-  //         const publicKeyResult = await getPublicKey(env, props.email, props.provider);
+          const publicKeyResult = await getPublicKey(env, props.email, props.provider);
 
-  //         if (!publicKeyResult.success || !publicKeyResult.publicKey) {
-  //           throw new Error(publicKeyResult.error || 'Failed to get public key from vault');
-  //         }
-  //         console.log(`Public key for ${props.email}: ${publicKeyResult.publicKey}`);
+          if (!publicKeyResult.success || !publicKeyResult.publicKey) {
+            throw new Error(publicKeyResult.error || 'Failed to get public key from vault');
+          }
+          console.log(`Public key for ${props.email}: ${publicKeyResult.publicKey}`);
 
-  //         // Convert the public key to an Algorand address
-  //         const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
-  //         const address = algosdk.encodeAddress(publicKeyBuffer);
-  //         providerEmail = `${props.provider}--${props.email}`
-  //         entityId = await env.VAULT_ENTITIES?.get(providerEmail);
-  //         providerEntity = `${props.provider}--${entityId}`
-  //         console.log(`Entity ID for ${providerEmail} from KV store:`, entityId);
-  //         // let roleId = null;
-  //         if (!!entityId) {
-  //           console.log(`Fetching role ID from KV for entity ${providerEntity}`);
-  //           roleId = await env.VAULT_ENTITIES?.get(providerEntity);
-  //           console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
-  //           if (roleId) {
-  //             return ResponseProcessor.processResponse({
-  //               address,
-  //               role: roleId,
-  //               user: props.email,
-  //               provider: props.provider,
-  //             });
-  //           } else {
-  //             throw new Error(`No Role ID found for entity: ${providerEntity}`);
-  //           }
-  //         } else {
-  //           throw new Error(`No entity ID found for ${providerEmail}`);
-  //         }
-  //       } else {
-  //         throw new Error('No active agent wallet configured');
-  //       } 
-  //     } catch (error: any) {
-  //       return {
-  //         content: [{
-  //           type: 'text',
-  //           text: `Failed to reset wallet account: ${error.message || 'Unknown error'}`
-  //         }]
-  //       };
-  //     }
-  //   }
-  // );
+          // Convert the public key to an Algorand address
+          const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
+          const address = algosdk.encodeAddress(publicKeyBuffer);
+          providerEmail = `${props.provider}--${props.email}`
+          entityId = await env.VAULT_ENTITIES?.get(providerEmail);
+          providerEntity = `${props.provider}--${entityId}`
+          console.log(`Entity ID for ${providerEmail} from KV store:`, entityId);
+          // let roleId = null;
+          if (!!entityId) {
+            console.log(`Fetching role ID from KV for entity ${providerEntity}`);
+            roleId = await env.VAULT_ENTITIES?.get(providerEntity);
+            console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
+            if (roleId) {
+              return ResponseProcessor.processResponse({
+                address,
+                role: roleId,
+                user: props.email,
+                provider: props.provider,
+              });
+            } else {
+              throw new Error(`No Role ID found for entity: ${providerEntity}`);
+            }
+          } else {
+            throw new Error(`No entity ID found for ${providerEmail}`);
+          }
+        } else {
+          throw new Error('No active agent wallet configured');
+        } 
+      } catch (error: any) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Failed to reset wallet account: ${error.message || 'Unknown error'}`
+          }]
+        };
+      }
+    }
+  );
   // Get wallet public key
   server.tool(
     'wallet_get_publickey',
