@@ -300,7 +300,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
   // Atomic transaction signing helper
   server.tool(
     'wallet_sign_atomic_group',
-    'Sign an atomic transaction group',
+    'Sign an atomic transaction group. This is the default way of signing transaction groups by agents using this MCP. This uses the vault account binding to user OAuth account used to authenticate user to this MCP.',
     {
       encodedTxns: z.array(z.string()).describe('Array of base64-encoded unsigned transactions'),
       keyName: z.string().describe('Key name of the signer for all transactions in the group')
@@ -442,6 +442,92 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
           content: [{
             type: 'text',
             text: `Error processing atomic transaction group: ${error.message || 'Unknown error'}`
+          }]
+        };
+      }
+    }
+  );
+
+  // SDK-based atomic transaction group signing with mnemonic
+  server.tool(
+    'sdk_sign_atomic_group',
+    'Sign an atomic transaction group with an Algorand account mnemonic. Used for user testing with a mnemonic instead of using the embedded Vault based wallet accounts which are default to this MCP. Use only if explicitly asked by user to sign a transaction group using mnemonic!',
+    {
+      encodedTxns: z.array(z.string()).describe('Array of base64-encoded unsigned transactions'),
+      mnemonic: z.string().describe('25-word mnemonic for the signing account')
+    },
+    async ({ encodedTxns, mnemonic }) => {
+      try {
+        // Derive account from mnemonic
+        const account = algosdk.mnemonicToSecretKey(mnemonic);
+        const publicKeyBuffer = algosdk.decodeAddress(account.addr).publicKey;
+
+        // Decode transactions
+        const decodedTxns = encodedTxns.map(txn => {
+          return algosdk.decodeUnsignedTransaction(
+            Buffer.from(txn, 'base64')
+          );
+        });
+
+        // Assign group ID if not already assigned
+        let groupedTxns: algosdk.Transaction[];
+        if (!decodedTxns[0].group) {
+          groupedTxns = algosdk.assignGroupID(decodedTxns);
+        } else {
+          groupedTxns = decodedTxns;
+        }
+
+        // Sign each transaction with the mnemonic-derived key
+        const signatures = groupedTxns.map((txn: algosdk.Transaction) => {
+          const signatureResult = algosdk.signTransaction(txn, account.sk);
+
+          if (!signatureResult.blob) {
+            throw new Error('Failed to sign transaction');
+          }
+
+          // Extract signature from the signed blob
+          const signature = signatureResult.blob;
+          const txnObj = txn.get_obj_for_encoding();
+
+          // Create signed transaction object
+          const signedTxn: any = {
+            txn: txnObj,
+            sig: signature,
+          };
+
+          // Add AuthAddr if signing with a different key than From indicates
+          const fromPubKey = txn.from.publicKey;
+          let keysMatch = fromPubKey.length === publicKeyBuffer.length;
+          if (keysMatch) {
+            for (let i = 0; i < fromPubKey.length; i++) {
+              if (fromPubKey[i] !== publicKeyBuffer[i]) {
+                keysMatch = false;
+                break;
+              }
+            }
+          }
+
+          if (!keysMatch) {
+            signedTxn.sgnr = algosdk.decodeAddress(account.addr);
+          }
+
+          // Encode the signed transaction using MessagePack
+          const encodedSignedTxn: Uint8Array = new Uint8Array(
+            msgpack.encode(signedTxn, { sortKeys: true, ignoreUndefined: true })
+          );
+
+          return Buffer.from(encodedSignedTxn).toString('base64');
+        });
+
+        return ResponseProcessor.processResponse({
+          signedTxns: signatures,
+          message: 'Transactions signed using mnemonic-derived account'
+        });
+      } catch (error: any) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Error signing atomic transaction group: ${error.message || 'Unknown error'}`
           }]
         };
       }

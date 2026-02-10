@@ -31,8 +31,8 @@ export function registerAccountTools(server: McpServer,env: Env, props: Props): 
   
   // View address from mnemonic (without storing the private key)
   server.tool(
-    'sdk_mnemonic_to_address',
-    'View the Algorand address and secret key associated with a mnemonic ',
+    'sdk_mnemonic_to_address_and_secretkey',
+    'Get the Algorand address and private (secret) key (in hex and base64 formats) associated with a mnemonic ',
     { mnemonic: z.string().describe('Mnemonic phrase to view address and secrte key for') },
     async ({ mnemonic }) => {
       try {
@@ -42,6 +42,7 @@ export function registerAccountTools(server: McpServer,env: Env, props: Props): 
         return ResponseProcessor.processResponse({
           address: sk.addr,
           sk: Buffer.from(sk.sk).toString('hex'),
+          skb64: Buffer.from(sk.sk).toString('base64'),
           message: 'This shows the address and sk associated with the mnemonic. For security reasons, the private key is not stored anywhere and solely for user external use purposes.'
         });
       } catch (error: any) {
@@ -54,6 +55,7 @@ export function registerAccountTools(server: McpServer,env: Env, props: Props): 
       }
     }
   );
+  
 
   server.tool(
     'sdk_address_to_public_key',

@@ -43,16 +43,16 @@ function ConcatArrays(...arrs: ArrayLike<number>[]) {
 
   return c
 }
- function uint8ToBase64(  uint8Array: Uint8Array): string {
-    let binary = '';
-    const len = uint8Array.length;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(uint8Array[i]);
-    }
-    const base64 = btoa(binary);
-    // convert to Base64URL (no padding)
-    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+function uint8ToBase64(uint8Array: Uint8Array): string {
+  let binary = '';
+  const len = uint8Array.length;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(uint8Array[i]);
   }
+  const base64 = btoa(binary);
+  // convert to Base64URL (no padding)
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
 /**
  * Register general transaction management tools to the MCP server
  */
@@ -117,7 +117,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
           note: noteBytes,
           closeRemainderTo,
           rekeyTo,
-          suggestedParams: params.fee ? {...params, fee: params.fee, flatFee: true} : params
+          suggestedParams: params.fee ? { ...params, fee: params.fee, flatFee: true } : params
         });
 
         // Return the encoded transaction
@@ -125,8 +125,8 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
           txID: txn.txID(),
           encodedTxn: Buffer.from(algosdk.encodeUnsignedTransaction(txn)).toString('base64'),
           txnInfo: {
-             from: sender,
-          to: receiver,
+            from: sender,
+            to: receiver,
             amount,
             fee: fee ? fee : txn.fee,
             firstRound: params.firstRound,
@@ -242,7 +242,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         });
 
 
-       
+
       } catch (error: any) {
         return {
           content: [{
@@ -266,28 +266,15 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         if (!props.email || !props.provider) {
           throw new Error('Email and provider must be provided in props');
         }
-        // console.log(`Ensuring account for ${props.email} with provider ${props.provider}`);
 
-        // // Ensure user has an account
-        // await ensureUserAccount(env, props.email || '', props.provider);
 
-        // For vault-based accounts, we need to manually construct the signed transaction
-
-        // Get the public key from the vault
-        const publicKeyResult = await getPublicKey(env, props.email, props.provider);
-
-        if (!publicKeyResult.success || !publicKeyResult.publicKey) {
-          throw new Error('Failed to get public key from vault');
-        }
-        console.log('Public key from vault:', publicKeyResult.publicKey);
-        console.log(`Signing transaction for ${props.email} with provider ${props.provider}`);
-        // Get the raw signature from the vault
-          // Decode the transaction
+        // Decode the transaction
         const txn = algosdk.decodeUnsignedTransaction(Buffer.from(encodedTxn, 'base64'));
         console.log('Decoded transaction:', txn);
-        const goplausibleAccount = algosdk.mnemonicToSecretKey(mnemonic);
-                const signatureResult = algosdk.signTransaction(txn, goplausibleAccount.sk);
-    
+        const account = algosdk.mnemonicToSecretKey(mnemonic);
+        const publicKeyBuffer = algosdk.decodeAddress(account.addr).publicKey;
+        const signatureResult = algosdk.signTransaction(txn, account.sk);
+
 
 
         if (!signatureResult.blob) {
@@ -295,7 +282,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         }
 
 
-      
+
 
         // Convert the base64 signature to Uint8Array
         const signature = Buffer.from(signatureResult.blob, 'base64');
@@ -305,11 +292,11 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
 
 
         // Convert the base64 public key to Uint8Array
-        const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, 'base64');
+        
         console.log('Public key buffer:', publicKeyBuffer);
 
         // Get the address from the public key
-        const signerAddr = algosdk.encodeAddress(publicKeyBuffer);
+        const signerAddr = account.addr;
         console.log('Signer address:', signerAddr);
         const txnObj = txn.get_obj_for_encoding();
         console.log('Transaction object for encoding:', txnObj);
@@ -350,7 +337,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         });
 
 
-       
+
       } catch (error: any) {
         return {
           content: [{
