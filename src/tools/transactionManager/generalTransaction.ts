@@ -20,17 +20,7 @@ import {
 } from '../../utils/vaultManager';
 import * as msgpack from "algo-msgpack-with-bigint"
 
-/**
- * Create and validate an Algorand client
- */
-function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | null {
-  if (!algodUrl) {
-    console.error('Algorand node URL not configured');
-    return null;
-  }
-
-  return new algosdk.Algodv2(token, algodUrl, '');
-}
+import { createAlgoClient } from '../../utils/algoClient';
 function ConcatArrays(...arrs: ArrayLike<number>[]) {
   const size = arrs.reduce((sum, arr) => sum + arr.length, 0)
   const c = new Uint8Array(size)
@@ -42,16 +32,6 @@ function ConcatArrays(...arrs: ArrayLike<number>[]) {
   }
 
   return c
-}
-function uint8ToBase64(uint8Array: Uint8Array): string {
-  let binary = '';
-  const len = uint8Array.length;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(uint8Array[i]);
-  }
-  const base64 = btoa(binary);
-  // convert to Base64URL (no padding)
-  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 /**
  * Register general transaction management tools to the MCP server

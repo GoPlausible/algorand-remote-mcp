@@ -394,28 +394,10 @@ app.all("/logout", async (c) => {
 	const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : undefined;
 	const token = url.searchParams.get("token") || bearer || undefined;
 
-	console.log("[OAUTH_HANDLER] Logout request details:", {
-		provider,
-		hasToken: !!token,
-		tokenType: token ? typeof token : 'undefined',
-		tokenLength: token ? token.length : 0,
-		tokenValue: token ? `${token.substring(0, 5)}...${token.substring(token.length - 5)}` : 'none',
-		auth: !!auth,
-		bearer: !!bearer
-	});
-
 	// Only attempt token revocation if we have both provider and token
 	if (provider && token) {
-		console.log("[OAUTH_HANDLER] About to call revokeUpstreamToken with:", {
-			provider,
-			tokenLength: token.length,
-			tokenFirstChars: token.substring(0, 5),
-			tokenLastChars: token.substring(token.length - 5)
-		});
-
 		try {
 			const ok = await revokeUpstreamToken(provider, token, c.env);
-			console.log("[OAUTH_HANDLER] Upstream revocation result:", ok ? "ok" : "failed");
 		} catch (error) {
 			console.error("[OAUTH_HANDLER] Token revocation error:", error);
 		}

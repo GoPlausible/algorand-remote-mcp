@@ -8,19 +8,7 @@ import { z } from 'zod';
 import { ResponseProcessor } from '../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Env, Props } from '../types';
-import { en } from 'zod/v4/locales';
-
-/**
- * Create and validate an Algorand client
- */
-function createAlgoClient(algodUrl: string , token:string): algosdk.Algodv2 | null {
-  if (!algodUrl) {
-    console.error('Algorand node URL not configured');
-    return null;
-  }
-  
-  return new algosdk.Algodv2(token, algodUrl, '');
-}
+import { createAlgoClient } from '../utils/algoClient';
 
 /**
  * Register Algod tools to the MCP server

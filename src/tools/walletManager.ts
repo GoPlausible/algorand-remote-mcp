@@ -17,20 +17,7 @@ import {
   deleteEntity,
   createNewEntity
 } from '../utils/vaultManager';
-import { log } from 'console';
-import { email } from 'zod/v4';
-
-/**
- * Create and validate an Algorand client
- */
-function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | null {
-  if (!algodUrl) {
-    console.error('Algorand node URL not configured');
-    return null;
-  }
-
-  return new algosdk.Algodv2(token, algodUrl, '');
-}
+import { createAlgoClient } from '../utils/algoClient';
 
 /**
  * Get account from mnemonic 
@@ -449,12 +436,12 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
           logoutUrl.searchParams.set('clientId', props.clientId || '');
           logoutUrl.searchParams.set('userId', props.id || '');
           logoutUrl.searchParams.set('provider', props.provider);
-          console.log(`Including token and provider in logout request: provider=${props.provider}, token length=${props.accessToken.length}`);
+          console.log(`Including token and provider in logout request: provider=${props.provider}`);
         } else {
           console.log('No token or provider available for logout request');
         }
 
-        console.log(`Calling logout endpoint: ${logoutUrl.toString()}`);
+        console.log(`Calling logout endpoint: ${logoutUrl.origin}${logoutUrl.pathname}`);
 
         // Call the logout endpoint
         const response = await fetch(logoutUrl.toString(), {

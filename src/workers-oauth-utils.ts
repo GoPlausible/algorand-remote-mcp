@@ -64,7 +64,6 @@ async function importKey(secret: string): Promise<CryptoKey> {
       "COOKIE_SECRET is not defined. A secret key is required for signing cookies.",
     );
   }
-  console.log("[WORKER_OAUTH_UTILS] Importing key for HMAC-SHA256 signing: ", secret); // Log first 10 chars for brevity
   const enc = new TextEncoder();
   return crypto.subtle.importKey(
     "raw",
