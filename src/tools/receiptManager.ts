@@ -49,16 +49,16 @@ function buildHTMLPage({
   <meta name="robots" content="index, follow">
   <meta name="author" property="og:author" content="did:algo:UTI7PAASILRDA3ISHY5M7J7LNRX2AIVQJWI7ZKCCGKVLMFD3VPR5PWSZ4I">
   <meta itemprop="name" content="${title}">
-  <meta itemprop="description" content="${uriType} for ${prettyAmount} from ${typeof sender === 'string' && sender.length > 12 ? `${sender.slice(0, 6)}...${sender.slice(-6)}` : sender} to ${typeof receiver === 'string' && receiver.length > 12 ? `${receiver.slice(0, 6)}...${receiver.slice(-6)}` : receiver}.">
+  <meta itemprop="description" content="${uriType} for ${note && note.length > 0 ? note + ' | ' : ''} ${prettyAmount} from ${typeof sender === 'string' && sender.length > 12 ? `${sender.slice(0, 6)}...${sender.slice(-6)}` : sender} to ${typeof receiver === 'string' && receiver.length > 12 ? `${receiver.slice(0, 6)}...${receiver.slice(-6)}` : receiver}.">
   <meta itemprop="image" content="${qrPng}" type="image/jpeg">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no" />
-  <meta name="description" content="${uriType} for ${prettyAmount} from ${typeof sender === 'string' && sender.length > 12 ? `${sender.slice(0, 6)}...${sender.slice(-6)}` : sender} to ${typeof receiver === 'string' && receiver.length > 12 ? `${receiver.slice(0, 6)}...${receiver.slice(-6)}` : receiver}." />
+  <meta name="description" content="${uriType} for ${note && note.length > 0 ? note + ' | ' : ''} ${prettyAmount} from ${typeof sender === 'string' && sender.length > 12 ? `${sender.slice(0, 6)}...${sender.slice(-6)}` : sender} to ${typeof receiver === 'string' && receiver.length > 12 ? `${receiver.slice(0, 6)}...${receiver.slice(-6)}` : receiver}." />
   <!-- Twitter Card data -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:site" content="@goplausible_ai">
   <meta name="twitter:creator" content="@GoPlausible">
   <meta name="twitter:title" content="${title}">
-  <meta name="twitter:description" content="${uriType} for ${prettyAmount} from ${typeof sender === 'string' && sender.length > 12 ? `${sender.slice(0, 6)}...${sender.slice(-6)}` : sender} to ${typeof receiver === 'string' && receiver.length > 12 ? `${receiver.slice(0, 6)}...${receiver.slice(-6)}` : receiver}.">
+  <meta name="twitter:description" content="${uriType} for ${note && note.length > 0 ? note + ' | ' : ''} ${prettyAmount} from ${typeof sender === 'string' && sender.length > 12 ? `${sender.slice(0, 6)}...${sender.slice(-6)}` : sender} to ${typeof receiver === 'string' && receiver.length > 12 ? `${receiver.slice(0, 6)}...${receiver.slice(-6)}` : receiver}.">
   <meta name="twitter:image" content="${qrPng}" type="image/jpeg">
   <!-- Open Graph data -->
   <meta property="og:image" content="${qrPng}" type="image/jpeg""/>
@@ -66,7 +66,7 @@ function buildHTMLPage({
   <meta property="og:url" content="https://goplausible.xyz/api/receipt/${uuid}" />
   <meta property="og:title" content="${title}"/>
   <meta property="og:type" content="website" />
-  <meta property="og:description"  content="${uriType} for ${prettyAmount} from ${typeof sender === 'string' && sender.length > 12 ? `${sender.slice(0, 6)}...${sender.slice(-6)}` : sender} to ${typeof receiver === 'string' && receiver.length > 12 ? `${receiver.slice(0, 6)}...${receiver.slice(-6)}` : receiver}." />
+  <meta property="og:description"  content="${uriType} for ${note && note.length > 0 ? note + ' | ' : ''} ${prettyAmount} from ${typeof sender === 'string' && sender.length > 12 ? `${sender.slice(0, 6)}...${sender.slice(-6)}` : sender} to ${typeof receiver === 'string' && receiver.length > 12 ? `${receiver.slice(0, 6)}...${receiver.slice(-6)}` : receiver}." />
 
   <style>
     body {
@@ -169,7 +169,7 @@ function buildHTMLPage({
      <h4>Transaction: <a href="https://allo.info/tx/${txId}" target="_blank" rel="noopener noreferrer">${`${txId.slice(0, 6)}...${txId.slice(-6)}`}</a></h4>
      <h4>Agent Owner : ${provider === 'algorand' ? from.slice(0, 6) + '...' + from.slice(-6) : from}</h4>
      <h4>Authentication: ${provider === 'twitter' ? 'X via dOAuth' : provider === 'google' ? 'Google via dOAuth' : provider === 'linkedin' ? 'Linkedin via dOAuth' : provider === 'github' ? 'GitHub via dOAuth' : provider === 'algorand' ? 'Algorand Agency via dOAuth' : ''}</h4>
-     <h4>Note: ${title}</h4>
+     <h4>Note: ${note && note.length > 0 ? note : title}</h4>
 
 
     <div class="qr">
