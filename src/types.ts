@@ -312,18 +312,6 @@ export interface EncodedSubsig {
   s?: Uint8Array;
 }
 
-export interface EncodedSubsig {
-  /**
-   *  The public key
-   */
-  pk: Uint8Array;
-
-  /**
-   * The signature provided by the public key, if any
-   */
-  s?: Uint8Array;
-}
-
 /**
  * A rough structure for the encoded multi signature transaction object.
  * Every property is labelled with its associated `MultisigMetadata` type property

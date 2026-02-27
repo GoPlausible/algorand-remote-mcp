@@ -26,17 +26,7 @@ async function getAssetDecimals(assetId: number, env: Env): Promise<number> {
   }
 }
 
-/**
- * Create algod client for Tinyman operations
- */
-function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | null {
-  if (!algodUrl) {
-    console.error('Algorand node URL not configured');
-    return null;
-  }
-
-  return new algosdk.Algodv2(token, algodUrl, '');
-}
+import { createAlgoClient } from '../utils/algoClient';
 
 /**
  * Register Tinyman tools to the MCP server
@@ -152,9 +142,6 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
           slippage,
           initiatorAddr
         });
-        
-        // Ensure slippage is defined
-        const safeSlippage = slippage !== undefined ? slippage : 0.05;
         
         // Debug the quote object structure
         console.log('[TINYMAN_SWAP] Quote structure check:', {
@@ -498,9 +485,6 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
           slippage,
           initiatorAddr
         });
-        
-        // Ensure slippage is defined
-        const safeSlippage = slippage !== undefined ? slippage : 0.05;
         
         // Debug the quote object structure
         console.log('[TINYMAN_SWAP] Quote structure check:', {
