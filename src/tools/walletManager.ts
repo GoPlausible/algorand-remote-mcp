@@ -164,101 +164,101 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
       }
     }
   );
-  // Get wallet public key
-  server.tool(
-    'wallet_get_publickey',
-    'Get the public key for the configured wallet',
-    {},
-    async () => {
-      try {
-        
-        // Check account type
-        const publicKeyResult = await getPublicKey(env, props.email, props.provider);
-        if (!publicKeyResult.success || publicKeyResult.error) {
-          return {
-            content: [{
-              type: 'text',
-              text: 'No active agent wallet configured'
-            }]
-          };
-        }
-        let providerEmail = `${props.provider}--${props.email}`
+  // // Get wallet public key — DEPRECATED: merged into wallet_get_info
+  // server.tool(
+  //   'wallet_get_publickey',
+  //   'Get the public key for the configured wallet',
+  //   {},
+  //   async () => {
+  //     try {
+  //
+  //       // Check account type
+  //       const publicKeyResult = await getPublicKey(env, props.email, props.provider);
+  //       if (!publicKeyResult.success || publicKeyResult.error) {
+  //         return {
+  //           content: [{
+  //             type: 'text',
+  //             text: 'No active agent wallet configured'
+  //           }]
+  //         };
+  //       }
+  //       let providerEmail = `${props.provider}--${props.email}`
+  //
+  //       const entityId = await env.VAULT_ENTITIES?.get(providerEmail);
+  //       // let providerEntity = `${props.provider}--${entityId}`
+  //
+  //       console.log(`Entity ID for ${props.email} from KV store:`, entityId);
+  //       // let roleId = null;
+  //       // if (!!entityId) {
+  //       //   console.log(`Fetching role ID from KV for entity ${providerEntity}`);
+  //       //   roleId = await env.VAULT_ENTITIES?.get(providerEntity);
+  //       //   console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
+  //       // }
+  //       return ResponseProcessor.processResponse({
+  //         publicKey: publicKeyResult.publicKey,
+  //         format: 'base64',
+  //         // role: roleId,
+  //         user: props.email,
+  //         provider: props.provider,
+  //       });
+  //     } catch (error: any) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: `Failed to get public key: ${error.message || 'Unknown error'}`
+  //         }]
+  //       };
+  //     }
+  //   }
+  // );
 
-        const entityId = await env.VAULT_ENTITIES?.get(providerEmail);
-        // let providerEntity = `${props.provider}--${entityId}`
-      
-        console.log(`Entity ID for ${props.email} from KV store:`, entityId);
-        // let roleId = null;
-        // if (!!entityId) {
-        //   console.log(`Fetching role ID from KV for entity ${providerEntity}`);
-        //   roleId = await env.VAULT_ENTITIES?.get(providerEntity);
-        //   console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
-        // }
-        return ResponseProcessor.processResponse({
-          publicKey: publicKeyResult.publicKey,
-          format: 'base64',
-          // role: roleId,
-          user: props.email,
-          provider: props.provider,
-        });
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Failed to get public key: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
-
-  // Get wallet address
-  server.tool(
-    'wallet_get_address',
-    'Get the address for the configured wallet',
-    {},
-    async () => {
-      try {
-        // Get address using the unified approach
-        const address = await getUserAddress(env, props.email, props.provider);
-
-        if (!address) {
-          return {
-            content: [{
-              type: 'text',
-              text: 'No active agent wallet configured'
-            }]
-          };
-        }
-        let providerEmail = `${props.provider}--${props.email}`
-        const entityId = await env.VAULT_ENTITIES?.get(providerEmail);
-        let providerEntity = `${props.provider}--${entityId}`
-        console.log(`Entity ID for ${providerEmail} from KV store:`, providerEntity);
-
-        // let roleId = null;
-        // if (!!entityId) {
-        //   console.log(`Fetching role ID from KV for entity ${providerEntity}`);
-        //   roleId = await env.VAULT_ENTITIES?.get(providerEntity);
-        //   console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
-        // }
-
-
-        return ResponseProcessor.processResponse({
-          address,
-          // role: roleId,
-          user: props.email,
-          provider: props.provider,
-        });
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Failed to get address: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
+  // // Get wallet address — DEPRECATED: merged into wallet_get_info
+  // server.tool(
+  //   'wallet_get_address',
+  //   'Get the address for the configured wallet',
+  //   {},
+  //   async () => {
+  //     try {
+  //       // Get address using the unified approach
+  //       const address = await getUserAddress(env, props.email, props.provider);
+  //
+  //       if (!address) {
+  //         return {
+  //           content: [{
+  //             type: 'text',
+  //             text: 'No active agent wallet configured'
+  //           }]
+  //         };
+  //       }
+  //       let providerEmail = `${props.provider}--${props.email}`
+  //       const entityId = await env.VAULT_ENTITIES?.get(providerEmail);
+  //       let providerEntity = `${props.provider}--${entityId}`
+  //       console.log(`Entity ID for ${providerEmail} from KV store:`, providerEntity);
+  //
+  //       // let roleId = null;
+  //       // if (!!entityId) {
+  //       //   console.log(`Fetching role ID from KV for entity ${providerEntity}`);
+  //       //   roleId = await env.VAULT_ENTITIES?.get(providerEntity);
+  //       //   console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
+  //       // }
+  //
+  //
+  //       return ResponseProcessor.processResponse({
+  //         address,
+  //         // role: roleId,
+  //         user: props.email,
+  //         provider: props.provider,
+  //       });
+  //     } catch (error: any) {
+  //       return {
+  //         content: [{
+  //           type: 'text',
+  //           text: `Failed to get address: ${error.message || 'Unknown error'}`
+  //         }]
+  //       };
+  //     }
+  //   }
+  // );
 
   // // Get wallet role UUID
   server.tool(
@@ -306,7 +306,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
   // Get wallet account information
   server.tool(
     'wallet_get_info',
-    'Get the account information for the configured wallet. Always use algorand_mcp_skill tool at the start of each session to obtain required skill on how to operate and interact with this MCP service! ',
+    'Get the account information for the configured wallet including address, publicKey, balance, and assets. This replaces wallet_get_address and wallet_get_publickey — both are returned in the response. Always use algorand_mcp_skill tool at the start of each session to obtain required skill on how to operate and interact with this MCP service! ',
     {},
     async () => {
       if (!env.ALGORAND_ALGOD) {

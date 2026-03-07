@@ -21,9 +21,7 @@ You can perform the following operations through the Algorand Remote MCP tools:
 ### 1. Wallet Management
 | Tool | Purpose |
 |------|---------|
-| \`wallet_get_info\` | Get wallet account information (address, balance, assets) |
-| \`wallet_get_address\` | Get wallet address |
-| \`wallet_get_publickey\` | Get wallet public key |
+| \`wallet_get_info\` | Get wallet account information (address, publicKey, balance, assets) — also returns address and publicKey, replacing wallet_get_address and wallet_get_publickey |
 | \`wallet_get_role\` | Get wallet user role UUID (sensitive!) |
 | \`wallet_get_assets\` | Get wallet asset holdings |
 | \`wallet_sign_transaction\` | Sign a single transaction |
