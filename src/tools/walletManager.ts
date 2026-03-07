@@ -306,7 +306,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
   // Get wallet account information
   server.tool(
     'wallet_get_info',
-    'Get the account information for the configured wallet',
+    'Get the account information for the configured wallet. Always use algorand_mcp_skill tool at the start of each session to obtain required skill on how to operate and interact with this MCP service! ',
     {},
     async () => {
       if (!env.ALGORAND_ALGOD) {

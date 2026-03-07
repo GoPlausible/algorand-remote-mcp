@@ -19,7 +19,7 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
     'get_knowledge_doc',
     'Get markdown content for specified knowledge documents',
     {
-      documents: z.array(z.string()).describe('Array of document keys (e.g. ["ARCs:specs:arc-0020.md"])')
+      documents: z.array(z.string()).describe('Array of document keys (e.g. ["arcs:specs:arc-0020.md"])')
     },
     async ({ documents }) => {
 
@@ -38,9 +38,8 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
         const results = await Promise.all(documents.map(async (docKey) => {
           try {
             // Format the document key for R2 path
-            // The docKey will be something like "ARCs:specs:arc-0020.md"
-            // We need to convert the colons to forward slashes for the R2 path
-            const r2Key = docKey.replace(/:/g, '/');
+            // Normalize to lowercase to handle case-insensitive lookups (e.g., "ARCs" -> "arcs")
+            const r2Key = docKey.toLowerCase().replace(/:/g, '/');
             console.log(`Looking for document at key: ${r2Key}`);
 
             // Get the document from R2 bucket
@@ -60,13 +59,12 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
               if (similarObjects.objects.length > 0) {
                 // console.log(`Similar objects: ${similarObjects.objects.map(o => o.key).join(', ')}`);
 
-                // Try an exact match from the list of similar objects
+                // Try a case-insensitive match from the list of similar objects
                 const exactMatch = similarObjects.objects.find(o =>
-                  o.key.replace(/\//g, ':') === docKey
+                  o.key.replace(/\//g, ':').toLowerCase() === docKey.toLowerCase()
                 );
 
                 if (exactMatch) {
-                  // console.log(`Found exact match: ${exactMatch.key}`);
                   // @ts-ignore - We've checked PLAUSIBLE_AI exists above
                   object = await env.PLAUSIBLE_AI.get(exactMatch.key);
                 }
@@ -124,8 +122,8 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
           }
 
           // Format the prefix for R2 listing
-          // If no specific prefix given, don't use any prefix to list all objects at root
-          const r2Prefix = prefix ? `${prefix.replace(/:/g, '/')}` : '';
+          // Normalize to lowercase to handle case-insensitive lookups
+          const r2Prefix = prefix ? `${prefix.toLowerCase().replace(/:/g, '/')}` : '';
           console.log(`Listing objects with prefix: '${r2Prefix}'`);
 
           // List objects from the R2 bucket with the given prefix
@@ -200,7 +198,7 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
     'fetch',
     'Fetch markdown content for specified knowledge documents',
     {
-      id: z.string().describe('Unique ID of the document (e.g. "ARCs:specs:arc-0020.md")')
+      id: z.string().describe('Unique ID of the document (e.g. "arcs:specs:arc-0020.md")')
     },
     async ({ id }) => {
 
@@ -217,9 +215,8 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
         let results = [];
         try {
           // Format the document key for R2 path
-          // The docKey will be something like "ARCs:specs:arc-0020.md"
-          // We need to convert the colons to forward slashes for the R2 path
-          const r2Key = id.replace(/:/g, '/');
+          // Normalize to lowercase to handle case-insensitive lookups (e.g., "ARCs" -> "arcs")
+          const r2Key = id.toLowerCase().replace(/:/g, '/');
           console.log(`Looking for document at key: ${r2Key}`);
 
           // Get the document from R2 bucket
@@ -239,13 +236,12 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
             if (similarObjects.objects.length > 0) {
               // console.log(`Similar objects: ${similarObjects.objects.map(o => o.key).join(', ')}`);
 
-              // Try an exact match from the list of similar objects
+              // Try a case-insensitive match from the list of similar objects
               const exactMatch = similarObjects.objects.find(o =>
-                o.key.replace(/\//g, ':') === id
+                o.key.replace(/\//g, ':').toLowerCase() === id.toLowerCase()
               );
 
               if (exactMatch) {
-                // console.log(`Found exact match: ${exactMatch.key}`);
                 // @ts-ignore - We've checked PLAUSIBLE_AI exists above
                 object = await env.PLAUSIBLE_AI.get(exactMatch.key);
               }
@@ -301,8 +297,8 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
           }
 
           // Format the prefix for R2 listing
-          // If no specific prefix given, don't use any prefix to list all objects at root
-          const r2Prefix = query ? `${query.replace(/:/g, '/')}` : '';
+          // Normalize to lowercase to handle case-insensitive lookups
+          const r2Prefix = query ? `${query.toLowerCase().replace(/:/g, '/')}` : '';
           console.log(`Listing objects with prefix: '${r2Prefix}'`);
 
           // List objects from the R2 bucket with the given prefix
