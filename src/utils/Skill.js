@@ -636,6 +636,8 @@ This catches errors (insufficient balance, wrong parameters, logic failures) wit
 | \`Spending limit exceeded\` | Transaction exceeds wallet allowance or daily limit | Inform user, adjust spending limits |
 | \`Cannot access knowledge resources\` | R2 misconfiguration | Verify R2 bucket setup |
 
+> **CRITICAL — Overspend / Insufficient Balance**: If a transaction or swap fails due to overspending, insufficient balance, or negative balance errors, **DO NOT continue or retry**. Immediately call \`wallet_get_info\` to check the current balance, then inform the user of the shortfall (required amount vs. available balance including MBR and fees). Do not attempt alternative amounts or re-submit — wait for the user to fund the account or confirm next steps.
+
 ## Security Rules
 
 1. **Mainnet Warning**: All operations use real assets with real value. Exercise extreme caution.
