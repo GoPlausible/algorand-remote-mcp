@@ -3,7 +3,7 @@
  * Provides essential Algorand utility functions
  */
 
-import algosdk from 'algosdk';
+import * as algosdk from 'algosdk';
 import { z } from 'zod';
 import { ResponseProcessor } from '../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -92,7 +92,7 @@ export function registerUtilityTools(server: McpServer,env: Env, props: Props): 
     },
     async ({ appId }) => {
       try {
-        const address = algosdk.getApplicationAddress(appId);
+        const address = algosdk.getApplicationAddress(appId).toString();
         return ResponseProcessor.processResponse({ address });
       } catch (error: any) {
         return {

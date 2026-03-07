@@ -3,7 +3,7 @@
  * Handles interactions with Algorand node (algod) for operations like TEAL compilation and simulation
  */
 
-import algosdk from 'algosdk';
+import * as algosdk from 'algosdk';
 import { z } from 'zod';
 import { ResponseProcessor } from '../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -157,7 +157,7 @@ export function registerAlgodTools(server: McpServer,env: Env, props: Props): vo
         const response = await algodClient.sendRawTransaction(txnsBytes).do();
         
         return ResponseProcessor.processResponse({
-          txId: response.txId
+          txId: response.txid
         });
       } catch (error: any) {
         return {

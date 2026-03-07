@@ -3,7 +3,7 @@
  * Handles asset-related transaction operations on the Algorand blockchain
  */
 
-import algosdk from 'algosdk';
+import * as algosdk from 'algosdk';
 import { z } from 'zod';
 import { ResponseProcessor } from '../../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -102,7 +102,7 @@ export function registerAssetTransactionTools(server: McpServer, env: Env, props
 
         // Create asset creation transaction
         const txn = algosdk.makeAssetCreateTxnWithSuggestedParamsFromObject({
-          from: creator,
+          sender: creator,
           total: totalSupply,
           decimals,
           defaultFrozen,
@@ -129,9 +129,9 @@ export function registerAssetTransactionTools(server: McpServer, env: Env, props
             unitName,
             totalSupply,
             decimals,
-            fee: params.fee,
-            firstRound: params.firstRound,
-            lastRound: params.lastRound
+            fee: Number(params.fee),
+            firstValid: Number(params.firstValid),
+            lastValid: Number(params.lastValid)
           }
         });
       } catch (error: any) {
@@ -184,8 +184,8 @@ export function registerAssetTransactionTools(server: McpServer, env: Env, props
 
         // Create asset opt-in transaction
         const txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-          from: address,
-          to: address, // For opt-in, to and from are the same
+          sender: address,
+          receiver: address, // For opt-in, to and from are the same
           amount: 0, // For opt-in, amount is 0
           assetIndex: assetID,
           suggestedParams: params,
@@ -200,9 +200,9 @@ export function registerAssetTransactionTools(server: McpServer, env: Env, props
             type: 'asset-optin',
             address,
             assetID,
-            fee: params.fee,
-            firstRound: params.firstRound,
-            lastRound: params.lastRound
+            fee: Number(params.fee),
+            firstValid: Number(params.firstValid),
+            lastValid: Number(params.lastValid)
           }
         });
       } catch (error: any) {
@@ -245,14 +245,17 @@ export function registerAssetTransactionTools(server: McpServer, env: Env, props
 
         const params = await algodClient.getTransactionParams().do();
         const address = await getUserAddress(env, props.email, props.provider);
+        if (!address) {
+          throw new Error('No active agent wallet configured');
+        }
         const publicKeyResult = await getPublicKey(env, props.email, props.provider);
         if (!publicKeyResult.success || !publicKeyResult.publicKey) {
           throw new Error('Failed to get public key from vault');
         }
 
         const txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-          from: address,
-          to: address, 
+          sender: address,
+          receiver: address,
           amount: 0, // For opt-in, amount is 0
           assetIndex: 31566704, // USDC Asset ID on Algorand Mainnet
           suggestedParams: params,
@@ -270,7 +273,7 @@ export function registerAssetTransactionTools(server: McpServer, env: Env, props
           throw new Error('Failed to get signature from vault');
         }
         const signature = Buffer.from(signatureResult.signature, 'base64');
-         const txnObj = txn.get_obj_for_encoding();
+         const txnObj = msgpack.decode(algosdk.encodeUnsignedTransaction(txn));
         const signedTxn: object = {
           txn: txnObj,
           sig: signature,
@@ -292,8 +295,8 @@ export function registerAssetTransactionTools(server: McpServer, env: Env, props
             address,
             assetID: 31566704,
             fee: 1000,
-            firstRound: params.firstRound,
-            lastRound: params.lastRound
+            firstValid: Number(params.firstValid),
+            lastValid: Number(params.lastValid)
           }
         });
       } catch (error: any) {
@@ -348,8 +351,8 @@ export function registerAssetTransactionTools(server: McpServer, env: Env, props
 
         // Create asset transfer transaction
         const txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-          from: sender,
-          to: receiver,
+          sender: sender,
+          receiver: receiver,
           amount,
           assetIndex: assetID,
           suggestedParams: params,
@@ -362,13 +365,13 @@ export function registerAssetTransactionTools(server: McpServer, env: Env, props
           encodedTxn: Buffer.from(algosdk.encodeUnsignedTransaction(txn)).toString('base64'),
           txnInfo: {
             type: 'asset-transfer',
-            from: sender,
-            to: receiver,
+            sender: sender,
+            receiver: receiver,
             assetID,
             amount,
-            fee: params.fee,
-            firstRound: params.firstRound,
-            lastRound: params.lastRound
+            fee: Number(params.fee),
+            firstValid: Number(params.firstValid),
+            lastValid: Number(params.lastValid)
           }
         });
       } catch (error: any) {

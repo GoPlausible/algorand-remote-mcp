@@ -3,7 +3,7 @@
  * Provides utility functions for interacting with the Hashicorp Vault worker
  */
 
-import algosdk from 'algosdk';
+import * as algosdk from 'algosdk';
 import { Env, KeypairResponse, PublicKeyResponse, SignatureResponse, VerificationResponse, EntityCheckResponse, EntityResponse } from '../types';
 
 /**

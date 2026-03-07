@@ -3,7 +3,7 @@
  * Handles smart contract (application) operations on the Algorand blockchain
  */
 
-import algosdk, { OnApplicationComplete } from 'algosdk';
+import * as algosdk from 'algosdk';
 import { z } from 'zod';
 import { ResponseProcessor } from '../../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -112,7 +112,7 @@ export function registerAppTransactionTools(server: McpServer,env: Env, props: P
         
         // Create application creation transaction
         const txn = algosdk.makeApplicationCreateTxnFromObject({
-          from: creator,
+          sender: creator,
           suggestedParams: params,
           approvalProgram: approvalProgramBytes,
           clearProgram: clearProgramBytes,
@@ -140,9 +140,9 @@ export function registerAppTransactionTools(server: McpServer,env: Env, props: P
               localInts: numLocalInts
             },
             extraPages,
-            fee: params.fee,
-            firstRound: params.firstRound,
-            lastRound: params.lastRound
+            fee: Number(params.fee),
+            firstValid: Number(params.firstValid),
+            lastValid: Number(params.lastValid)
           }
         });
       } catch (error: any) {
@@ -211,7 +211,7 @@ export function registerAppTransactionTools(server: McpServer,env: Env, props: P
         
         // Create application update transaction
         const txn = algosdk.makeApplicationUpdateTxnFromObject({
-          from: sender,
+          sender: sender,
           suggestedParams: params,
           appIndex: appId,
           approvalProgram: approvalProgramBytes,
@@ -231,9 +231,9 @@ export function registerAppTransactionTools(server: McpServer,env: Env, props: P
             type: 'app-update',
             sender,
             appId,
-            fee: params.fee,
-            firstRound: params.firstRound,
-            lastRound: params.lastRound
+            fee: Number(params.fee),
+            firstValid: Number(params.firstValid),
+            lastValid: Number(params.lastValid)
           }
         });
       } catch (error: any) {
@@ -290,7 +290,7 @@ export function registerAppTransactionTools(server: McpServer,env: Env, props: P
         
         // Create application delete transaction
         const txn = algosdk.makeApplicationDeleteTxnFromObject({
-          from: sender,
+          sender: sender,
           suggestedParams: params,
           appIndex: appId,
           appArgs: processedAppArgs,
@@ -308,9 +308,9 @@ export function registerAppTransactionTools(server: McpServer,env: Env, props: P
             type: 'app-delete',
             sender,
             appId,
-            fee: params.fee,
-            firstRound: params.firstRound,
-            lastRound: params.lastRound
+            fee: Number(params.fee),
+            firstValid: Number(params.firstValid),
+            lastValid: Number(params.lastValid)
           }
         });
       } catch (error: any) {
@@ -367,7 +367,7 @@ export function registerAppTransactionTools(server: McpServer,env: Env, props: P
         
         // Create application close-out transaction
         const txn = algosdk.makeApplicationCloseOutTxnFromObject({
-          from: account,
+          sender: account,
           suggestedParams: params,
           appIndex: appId,
           appArgs: processedAppArgs,
@@ -385,9 +385,9 @@ export function registerAppTransactionTools(server: McpServer,env: Env, props: P
             type: 'app-closeout',
             account,
             appId,
-            fee: params.fee,
-            firstRound: params.firstRound,
-            lastRound: params.lastRound
+            fee: Number(params.fee),
+            firstValid: Number(params.firstValid),
+            lastValid: Number(params.lastValid)
           }
         });
       } catch (error: any) {
@@ -444,7 +444,7 @@ export function registerAppTransactionTools(server: McpServer,env: Env, props: P
         
         // Create application clear state transaction
         const txn = algosdk.makeApplicationClearStateTxnFromObject({
-          from: account,
+          sender: account,
           suggestedParams: params,
           appIndex: appId,
           appArgs: processedAppArgs,
@@ -462,9 +462,9 @@ export function registerAppTransactionTools(server: McpServer,env: Env, props: P
             type: 'app-clear-state',
             account,
             appId,
-            fee: params.fee,
-            firstRound: params.firstRound,
-            lastRound: params.lastRound
+            fee: Number(params.fee),
+            firstValid: Number(params.firstValid),
+            lastValid: Number(params.lastValid)
           }
         });
       } catch (error: any) {
@@ -523,7 +523,7 @@ export function registerAppTransactionTools(server: McpServer,env: Env, props: P
         // Create transaction based on onComplete value
         let txn;
         const baseParams = {
-          from: sender,
+          sender: sender,
           suggestedParams: params,
           appIndex: appId,
           appArgs: processedAppArgs,
@@ -563,9 +563,9 @@ export function registerAppTransactionTools(server: McpServer,env: Env, props: P
             sender,
             appId,
             onComplete,
-            fee: params.fee,
-            firstRound: params.firstRound,
-            lastRound: params.lastRound
+            fee: Number(params.fee),
+            firstValid: Number(params.firstValid),
+            lastValid: Number(params.lastValid)
           }
         });
       } catch (error: any) {
@@ -618,7 +618,7 @@ export function registerAppTransactionTools(server: McpServer,env: Env, props: P
         
         // Create application opt-in transaction
         const txn = algosdk.makeApplicationOptInTxnFromObject({
-          from: account,
+          sender: account,
           suggestedParams: params,
           appIndex: appId,
           appArgs: processedAppArgs,
@@ -633,9 +633,9 @@ export function registerAppTransactionTools(server: McpServer,env: Env, props: P
             type: 'app-optin',
             account,
             appId,
-            fee: params.fee,
-            firstRound: params.firstRound,
-            lastRound: params.lastRound
+            fee: Number(params.fee),
+            firstValid: Number(params.firstValid),
+            lastValid: Number(params.lastValid)
           }
         });
       } catch (error: any) {

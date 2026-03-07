@@ -3,7 +3,7 @@
  * Direct access to Algorand node application data
  */
 
-import algosdk from 'algosdk';
+import * as algosdk from 'algosdk';
 import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ResponseProcessor } from '../../../utils';
@@ -207,7 +207,7 @@ export function registerApplicationApiTools(server: McpServer,env: Env): void {
         const appInfo = await algodClient.getApplicationByID(Number(appId)).do();
         
         // Extract and process global state
-        const globalState = appInfo.params?.['global-state'] || [];
+        const globalState = appInfo.params?.globalState || [];
         const processedState = globalState.map((stateItem: any) => {
           const key = Buffer.from(stateItem.key, 'base64').toString('utf-8');
           const value = stateItem.value;

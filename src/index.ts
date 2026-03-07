@@ -25,7 +25,7 @@ import {
 	registerAp2Tools,
 	registerTinymanTools
 } from './tools';
-import { registerWalletResources, registerKnowledgeResources, registerGuideResource } from './resources';
+import { registerKnowledgeResources, registerGuideResource } from './resources';
 
 
 
@@ -71,7 +71,6 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 
 
 		// Register resources
-		await this.registerWalletResources();
 		this.registerKnowledgeResources();
 		this.registerGuideResources();
 
@@ -90,15 +89,6 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 		// Additional tool categories will be added here
 	}
 
-
-	/**
-	 * Register wallet resources
-	 */
-	private async registerWalletResources() {
-		// Register all wallet-related resources
-		// Since this might contain parameters from env, we pass env to the function
-		await registerWalletResources(this.server, this.env, this.props);
-	}
 
 	/**
 	 * Register knowledge resources

@@ -3,7 +3,7 @@
  * Direct access to Algorand node account data
  */
 
-import algosdk from 'algosdk';
+import * as algosdk from 'algosdk';
 import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ResponseProcessor } from '../../../utils';

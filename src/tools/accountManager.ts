@@ -3,7 +3,7 @@
  * Handles account-related operations on the Algorand blockchain
  */
 
-import algosdk from 'algosdk';
+import * as algosdk from 'algosdk';
 import { z } from 'zod';
 import { ResponseProcessor } from '../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -23,7 +23,7 @@ export function registerAccountTools(server: McpServer,env: Env, props: Props): 
       const mnemonic = algosdk.secretKeyToMnemonic(account.sk);
       
       return ResponseProcessor.processResponse({
-        address: account.addr,
+        address: account.addr.toString(),
         mnemonic
       });
     }
@@ -40,7 +40,7 @@ export function registerAccountTools(server: McpServer,env: Env, props: Props): 
         const sk = algosdk.mnemonicToSecretKey(mnemonic);
         
         return ResponseProcessor.processResponse({
-          address: sk.addr,
+          address: sk.addr.toString(),
           sk: Buffer.from(sk.sk).toString('hex'),
           skb64: Buffer.from(sk.sk).toString('base64'),
           message: 'This shows the address and sk associated with the mnemonic. For security reasons, the private key is not stored anywhere and solely for user external use purposes.'
@@ -104,13 +104,13 @@ export function registerAccountTools(server: McpServer,env: Env, props: Props): 
         const accountInfo = await algodClient.accountInformation(address).do();
         
         // Convert from microAlgos to Algos
-        const balance = accountInfo.amount / 1000000;
+        const balance = Number(accountInfo.amount) / 1000000;
         
         return ResponseProcessor.processResponse({
           address,
           balance,
-          microAlgos: accountInfo.amount,
-          minBalance: accountInfo['min-balance']
+          microAlgos: Number(accountInfo.amount),
+          minBalance: accountInfo.minBalance
         });
       } catch (error: any) {
         return {

@@ -3,7 +3,7 @@
  * Handles transaction groups and atomic operations
  */
 
-import algosdk from 'algosdk';
+import * as algosdk from 'algosdk';
 import { z } from 'zod';
 import { ResponseProcessor } from '../../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -61,8 +61,8 @@ async function buildTransaction(
   switch (type) {
     case 'pay': // Payment transaction
       return algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-        from: params.from,
-        to: params.to,
+        sender: params.from,
+        receiver: params.to,
         amount: params.amount,
         note: noteBytes,
         closeRemainderTo: params.closeRemainderTo,
@@ -72,14 +72,14 @@ async function buildTransaction(
 
     case 'axfer': // Asset transfer transaction
       return algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-        from: params.from,
-        to: params.to,
+        sender: params.from,
+        receiver: params.to,
         assetIndex: params.assetIndex,
         amount: params.amount,
         note: noteBytes,
         closeRemainderTo: params.closeRemainderTo,
         rekeyTo: params.rekeyTo,
-        revocationTarget: params.revocationTarget,
+        assetSender: params.revocationTarget,
         suggestedParams
       });
 
@@ -87,7 +87,7 @@ async function buildTransaction(
       if (params.assetIndex) {
         // Reconfiguring existing asset
         return algosdk.makeAssetConfigTxnWithSuggestedParamsFromObject({
-          from: params.from,
+          sender: params.from,
           assetIndex: params.assetIndex,
           manager: params.manager,
           reserve: params.reserve,
@@ -101,7 +101,7 @@ async function buildTransaction(
       } else {
         // Creating new asset
         return algosdk.makeAssetCreateTxnWithSuggestedParamsFromObject({
-          from: params.from,
+          sender: params.from,
           total: params.total,
           decimals: params.decimals,
           defaultFrozen: params.defaultFrozen,
@@ -121,10 +121,10 @@ async function buildTransaction(
 
     case 'afrz': // Asset freeze transaction
       return algosdk.makeAssetFreezeTxnWithSuggestedParamsFromObject({
-        from: params.from,
+        sender: params.from,
         freezeTarget: params.freezeTarget,
         assetIndex: params.assetIndex,
-        freezeState: params.freezeState,
+        frozen: params.freezeState,
         note: noteBytes,
         rekeyTo: params.rekeyTo,
         suggestedParams
@@ -132,7 +132,7 @@ async function buildTransaction(
 
     case 'appl': // Application call transaction
       return algosdk.makeApplicationCallTxnFromObject({
-        from: params.from,
+        sender: params.from,
         appIndex: params.appIndex || 0, // 0 for app creation
         onComplete: params.onComplete || algosdk.OnApplicationComplete.NoOpOC,
         appArgs: params.appArgs ? params.appArgs.map((arg: string) => new Uint8Array(Buffer.from(arg, 'base64'))) : undefined,
@@ -156,7 +156,7 @@ async function buildTransaction(
       if (params.nonParticipation === true) {
         // Going offline
         return algosdk.makeKeyRegistrationTxnWithSuggestedParamsFromObject({
-          from: params.from,
+          sender: params.from,
           suggestedParams,
           nonParticipation: true,
           note: noteBytes,
@@ -165,7 +165,7 @@ async function buildTransaction(
       } else {
         // Normal key registration
         return algosdk.makeKeyRegistrationTxnWithSuggestedParamsFromObject({
-          from: params.from,
+          sender: params.from,
           voteKey: params.voteKey,
           selectionKey: params.selectionKey,
           stateProofKey: params.stateProofKey,
@@ -382,7 +382,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
             // Get the address from the public key
             const signerAddr = algosdk.encodeAddress(publicKeyBuffer);
             console.log('Signer address:', signerAddr);
-            const txnObj = decodedTxn.get_obj_for_encoding();
+            const txnObj = msgpack.decode(algosdk.encodeUnsignedTransaction(decodedTxn));
             console.log('Transaction object for encoding:', txnObj);
 
             // Create a signed transaction object
@@ -394,7 +394,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
 
             // Add AuthAddr if signing with a different key than From indicates
             // Compare the actual bytes of the public keys, not their string representations
-            const fromPubKey = decodedTxn.from.publicKey;
+            const fromPubKey = decodedTxn.sender.publicKey;
             let keysMatch = fromPubKey.length === publicKeyBuffer.length;
             if (keysMatch) {
               for (let i = 0; i < fromPubKey.length; i++) {
@@ -407,7 +407,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
 
             if (!keysMatch) {
               // Only add sgnr if the keys are actually different
-              signedTxn["sgnr"] = algosdk.decodeAddress(signerAddr);
+              signedTxn["sgnr"] = algosdk.decodeAddress(signerAddr).publicKey;
             }
 
             // Encode the signed transaction using MessagePack
@@ -460,7 +460,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
       try {
         // Derive account from mnemonic
         const account = algosdk.mnemonicToSecretKey(mnemonic);
-        const publicKeyBuffer = algosdk.decodeAddress(account.addr).publicKey;
+        const publicKeyBuffer = algosdk.decodeAddress(account.addr.toString()).publicKey;
 
         // Decode transactions
         const decodedTxns = encodedTxns.map(txn => {
@@ -487,7 +487,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
 
           // Extract signature from the signed blob
           const signature = signatureResult.blob;
-          const txnObj = txn.get_obj_for_encoding();
+          const txnObj = msgpack.decode(algosdk.encodeUnsignedTransaction(txn));
 
           // Create signed transaction object
           const signedTxn: any = {
@@ -496,7 +496,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
           };
 
           // Add AuthAddr if signing with a different key than From indicates
-          const fromPubKey = txn.from.publicKey;
+          const fromPubKey = txn.sender.publicKey;
           let keysMatch = fromPubKey.length === publicKeyBuffer.length;
           if (keysMatch) {
             for (let i = 0; i < fromPubKey.length; i++) {
@@ -508,7 +508,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
           }
 
           if (!keysMatch) {
-            signedTxn.sgnr = algosdk.decodeAddress(account.addr);
+            signedTxn.sgnr = algosdk.decodeAddress(account.addr.toString()).publicKey;
           }
 
           // Encode the signed transaction using MessagePack
@@ -564,7 +564,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
 
         // Submit the transaction group
         const response = await algodClient.sendRawTransaction(decodedTxns).do();
-        const txId = response.txId || response.txid;
+        const txId = response.txid;
         console.log('Transaction ID:', txId);
 
         // Wait for confirmation
@@ -574,7 +574,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
         return ResponseProcessor.processResponse({
           confirmed: true,
           txID: txId,
-          confirmedRound: confirmedTxn['confirmed-round'],
+          confirmedRound: confirmedTxn.confirmedRound,
           txnResult: confirmedTxn
         });
       } catch (error: any) {

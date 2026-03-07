@@ -435,6 +435,11 @@ export interface Env {
   ALGORAND_NETWORK: string;
 
   /**
+   * Haystack Router API key for DEX aggregation
+   */
+  HAYSTACK_API_KEY?: string;
+
+  /**
    * Algorand node URL for API access (base URL)
    */
   ALGORAND_ALGOD: string;

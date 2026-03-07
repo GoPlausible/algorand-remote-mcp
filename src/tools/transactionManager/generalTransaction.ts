@@ -3,7 +3,7 @@
  * Handles payment transaction operations on the Algorand blockchain
  */
 
-import algosdk from 'algosdk';
+import * as algosdk from 'algosdk';
 
 
 import { z } from 'zod';
@@ -111,13 +111,13 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         }
 
         const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-          from: sender,
-          to: receiver,
+          sender: sender,
+          receiver: receiver,
           amount,
           note: noteBytes,
           closeRemainderTo,
           rekeyTo,
-          suggestedParams: params.fee ? { ...params, fee: params.fee, flatFee: true } : params
+          suggestedParams: params.fee ? { ...params, fee: Number(params.fee), flatFee: true } : params
         });
 
         // Return the encoded transaction
@@ -125,12 +125,12 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
           txID: txn.txID(),
           encodedTxn: Buffer.from(algosdk.encodeUnsignedTransaction(txn)).toString('base64'),
           txnInfo: {
-            from: sender,
-            to: receiver,
+            sender: sender,
+            receiver: receiver,
             amount,
-            fee: fee ? fee : txn.fee,
-            firstRound: params.firstRound,
-            lastRound: params.lastRound
+            fee: fee ? fee : Number(txn.fee),
+            firstValid: Number(params.firstValid),
+            lastValid: Number(params.lastValid)
           }
         });
       } catch (error: any) {
@@ -203,11 +203,11 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         // Get the address from the public key
         const signerAddr = algosdk.encodeAddress(publicKeyBuffer);
         console.log('Signer address:', signerAddr);
-        const txnObj = txn.get_obj_for_encoding();
+        const txnObj = msgpack.decode(algosdk.encodeUnsignedTransaction(txn));
         console.log('Transaction object for encoding:', txnObj);
 
         // Create a Map for the signed transaction
-        const signedTxn: object = {
+        const signedTxn: any = {
           txn: txnObj,
           sig: signature,
         };
@@ -215,7 +215,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
 
         // Add AuthAddr if signing with a different key than From indicates
         // Compare the actual bytes of the public keys, not their string representations
-        const fromPubKey = txn.from.publicKey;
+        const fromPubKey = txn.sender.publicKey;
         let keysMatch = fromPubKey.length === publicKeyBuffer.length;
         if (keysMatch) {
           for (let i = 0; i < fromPubKey.length; i++) {
@@ -228,7 +228,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
 
         if (!keysMatch) {
           // Only add sgnr if the keys are actually different
-          signedTxn.sgnr = algosdk.decodeAddress(signerAddr);
+          signedTxn.sgnr = algosdk.decodeAddress(signerAddr).publicKey;
         }
 
         // Encode the signed transaction using MessagePack
@@ -272,7 +272,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         const txn = algosdk.decodeUnsignedTransaction(Buffer.from(encodedTxn, 'base64'));
         console.log('Decoded transaction:', txn);
         const account = algosdk.mnemonicToSecretKey(mnemonic);
-        const publicKeyBuffer = algosdk.decodeAddress(account.addr).publicKey;
+        const publicKeyBuffer = algosdk.decodeAddress(account.addr.toString()).publicKey;
         const signatureResult = algosdk.signTransaction(txn, account.sk);
 
 
@@ -284,8 +284,8 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
 
 
 
-        // Convert the base64 signature to Uint8Array
-        const signature = Buffer.from(signatureResult.blob, 'base64');
+        // Get the signature from the signed blob
+        const signature = Buffer.from(signatureResult.blob);
         console.log('Signature:', signature);
         const txID = signatureResult.txID;
         console.log('TXID:', txID);
@@ -296,13 +296,13 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         console.log('Public key buffer:', publicKeyBuffer);
 
         // Get the address from the public key
-        const signerAddr = account.addr;
+        const signerAddr = account.addr.toString();
         console.log('Signer address:', signerAddr);
-        const txnObj = txn.get_obj_for_encoding();
+        const txnObj = msgpack.decode(algosdk.encodeUnsignedTransaction(txn));
         console.log('Transaction object for encoding:', txnObj);
 
         // Create a Map for the signed transaction
-        const signedTxn: object = {
+        const signedTxn: any = {
           txn: txnObj,
           sig: signature,
         };
@@ -310,7 +310,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
 
         // Add AuthAddr if signing with a different key than From indicates
         // Compare the actual bytes of the public keys, not their string representations
-        const fromPubKey = txn.from.publicKey;
+        const fromPubKey = txn.sender.publicKey;
         let keysMatch = fromPubKey.length === publicKeyBuffer.length;
         if (keysMatch) {
           for (let i = 0; i < fromPubKey.length; i++) {
@@ -323,7 +323,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
 
         if (!keysMatch) {
           // Only add sgnr if the keys are actually different
-          signedTxn.sgnr = algosdk.decodeAddress(signerAddr);
+          signedTxn.sgnr = algosdk.decodeAddress(signerAddr).publicKey;
         }
 
         // Encode the signed transaction using MessagePack
@@ -376,7 +376,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         const decodedTxn = Buffer.from(signedTxn, 'base64');
         console.log('Decoded signed transaction:', decodedTxn);
         const response = await algodClient.sendRawTransaction(new Uint8Array(decodedTxn)).do();
-        const txId = response.txId || response.txid;
+        const txId = response.txid;
         console.log('Transaction ID:', txId);
         // Wait for confirmation
         const confirmedTxn = await algosdk.waitForConfirmation(algodClient, txId, 5);
@@ -386,7 +386,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         return ResponseProcessor.processResponse({
           confirmed: true,
           txID: txId,
-          confirmedRound: confirmedTxn['confirmed-round'],
+          confirmedRound: Number(confirmedTxn.confirmedRound),
           txnResult: confirmedTxn
         });
       } catch (error: any) {
@@ -455,7 +455,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         if (nonParticipation === true) {
           // Going offline
           txn = algosdk.makeKeyRegistrationTxnWithSuggestedParamsFromObject({
-            from: sender,
+            sender: sender,
             suggestedParams: params,
             nonParticipation: true,
             note: noteBytes,
@@ -464,7 +464,7 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
         } else {
           // Normal key registration
           txn = algosdk.makeKeyRegistrationTxnWithSuggestedParamsFromObject({
-            from: sender,
+            sender: sender,
             voteKey,
             selectionKey,
             stateProofKey,
@@ -485,12 +485,12 @@ export async function registerGeneralTransactionTools(server: McpServer, env: En
           encodedTxn: Buffer.from(algosdk.encodeUnsignedTransaction(txn)).toString('base64'),
           txnInfo: {
             type: 'keyreg',
-            from: sender,
+            sender: sender,
             voteFirst,
             voteLast,
-            fee: params.fee,
-            firstRound: params.firstRound,
-            lastRound: params.lastRound
+            fee: Number(params.fee),
+            firstValid: Number(params.firstValid),
+            lastValid: Number(params.lastValid)
           }
         });
       } catch (error: any) {

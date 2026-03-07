@@ -3,7 +3,7 @@
  * Provides tool-based access to wallet and account information
  */
 
-import algosdk from 'algosdk';
+import * as algosdk from 'algosdk';
 import { z } from 'zod';
 import { ResponseProcessor } from '../utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -17,8 +17,6 @@ import {
   deleteEntity,
   createNewEntity
 } from '../utils/vaultManager';
-import { log } from 'console';
-import { email } from 'zod/v4';
 
 /**
  * Create and validate an Algorand client
@@ -357,7 +355,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         return ResponseProcessor.processResponse({
           accounts: [{
             address,
-            amount: accountInfo.amount,
+            amount: Number(accountInfo.amount),
             assets: accountInfo.assets || [],
             user: props.email,
             provider: props.provider,

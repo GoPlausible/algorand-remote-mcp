@@ -3,7 +3,7 @@
  * Direct access to Algorand node asset data
  */
 
-import algosdk from 'algosdk';
+import * as algosdk from 'algosdk';
 import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ResponseProcessor } from '../../../utils';
@@ -220,18 +220,18 @@ export function registerAssetApiTools(server: McpServer, env: Env): void {
           ...response,
           readableParams: {
             name: assetParams.name,
-            unitName: assetParams['unit-name'],
+            unitName: assetParams.unitName,
             total: assetParams.total,
             decimals: assetParams.decimals,
-            defaultFrozen: assetParams['default-frozen'],
+            defaultFrozen: assetParams.defaultFrozen,
             creator: assetParams.creator,
             manager: assetParams.manager,
             reserve: assetParams.reserve,
             freeze: assetParams.freeze,
             clawback: assetParams.clawback,
             url: assetParams.url ? Buffer.from(assetParams.url).toString() : undefined,
-            metadataHash: assetParams['metadata-hash']
-              ? Buffer.from(assetParams['metadata-hash']).toString('hex')
+            metadataHash: assetParams.metadataHash
+              ? Buffer.from(assetParams.metadataHash).toString('hex')
               : undefined
           }
         };
@@ -284,7 +284,7 @@ export function registerAssetApiTools(server: McpServer, env: Env): void {
         const assets = accountInfo.assets || [];
 
         // Find the specific asset
-        const assetInfo = assets.find((asset: any) => asset['asset-id'] === assetId);
+        const assetInfo = assets.find((asset: any) => asset.assetId === assetId);
 
         if (!assetInfo) {
           return {
@@ -299,7 +299,7 @@ export function registerAssetApiTools(server: McpServer, env: Env): void {
           address,
           assetId,
           amount: assetInfo.amount,
-          isFrozen: assetInfo['is-frozen'],
+          isFrozen: assetInfo.isFrozen,
           optedIn: true
         };
 

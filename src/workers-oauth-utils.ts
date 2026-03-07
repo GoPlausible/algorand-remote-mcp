@@ -217,7 +217,7 @@ export async function clientIdAlreadyApproved(
 
   return {
     approved: approvedClients?.includes(clientId) ?? false,
-    provider: provider || null,
+    provider: provider || '',
   };
 }
 

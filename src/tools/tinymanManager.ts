@@ -3,13 +3,14 @@
  * Provides tool-based access to Tinyman DEX operations
  */
 
-import algosdk from 'algosdk';
+import * as algosdk from 'algosdk';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import { Env, Props } from '../types';
 import { Swap, poolUtils, SwapType, SupportedNetwork } from '@tinymanorg/tinyman-js-sdk';
 import { signWithTransit } from '../utils/vaultManager';
 import { z } from 'zod';
+import * as msgpack from "algo-msgpack-with-bigint";
 
 /**
  * Get asset decimals for a given asset ID
@@ -185,7 +186,7 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
           const quoteFee = Number(quoteData.transaction_fee);
           // Calculate fee per transaction - divide by number of transactions and add a small buffer
           const feePerTxn = Math.ceil(quoteFee / quoteData.transactions.length) + 1000;
-          params.fee = feePerTxn;
+          params.fee = BigInt(feePerTxn);
           params.flatFee = true;
           console.log('[TINYMAN_SWAP] Using fee from quote:', {
             quoteTotalFee: quoteFee,
@@ -194,7 +195,7 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
           });
         } else {
           // Fallback to a safe default if quote doesn't provide fee info
-          params.fee = 3000;
+          params.fee = BigInt(3000);
           params.flatFee = true;
           console.log('[TINYMAN_SWAP] Using default fee:', params.fee);
         }
@@ -207,14 +208,14 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
           if (txnData.type === 'pay') {
             // Payment transaction
             const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-              from: initiatorAddr,
-              to: txnData.receiver,
+              sender: initiatorAddr,
+              receiver: txnData.receiver,
               amount: Number(txnData.amount),
               suggestedParams: params
             });
             transactions.push(txn);
             console.log('[TINYMAN_SWAP] Created payment transaction:', {
-              to: txnData.receiver,
+              receiver: txnData.receiver,
               amount: Number(txnData.amount)
             });
           }
@@ -225,8 +226,8 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
           if (txnData.type === 'axfer') {
             // Asset transfer transaction
             const txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-              from: initiatorAddr,
-              to: txnData.receiver,
+              sender: initiatorAddr,
+              receiver: txnData.receiver,
               amount: Number(txnData.amount),
               assetIndex: txnData.asset_id,
               suggestedParams: params
@@ -234,7 +235,7 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
             transactions.push(txn);
             console.log('[TINYMAN_SWAP] Created asset transfer transaction:', {
               assetId: txnData.asset_id,
-              to: txnData.receiver,
+              receiver: txnData.receiver,
               amount: Number(txnData.amount)
             });
           }
@@ -249,20 +250,15 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
             const foreignApps = txnData.apps || [];
             const foreignAssets = txnData.assets || [];
             
-            // Use the direct function instead of the object-based approach
-            const txn = algosdk.makeApplicationNoOpTxn(
-              initiatorAddr,
-              params,
-              txnData.app_id,
+            const txn = algosdk.makeApplicationNoOpTxnFromObject({
+              sender: initiatorAddr,
+              suggestedParams: params,
+              appIndex: txnData.app_id,
               appArgs,
               accounts,
               foreignApps,
               foreignAssets,
-              new Uint8Array(0), // note
-              undefined, // lease
-              undefined, // rekeyTo
-              undefined  // boxes
-            );
+            });
             transactions.push(txn);
             console.log('[TINYMAN_SWAP] Created application call transaction:', {
               appIndex: txnData.app_id,
@@ -273,9 +269,9 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
             });
           }
         }
-        
+
         console.log('[TINYMAN_SWAP] Created transactions:', transactions.length);
-        
+
         // Preserve the original order from the quote
         const orderedTransactions = [];
         for (const txnData of quoteData.transactions) {
@@ -337,7 +333,7 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
           const signature = Buffer.from(signatureResult.signature, 'base64');
           
           // Fix the transaction object to replace appAccounts with accounts
-          const txnObj = txn.get_obj_for_encoding() as any;
+          const txnObj = msgpack.decode(algosdk.encodeUnsignedTransaction(txn)) as any;
           if (txnObj.appAccounts) {
             txnObj.accounts = txnObj.appAccounts;
             delete txnObj.appAccounts;
@@ -350,7 +346,7 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
           };
           
           // Encode the signed transaction
-          const encodedSignedTxn = algosdk.encodeObj(signedTxn);
+          const encodedSignedTxn = new Uint8Array(msgpack.encode(signedTxn, { sortKeys: true, ignoreUndefined: true }));
           signedTxns.push(encodedSignedTxn);
         }
         console.log('[TINYMAN_SWAP] All transactions signed:', signedTxns.length);
@@ -358,12 +354,12 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
         // Submit the signed transactions
         const txnBlob = Buffer.concat(signedTxns.map(stxn => Buffer.from(stxn)));
         const swapExecutionResponse = await algodClient.sendRawTransaction(txnBlob).do();
-        const txId = swapExecutionResponse.txId || swapExecutionResponse.txid;
+        const txId = swapExecutionResponse.txid;
         // Wait for confirmation
         const confirmedTxn = await algosdk.waitForConfirmation(algodClient, txId, 5);
         console.log('[TINYMAN_SWAP] Swap Execution Response:', {
           txId: txId,
-          confirmedRound: confirmedTxn['confirmed-round']
+          confirmedRound: confirmedTxn.confirmedRound
         });
 
         return {
@@ -372,7 +368,7 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
             text: JSON.stringify({
               success: true,
               txId: txId,
-              confirmedRound: confirmedTxn['confirmed-round'],
+              confirmedRound: confirmedTxn.confirmedRound,
               quote: fixedInputSwapQuote
             })
           }]
@@ -531,7 +527,7 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
           const quoteFee = Number(quoteData.transaction_fee);
           // Calculate fee per transaction - divide by number of transactions and add a small buffer
           const feePerTxn = Math.ceil(quoteFee / quoteData.transactions.length) + 1000;
-          params.fee = feePerTxn;
+          params.fee = BigInt(feePerTxn);
           params.flatFee = true;
           console.log('[TINYMAN_SWAP] Using fee from quote:', {
             quoteTotalFee: quoteFee,
@@ -540,7 +536,7 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
           });
         } else {
           // Fallback to a safe default if quote doesn't provide fee info
-          params.fee = 3000;
+          params.fee = BigInt(3000);
           params.flatFee = true;
           console.log('[TINYMAN_SWAP] Using default fee:', params.fee);
         }
@@ -553,14 +549,14 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
           if (txnData.type === 'pay') {
             // Payment transaction
             const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-              from: initiatorAddr,
-              to: txnData.receiver,
+              sender: initiatorAddr,
+              receiver: txnData.receiver,
               amount: Number(txnData.amount),
               suggestedParams: params
             });
             transactions.push(txn);
             console.log('[TINYMAN_SWAP] Created payment transaction:', {
-              to: txnData.receiver,
+              receiver: txnData.receiver,
               amount: Number(txnData.amount)
             });
           }
@@ -571,8 +567,8 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
           if (txnData.type === 'axfer') {
             // Asset transfer transaction
             const txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-              from: initiatorAddr,
-              to: txnData.receiver,
+              sender: initiatorAddr,
+              receiver: txnData.receiver,
               amount: Number(txnData.amount),
               assetIndex: txnData.asset_id,
               suggestedParams: params
@@ -580,7 +576,7 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
             transactions.push(txn);
             console.log('[TINYMAN_SWAP] Created asset transfer transaction:', {
               assetId: txnData.asset_id,
-              to: txnData.receiver,
+              receiver: txnData.receiver,
               amount: Number(txnData.amount)
             });
           }
@@ -595,20 +591,15 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
             const foreignApps = txnData.apps || [];
             const foreignAssets = txnData.assets || [];
             
-            // Use the direct function instead of the object-based approach
-            const txn = algosdk.makeApplicationNoOpTxn(
-              initiatorAddr,
-              params,
-              txnData.app_id,
+            const txn = algosdk.makeApplicationNoOpTxnFromObject({
+              sender: initiatorAddr,
+              suggestedParams: params,
+              appIndex: txnData.app_id,
               appArgs,
               accounts,
               foreignApps,
               foreignAssets,
-              new Uint8Array(0), // note
-              undefined, // lease
-              undefined, // rekeyTo
-              undefined  // boxes
-            );
+            });
             transactions.push(txn);
             console.log('[TINYMAN_SWAP] Created application call transaction:', {
               appIndex: txnData.app_id,
@@ -619,9 +610,9 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
             });
           }
         }
-        
+
         console.log('[TINYMAN_SWAP] Created transactions:', transactions.length);
-        
+
         // Preserve the original order from the quote
         const orderedTransactions = [];
         for (const txnData of quoteData.transactions) {
@@ -683,7 +674,7 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
           const signature = Buffer.from(signatureResult.signature, 'base64');
           
           // Fix the transaction object to replace appAccounts with accounts
-          const txnObj = txn.get_obj_for_encoding() as any;
+          const txnObj = msgpack.decode(algosdk.encodeUnsignedTransaction(txn)) as any;
           if (txnObj.appAccounts) {
             txnObj.accounts = txnObj.appAccounts;
             delete txnObj.appAccounts;
@@ -696,7 +687,7 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
           };
           
           // Encode the signed transaction
-          const encodedSignedTxn = algosdk.encodeObj(signedTxn);
+          const encodedSignedTxn = new Uint8Array(msgpack.encode(signedTxn, { sortKeys: true, ignoreUndefined: true }));
           signedTxns.push(encodedSignedTxn);
         }
         console.log('[TINYMAN_SWAP] All transactions signed:', signedTxns.length);
@@ -704,12 +695,12 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
         // Submit the signed transactions
         const txnBlob = Buffer.concat(signedTxns.map(stxn => Buffer.from(stxn)));
         const swapExecutionResponse = await algodClient.sendRawTransaction(txnBlob).do();
-        const txId = swapExecutionResponse.txId || swapExecutionResponse.txid;
+        const txId = swapExecutionResponse.txid;
         // Wait for confirmation
         const confirmedTxn = await algosdk.waitForConfirmation(algodClient, txId, 5);
         console.log('[TINYMAN_SWAP] Swap Execution Response:', {
           txId: txId,
-          confirmedRound: confirmedTxn['confirmed-round']
+          confirmedRound: confirmedTxn.confirmedRound
         });
 
         return {
@@ -718,7 +709,7 @@ export async function registerTinymanTools(server: McpServer, env: Env, props: P
             text: JSON.stringify({
               success: true,
               txId: txId,
-              confirmedRound: confirmedTxn['confirmed-round'],
+              confirmedRound: confirmedTxn.confirmedRound,
               quote: fixedOutputSwapQuote
             })
           }]

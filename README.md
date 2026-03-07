@@ -1,36 +1,24 @@
 # Algorand Remote MCP
 
-A Model Context Protocol (MCP) server implementation that provides tools and resources for AI agents to interact with the Algorand blockchain.
+A Model Context Protocol (MCP) server that provides tools and resources for AI agents to interact with the Algorand blockchain. Built on Cloudflare Workers with HashiCorp Vault-based wallet management and multi-provider OAuth authentication.
 
 ## Overview
 
-Algorand Remote MCP bridges the gap between AI agents and the Algorand blockchain ecosystem. It serves as a middleware layer that enables AI systems to interact with blockchain technology through a standardized interface, without requiring deep blockchain expertise.
+Algorand Remote MCP bridges AI agents and the Algorand blockchain ecosystem through a standardized MCP interface. It enables AI systems to manage wallets, create and submit transactions, swap tokens via DEX aggregators, and access blockchain data — all without requiring deep blockchain expertise.
 
-The server is designed to run on Cloudflare Workers and provides a comprehensive set of tools and resources for blockchain operations, including wallet management, transaction creation and submission, API integration, and knowledge access. This is a remote MCP implementation only, focused on providing server-side functionality for AI agents to interact with the Algorand blockchain.
+This is a **remote MCP** implementation running on Cloudflare Workers with:
 
-## Features
+- **HashiCorp Vault** for secure Ed25519 key storage and transaction signing
+- **Multi-provider OAuth** (Google, GitHub, Twitter, LinkedIn) for user authentication
+- **algosdk v3.5.2** for Algorand SDK operations
+- **Haystack Router** for best-price DEX aggregation across Tinyman, Pact, Folks, and LST protocols
+- **Tinyman SDK** for direct DEX swap operations
 
-- **Secure Wallet Management**: Create, access, and manage Algorand wallets with automatic wallet creation for new users
-- **HashiCorp Vault Integration**: 
-  - Secure storage of sensitive wallet credentials using HashiCorp Vault
-  - Ed25519 keypair operations for cryptographic functions
-  - Policy that all new accounts use Ed25519 secure secrets engine.
-- **Comprehensive Transaction Support**: Create, sign, and submit various transaction types (payments, assets, applications)
-- **API Integration**: Access Algorand node, indexer, and NFD APIs through standardized interfaces
-- **Knowledge Resources**: Access documentation and guides for Algorand development
-- **Multi-Provider OAuth Authentication**: 
-  - Secure user authentication through multiple providers (Google, GitHub, Twitter, LinkedIn)
-  - Complete authentication lifecycle with login, session management, and logout
-- **Pagination Support**: Handle large datasets with built-in pagination
-- **Standardized Response Formatting**: Consistent response formatting for AI agent consumption
-- **Wallet Reset Capability**: Users can reset their wallet and generate a new one if needed
+## Quick Start
 
-## Installation
-Make sure you have these:
-- Node.js v16+ installed
-- A Google account for OAuth authentication
+**Prerequisites:** Node.js v16+, an OAuth account (Google, GitHub, Twitter, or LinkedIn)
 
-Add this to your MCP servers:
+Add to your MCP client configuration:
 
 ```json
 {
@@ -39,177 +27,296 @@ Add this to your MCP servers:
       "command": "npx",
       "args": [
         "mcp-remote",
-        "https://algorand-remote-mcp.your-account.workers.dev/sse"  // or http://localhost:8787/sse for local development
+        "https://algorandmcp.goplausible.xyz/sse"
       ]
     }
   }
 }
-
 ```
 
-And then restart your LLM Agent and prompt to it: 
+Restart your LLM agent and prompt:
 ```
 Read Algorand Remote MCP guide.
 ```
 
 ## Architecture
 
-Algorand Remote MCP is built on the Model Context Protocol (MCP), which provides a standardized way for AI agents to interact with external systems. The server is implemented as a Cloudflare Worker with the following components:
+- **AlgorandRemoteMCP Class**: Main MCP agent extending McpAgent on Cloudflare Workers
+- **Tool Managers**: Specialized managers for accounts, wallets, transactions, assets, applications, APIs, and DEX operations
+- **Resource Providers**: URI-based access to knowledge base and guides
+- **ResponseProcessor**: Standardized response formatting with pagination
+- **HashiCorp Vault Integration**: Ed25519 keypair generation, secure signing via Transit engine, no private key exposure
+- **Service Bindings**: Inter-worker communication for vault operations
 
-- **AlgorandRemoteMCP Class**: Main MCP agent implementation that extends McpAgent
-- **Tool Managers**: Specialized managers for different operation types
-- **Resource Providers**: URI-based access to data and documentation
-- **ResponseProcessor**: Standardized response formatting with pagination support
-- **OAuth Integration**: Secure user authentication and authorization
-- **HashiCorp Vault Integration**: 
-  - Secure storage of sensitive wallet credentials
-  - Ed25519 keypair operations for cryptographic functions
-  - Secure key management without exposing private keys
-  - Policy that all new accounts use the secure Ed25519 secrets engine
-- **Service Bindings**: Inter-worker communication for secure vault operations
-
-## Available Tools
+## Tools
 
 ### Account Management
-- `create_account`: Create a new Algorand account
-- `mnemonic_to_address`: View the address associated with a mnemonic (without storing the private key)
-- `check_account_balance`: Check the balance of an Algorand account
+| Tool | Description |
+|------|-------------|
+| `sdk_create_algorand_keypair` | Create a new Algorand keypair (not wallet-linked) |
+| `sdk_mnemonic_to_address_and_secretkey` | Get address and secret key from a mnemonic |
+| `sdk_address_to_public_key` | Get the public key for an Algorand address |
+| `sdk_check_account_balance` | Check account balance in ALGO |
 
 ### Wallet Management
-- `get_wallet_address`: Get the address for the configured wallet
-- `get_wallet_info`: Get account information for the configured wallet
-- `get_wallet_assets`: Get assets owned by the configured wallet
-- `get_wallet_publickey`: Get the public key for the configured wallet
-- `wallet_reset_account`: Reset the wallet account for the configured user
-- `logout`: Logout from the OAuth provider and clear authentication cookies
+| Tool | Description |
+|------|-------------|
+| `wallet_get_publickey` | Get the vault wallet's public key |
+| `wallet_get_address` | Get the vault wallet's Algorand address |
+| `wallet_get_info` | Get account information (balance, assets) |
+| `wallet_get_assets` | Get assets held by the wallet |
+| `wallet_reset_account` | Reset wallet and generate new keys (destructive) |
+| `wallet_logout` | Logout from OAuth provider |
 
-### Transaction Management
-- `sdk_txn_payment_transaction`: Create a payment transaction
-- `wallet_sign_transaction`: Sign a transaction with the wallet's credentials
-- `submit_transaction`: Submit a signed transaction to the network
-- `create_atomic_group`: Create an atomic transaction group from multiple transactions
-- `sign_atomic_group`: Sign an atomic transaction group
-- `submit_atomic_group`: Submit a signed atomic transaction group to the network
-- `sdk_txn_asset_optin`: Create an asset opt-in transaction
-- `transfer_asset`: Create an asset transfer transaction
-- `create_asset`: Create a new Algorand Standard Asset
-- `create_application`: Create a new smart contract application
-- `call_application`: Call a smart contract application
+### Transaction Operations
+| Tool | Description |
+|------|-------------|
+| `sdk_txn_payment_transaction` | Create a payment transaction |
+| `wallet_sign_transaction` | Sign a transaction using vault keys |
+| `sdk_sign_transaction` | Sign a transaction using a mnemonic |
+| `sdk_submit_transaction` | Submit a signed transaction to the network |
+| `sdk_txn_key_registration_transaction` | Create a key registration transaction |
+| `sdk_assign_group_id` | Assign group ID for atomic execution |
+| `sdk_create_atomic_group` | Create an atomic transaction group (pay, axfer, acfg, appl, afrz, keyreg) |
+| `wallet_sign_atomic_group` | Sign an atomic group using vault keys |
+| `sdk_sign_atomic_group` | Sign an atomic group using a mnemonic |
+| `sdk_submit_atomic_group` | Submit a signed atomic group |
+| `sdk_send_raw_transaction` | Submit raw signed transactions |
 
-### API Integration
-- `algod_get_account_info`: Get account details from Algorand node
-- `algod_get_pending_txn_info`: Get pending transaction details from Algorand node
-- `indexer_lookup_account_by_id`: Get account details from indexer
-- `api_nfd_get_nfd`: Get NFD address information
+### Asset Operations
+| Tool | Description |
+|------|-------------|
+| `sdk_txn_create_asset` | Create a new Algorand Standard Asset (ASA) |
+| `sdk_txn_asset_optin` | Opt-in to an ASA |
+| `wallet_usdc_optin` | Opt-in agent wallet to USDC (vault-signed) |
+| `sdk_txn_transfer_asset` | Transfer an ASA |
+
+### Application (Smart Contract) Operations
+| Tool | Description |
+|------|-------------|
+| `sdk_txn_create_application` | Create a new smart contract |
+| `sdk_txn_update_application` | Update an existing smart contract |
+| `sdk_txn_delete_application` | Delete a smart contract |
+| `sdk_txn_closeout_application` | Close out from an application |
+| `sdk_txn_clear_application` | Clear application state |
+| `sdk_txn_call_application` | Call a smart contract (noop, optin, closeout, clear, delete) |
+| `sdk_optin_application` | Opt-in to an application |
+
+### DEX — Haystack Router (DEX Aggregator)
+| Tool | Description |
+|------|-------------|
+| `haystack_get_swap_quote` | Get best-price swap quote across multiple DEXes and LST protocols |
+| `haystack_execute_swap` | Execute an optimized swap: quote, vault-sign, submit, confirm |
+| `haystack_needs_optin` | Check if an address needs to opt-in to an asset before swapping |
+
+### DEX — Tinyman
+| Tool | Description |
+|------|-------------|
+| `tinyman_fixed_input_swap` | Execute a swap with a fixed input amount |
+| `tinyman_fixed_output_swap` | Execute a swap with a fixed output amount |
+
+### Algod API
+| Tool | Description |
+|------|-------------|
+| `algod_get_account_info` | Get account balance, assets, and auth address |
+| `algod_get_account_application_info` | Get account-specific application info |
+| `algod_get_account_asset_info` | Get account-specific asset info |
+| `algod_get_application_info` | Get application details |
+| `algod_get_application_box_value` | Get application box contents |
+| `algod_get_application_boxes` | List application boxes |
+| `algod_get_application_state` | Get application global state |
+| `algod_get_asset_info` | Get asset details |
+| `algod_get_asset_holding` | Get asset holding for an account |
+| `algod_get_pending_txn_info` | Get pending transaction details |
+| `algod_get_pending_transactions` | Get pending transactions from mempool |
+
+### Pera Wallet Asset Verification
+| Tool | Description |
+|------|-------------|
+| `pera_asset_verification_status` | Get verification status of an asset |
+| `pera_verified_asset_details` | Get detailed asset information from Pera |
+| `pera_verified_asset_search` | Search verified assets by name, unit name, or creator |
+
+### Indexer API
+| Tool | Description |
+|------|-------------|
+| `indexer_lookup_account_assets` | Get account assets |
+| `indexer_lookup_account_app_local_states` | Get account app local states |
+| `indexer_lookup_account_created_apps` | Get applications created by an account |
+| `indexer_lookup_account_transactions` | Get transactions for an account |
+| `indexer_search_for_accounts` | Search accounts with filters |
+| `indexer_lookup_application_logs` | Get application log messages |
+| `indexer_search_for_applications` | Search applications |
+| `indexer_lookup_asset_balances` | Get holders of a specific asset |
+| `indexer_search_for_assets` | Search assets |
+| `indexer_lookup_transaction_by_id` | Get transaction details |
+| `indexer_search_for_transactions` | Search transactions |
+
+### NFD (Algorand Name Service)
+| Tool | Description |
+|------|-------------|
+| `api_nfd_get_nfd` | Get NFD domain information by name |
+| `api_nfd_get_nfds_for_address` | Get all NFD domains owned by an address |
+
+### TEAL Operations
+| Tool | Description |
+|------|-------------|
+| `sdk_compile_teal` | Compile TEAL source code |
+| `sdk_disassemble_teal` | Disassemble TEAL bytecode |
 
 ### Utility Tools
-- `validate_address`: Validate an Algorand address
-<!-- - `encode_obj`: Encode an object to msgpack format
-- `decode_obj`: Decode msgpack bytes to an object -->
-- `compile_teal`: Compile TEAL source code
-- `algorand_mcp_guide`: Access comprehensive guide for using Algorand Remote MCP
+| Tool | Description |
+|------|-------------|
+| `sdk_validate_address` | Check if an Algorand address is valid |
+| `sdk_encode_address` | Encode a public key to an address |
+| `sdk_decode_address` | Decode an address to a public key |
+| `sdk_app_address_by_id` | Get the address for an application ID |
+| `sdk_verify_bytes` | Verify a signature against bytes |
+| `sdk_sign_bytes` | Sign bytes with a secret key |
+| `algorand_mcp_guide` | Access comprehensive Algorand Remote MCP guide |
 
-### Cryptographic Tools
-- `create_keypair`: Create a new Ed25519 keypair in HashiCorp Vault
-- `get_public_key`: Get the public key for a keypair from HashiCorp Vault
-- `sign_bytes`: Sign bytes with a secret key
-- `verify_signature`: Verify a signature using a keypair in HashiCorp Vault
+### ARC-26 URI & Receipts
+| Tool | Description |
+|------|-------------|
+| `generate_algorand_uri` | Generate an ARC-26 compliant URI |
+| `generate_algorand_qrcode` | Generate a QR code for an Algorand URI |
+| `generate_algorand_receipt` | Generate a transaction receipt |
 
-## Available Resources
+### AP2 Protocol
+| Tool | Description |
+|------|-------------|
+| `generate_ap2_mandate` | Create an AP2 intent, cart, or payment mandate with verifiable credentials |
 
-### Wallet Resources
-- `algorand://wallet/address`: Wallet account address
-- `algorand://wallet/account`: Wallet account information
-- `algorand://wallet/assets`: Wallet account assets
-- `algorand://wallet/publickey`: Wallet account public key
+### Knowledge Base
+| Tool | Description |
+|------|-------------|
+| `get_knowledge_doc` | Get markdown content for knowledge documents |
+| `list_knowledge_docs` | List available knowledge documents by category |
+
+## Resources
 
 ### Knowledge Resources
-- `algorand://knowledge/taxonomy`: Full taxonomy of knowledge resources
-- `algorand://knowledge/taxonomy/{category}`: Category-specific knowledge resources
+| URI | Description |
+|-----|-------------|
+| `algorand://knowledge/taxonomy` | Full taxonomy of knowledge resources |
+| `algorand://knowledge/taxonomy/{category}` | Category-specific resources (arcs, sdks, algokit, puya, etc.) |
 
-### Guide Resources
-- `algorand://remote-mcp-guide`: Comprehensive guide for using Algorand Remote MCP
+### Guide
+| URI | Description |
+|-----|-------------|
+| `algorand://remote-mcp-guide` | Comprehensive Algorand Remote MCP guide |
 
-## Installation and Setup
+## Development
 
-### Development Prerequisites
+### Prerequisites
 - Node.js v16+
 - Cloudflare Workers account
-- Algorand node access (or use a service like Nodely.io aka AlgoNode)
-- Google OAuth credentials
-- HashiCorp Vault worker for secure credential storage
+- Algorand node access (e.g., Nodely.io / AlgoNode)
+- OAuth credentials (Google, GitHub, Twitter, and/or LinkedIn)
+- HashiCorp Vault worker for secure key management
 
 ### Environment Variables
 ```
 ALGORAND_NETWORK=mainnet
 ALGORAND_ALGOD=https://your-algod-node.com
 ALGORAND_INDEXER=https://your-indexer-node.com
-NFD_API_URL=https://api.nf.domains
 ALGORAND_TOKEN=your-api-token
+NFD_API_URL=https://api.nf.domains
+HAYSTACK_API_KEY=your-haystack-api-key
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 HCV_WORKER_URL=https://your-hashicorp-vault-worker.workers.dev
+```
+
+### Scripts
+```bash
+npm run dev          # Start local development server
+npm run type-check   # Run TypeScript type checking
+npm run deploy       # Deploy to Cloudflare Workers
+npm run format       # Format code with Biome
+npm run lint:fix     # Lint and auto-fix with Biome
 ```
 
 ### Deployment
 1. Clone the repository
 2. Install dependencies: `npm install`
 3. Configure environment variables in `wrangler.toml`
-4. Deploy to Cloudflare Workers: `wrangler deploy`
+4. Deploy: `npm run deploy`
 
-## Usage
+## Usage Flows
 
-### Authentication Flow for users
-1. User authenticates through their preferred OAuth provider (Google, GitHub, Twitter, LinkedIn)
+### Authentication
+1. User authenticates via OAuth (Google, GitHub, Twitter, or LinkedIn)
 2. Server creates or retrieves wallet credentials from HashiCorp Vault
-3. User can now access tools and resources through the MCP interface
-4. When finished, user can logout using the `logout` tool, which clears authentication cookies
+3. User accesses tools and resources through the MCP interface
+4. User can logout using `wallet_logout`
 
-### Transaction Flow for Agents
+### Individual Transactions
+1. Create transaction (e.g., `sdk_txn_payment_transaction`)
+2. Sign with vault (`wallet_sign_transaction`) or mnemonic (`sdk_sign_transaction`)
+3. Submit to network (`sdk_submit_transaction`)
 
-#### Individual Transactions
-1. Create transaction using appropriate tool (e.g., `sdk_txn_payment_transaction`)
-2. Sign transaction with wallet credentials using `sign_transaction`
-3. Submit transaction to network using `submit_transaction`
-4. Verify transaction success
+### Atomic Transaction Groups
+1. Create group (`sdk_create_atomic_group`)
+2. Sign group (`wallet_sign_atomic_group` or `sdk_sign_atomic_group`)
+3. Submit group (`sdk_submit_atomic_group`)
 
-#### Atomic Transaction Groups
-1. Create multiple transactions as an atomic group using `create_atomic_group`
-2. Sign the transaction group using `sign_atomic_group`
-3. Submit the signed group to the network using `submit_atomic_group`
-4. Verify transaction success
+### DEX Swaps via Haystack Router
+1. Get best-price quote (`haystack_get_swap_quote`)
+2. Execute swap — quotes, vault-signs, submits, and confirms in one call (`haystack_execute_swap`)
 
+### DEX Swaps via Tinyman
+1. Execute fixed-input or fixed-output swap (`tinyman_fixed_input_swap` / `tinyman_fixed_output_swap`)
 
 ## Project Structure
 
 ```
-├── src/                          # Source code directory
-│   ├── index.ts                  # Main entry point
-│   ├── types.ts                  # Type definitions
-│   ├── oauth-handler.ts          # OAuth authentication handler
-│   ├── workers-oauth-utils.ts    # OAuth utilities
-│   ├── resources/                # Resource providers
-│   │   ├── guide/                # Guide resources
-│   │   ├── knowledge/            # Knowledge resources
-│   │   └── wallet/               # Wallet resources
-│   ├── tools/                    # Tool managers
-│   │   ├── accountManager.ts     # Account management tools
-│   │   ├── algodManager.ts       # Algorand node tools
-│   │   ├── arc26Manager.ts       # ARC-26 tools
-│   │   ├── knowledgeManager.ts   # Knowledge tools
-│   │   ├── utilityManager.ts     # Utility tools
-│   │   ├── walletManager.ts      # Wallet management tools
-│   │   ├── apiManager/           # API integration tools
-│   │   └── transactionManager/   # Transaction tools
-│   └── utils/                    # Utilities
-│       ├── Guide.js              # Guide content
-│       ├── vaultManager.ts       # HashiCorp Vault utilities for secret storage and cryptographic operations
-│       └── responseProcessor.ts  # Response formatting
+src/
+├── index.ts                      # Main entry point
+├── types.ts                      # Type definitions
+├── oauth-handler.ts              # OAuth authentication handler
+├── workers-oauth-utils.ts        # OAuth utilities
+├── resources/
+│   ├── guide/                    # Guide resources
+│   └── knowledge/                # Knowledge base resources
+├── tools/
+│   ├── accountManager.ts         # Account management
+│   ├── algodManager.ts           # Algorand node tools
+│   ├── ap2Manager.ts             # AP2 protocol tools
+│   ├── arc26Manager.ts           # ARC-26 URI and QR tools
+│   ├── knowledgeManager.ts       # Knowledge base tools
+│   ├── receiptManager.ts         # Transaction receipt tools
+│   ├── tinymanManager.ts         # Tinyman DEX tools
+│   ├── utilityManager.ts         # Utility tools
+│   ├── walletManager.ts          # Wallet management tools
+│   ├── apiManager/
+│   │   ├── algod/                # Algod API tools (account, application, asset, transaction)
+│   │   ├── hayrouter/            # Haystack Router DEX aggregator tools
+│   │   ├── indexer/              # Indexer API tools (account, application, asset, transaction)
+│   │   └── nfd/                  # NFD name service tools
+│   └── transactionManager/
+│       ├── generalTransaction.ts # Payment, signing, submission, key registration
+│       ├── appTransactions.ts    # Application (smart contract) transactions
+│       ├── assetTransactions.ts  # Asset create, optin, transfer
+│       └── groupTransactions.ts  # Atomic transaction groups
+└── utils/
+    ├── Guide.js                  # Guide content
+    ├── vaultManager.ts           # HashiCorp Vault integration
+    └── responseProcessor.ts      # Response formatting and pagination
 ```
 
-## Contributing
+## Key Dependencies
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `algosdk` | ^3.5.2 | Algorand JavaScript SDK |
+| `@txnlab/haystack-router` | ^2.0.5 | DEX aggregator for best-price swaps |
+| `@tinymanorg/tinyman-js-sdk` | ^5.1.2 | Tinyman DEX SDK |
+| `@modelcontextprotocol/sdk` | ^1.12.1 | MCP protocol SDK |
+| `agents` | ^0.0.95 | Cloudflare Agents SDK |
+| `algo-msgpack-with-bigint` | ^2.1.1 | MessagePack with BigInt support |
+
+## Contributing
 
 1. Fork the repository
 2. Create your feature branch: `git checkout -b feature/my-new-feature`
@@ -220,146 +327,3 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-
-# Algorand Remote MCP Tools and Resources
-
-## MCP Server Information
-- Server Name: `algorand-remote-mcp`
-- Connection: `npx mcp-remote https://algorand-remote-mcp.emg110.workers.dev/sse`
-
-## Tools full index
-
-### Cryptographic and Encoding Tools
-1. `validate_address` - Check if an Algorand address is valid
-2. `encode_address` - Encode a public key to an Algorand address
-3. `decode_address` - Decode an Algorand address to a public key
-4. `get_application_address` - Get the address for a given application ID
-5. `bytes_to_bigint` - Convert bytes to a BigInt
-6. `bigint_to_bytes` - Convert a BigInt to bytes
-7. `encode_uint64` - Encode a uint64 to bytes
-8. `decode_uint64` - Decode bytes to a uint64
-9. `verify_bytes` - Verify a signature against bytes with an Algorand address
-10. `sign_bytes` - Sign bytes with a secret key
-11. `encode_obj` - Encode an object to msgpack format
-12. `decode_obj` - Decode msgpack bytes to an object
-
-### Account Management
-13. `create_account` - Create a new Algorand account
-14. `mnemonic_to_address` - View the address associated with a mnemonic (without storing the private key)
-15. `check_account_balance` - Check the balance of an Algorand account
-
-### Wallet Management
-16. `get_wallet_publickey` - Get the public key for the configured wallet
-17. `get_wallet_address` - Get the address for the configured wallet
-18. `get_wallet_info` - Get the account information for the configured wallet
-19. `get_wallet_assets` - Get the assets for the configured wallet
-20. `wallet_reset_account` - Reset the wallet account for the configured user
-21. `logout` - Logout from the OAuth provider and clear authentication cookies
-
-### Transaction Operations
-23. `sdk_txn_payment_transaction` - Create a payment transaction on Algorand
-24. `wallet_sign_transaction` - Sign an Algorand transaction with your agent account
-25. `submit_transaction` - Submit a signed transaction to the Algorand network
-26. `create_key_registration_transaction` - Create a key registration transaction
-27. `assign_group_id` - Assign a group ID to a set of transactions for atomic execution
-28. `create_atomic_group` - Create an atomic transaction group from multiple transactions of types pay, axfer, acfg, appl, afrz or keyreg
-29. `sign_atomic_group` - Sign an atomic transaction group
-30. `submit_atomic_group` - Submit a signed atomic transaction group to the Algorand network
-31. `send_raw_transaction` - Submit signed transactions to the Algorand network
-32. `simulate_raw_transactions` - Simulate raw transactions
-33. `simulate_transactions` - Simulate encoded transactions
-
-### Asset Operations
-33. `sdk_txn_create_asset` - Create a new Algorand Standard Asset (ASA)
-34. `sdk_txn_asset_optin` - Opt-in to an Algorand Standard Asset (ASA)
-35. `sdk_txn_transfer_asset` - Transfer an Algorand Standard Asset (ASA)
-
-### Application (Smart Contract) Operations
-36. `create_application` - Create a new smart contract application on Algorand
-37. `update_application` - Update an existing smart contract application
-38. `delete_application` - Delete an existing smart contract application
-39. `closeout_application` - Close out from an Algorand application
-40. `clear_application` - Clear state for an Algorand application
-41. `call_application` - Call a smart contract application on Algorand
-42. `optin_application` - Opt-in to an Algorand application
-
-### TEAL Operations
-43. `compile_teal` - Compile TEAL source code
-44. `disassemble_teal` - Disassemble TEAL bytecode into source code
-
-### URI Generation
-45. `generate_algorand_uri` - Generate a URI following the ARC-26 specification
-
-### API Access
-46. `algod_get_account_info` - Get current account balance, assets, and auth address from algod
-47. `algod_get_account_application_info` - Get account-specific application information
-48. `algod_get_account_asset_info` - Get account-specific asset information
-49. `algod_get_application_info` - Get application details from algod
-50. `algod_get_application_box_value` - Get application box contents
-51. `algod_get_application_boxes` - Get all application boxes
-52. `algod_get_application_state` - Get application global state
-53. `algod_get_asset_info` - Get asset details from algod
-54. `algod_get_asset_holding` - Get asset holding information for an account
-55. `pera_asset_verification_status` - Get the verification status of an Algorand asset from Pera Wallet
-56. `pera_verified_asset_details` - Get detailed information about an Algorand asset from Pera Wallet
-56. `pera_verified_asset_search` - Search verified Algorand asset(s) by asset name, unit name, or creator address
-57. `algod_get_pending_txn_info` - Get pending transaction details by transaction ID
-58. `algod_get_pending_transactions` - Get pending transactions from algod mempool
-
-### Indexer API Access
-59. `indexer_lookup_account_by_id` - Get account information from indexer
-60. `indexer_lookup_account_assets` - Get account assets
-61. `indexer_lookup_account_app_local_states` - Get account application local states
-62. `indexer_lookup_account_created_apps` - Get applications created by an account
-63. `indexer_search_for_accounts` - Search for accounts with various criteria
-64. `indexer_lookup_applications` - Get application information from indexer
-65. `indexer_lookup_application_logs` - Get application log messages
-66. `indexer_search_for_applications` - Search for applications with various criteria
-67. `indexer_lookup_application_box` - Get application box by name
-68. `indexer_lookup_application_boxes` - Get all application boxes
-69. `indexer_lookup_asset_by_id` - Get asset information from indexer
-70. `indexer_lookup_asset_balances` - Get accounts that hold a specific asset
-71. `indexer_search_for_assets` - Search for assets with various criteria
-72. `indexer_lookup_transaction_by_id` - Get transaction details from indexer
-73. `indexer_lookup_account_transactions` - Get transactions related to an account
-74. `indexer_search_for_transactions` - Search for transactions with various criteria
-75. `indexer_search` - Search the Algorand indexer for accounts, transactions, assets, or applications
-
-### NFD (Algorand Name Service) Operations
-76. `api_nfd_get_nfd` - Get NFD domain information by name
-77. `api_nfd_get_nfds_for_address` - Get all NFD domains owned by an address
-78. `api_nfd_get_nfd_activity` - Get activity for an NFD domain
-79. `api_nfd_get_nfd_analytics` - Get analytics for an NFD domain
-80. `api_nfd_browse_nfds` - Browse NFD domains with filtering options
-81. `api_nfd_search_nfds` - Search for NFD domains
-
-### General API and Documentation
-82. `api_request` - Make a request to an external API
-83. `algorand_mcp_guide` - Access comprehensive guide for using Algorand Remote MCP
-84. `get_knowledge_doc` - Get markdown content for specified knowledge documents
-85. `list_knowledge_docs` - List available knowledge documents by category
-
-## Resources full index
-
-### Algorand Wallet Resources
-1. `algorand://wallet/publickey` - Wallet Account Public Key
-2. `algorand://wallet/address` - Wallet Account Address
-3. `algorand://wallet/account` - Wallet Account Information
-4. `algorand://wallet/assets` - Wallet Account Assets
-### Algorand Knowledge Resources
-5. `algorand://knowledge/taxonomy` - Algorand Knowledge Full Taxonomy
-6. `algorand://knowledge/taxonomy/arcs` - Algorand Request for Comments
-7. `algorand://knowledge/taxonomy/sdks` - Software Development Kits
-8. `algorand://knowledge/taxonomy/algokit` - AlgoKit
-9. `algorand://knowledge/taxonomy/algokit-utils` - AlgoKit Utils
-10. `algorand://knowledge/taxonomy/tealscript` - TEALScript
-11. `algorand://knowledge/taxonomy/puya` - Puya
-12. `algorand://knowledge/taxonomy/liquid-auth` - Liquid Auth
-13. `algorand://knowledge/taxonomy/python` - Python Development
-14. `algorand://knowledge/taxonomy/developers` - Developer Documentation
-15. `algorand://knowledge/taxonomy/clis` - CLI Tools
-16. `algorand://knowledge/taxonomy/nodes` - Node Management
-17. `algorand://knowledge/taxonomy/details` - Developer Details
-### Algorand Remote MCP Guide
-18. `algorand://remote-mcp-guide` - Algorand MCP Guide
