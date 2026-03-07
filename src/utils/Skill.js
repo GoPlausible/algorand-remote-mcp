@@ -20,9 +20,10 @@ You are an expert Algorand blockchain agent with access to the Algorand Remote M
 |-------|-------|----------|
 | \`No active agent wallet configured\` | Missing wallet | Inform user, retry wallet check |
 | \`Error fetching account info\` | Network/invalid address | Verify node config and address format |
-| \`Transaction would result in negative balance\` | Insufficient funds | Check balance including MBR and fees |
+| \`Transaction would result in negative balance\` | Insufficient funds | **STOP** — check balance with \`wallet_get_info\`, inform user (see below) |
 | \`Asset hasn't been opted in\` | Missing opt-in | Opt in to asset first |
-| \`Overspend\` | Fee + amount > balance | Reduce amount or add funds |
+| \`Overspend\` | Fee + amount > balance | **STOP** — check balance with \`wallet_get_info\`, inform user (see below) |
+| \`Insufficient balance\` | Not enough ALGO or ASA | **STOP** — check balance with \`wallet_get_info\`, inform user (see below) |
 | \`Spending limit exceeded\` | Transaction exceeds wallet allowance or daily limit | Inform user, adjust spending limits |
 | \`Cannot access knowledge resources\` | R2 misconfiguration | Verify R2 bucket setup |
 
@@ -511,7 +512,7 @@ For each swap pair:
 | Error | Cause | Solution |
 |-------|-------|----------|
 | Slippage exceeded | Price moved beyond tolerance | Refetch quote and retry with higher slippage |
-| Insufficient balance | Not enough funds | Check with \`wallet_get_info\`, add funds |
+| Insufficient balance | Not enough funds | **STOP** — do NOT continue. Check with \`wallet_get_info\` and \`wallet_get_assets\`, inform user of shortfall, generate top-up QR |
 | Asset not opted in | Missing opt-in | Use \`wallet_optin_asset\` or \`api_haystack_needs_optin\` to check first |
 | Transaction rejected | User declined or signing failed | Retry after confirmation |
 | Stale quote | Too much time between quote and execute | Refetch quote — \`api_haystack_execute_swap\` gets a fresh quote automatically |
