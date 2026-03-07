@@ -41,12 +41,87 @@ Read Algorand MCP skill.
 
 ## Architecture
 
-- **AlgorandRemoteMCP Class**: Main MCP agent extending McpAgent on Cloudflare Workers
-- **Tool Managers**: Specialized managers for accounts, wallets, transactions, assets, applications, APIs, and DEX operations
-- **Resource Providers**: URI-based access to knowledge base and guides
-- **ResponseProcessor**: Standardized response formatting with pagination
-- **HashiCorp Vault Integration**: Ed25519 keypair generation, secure signing via Transit engine, no private key exposure
-- **Service Bindings**: Inter-worker communication for vault operations
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              AI Agents / LLM Clients                       │
+│                    (Claude, GPT, Cursor, Windsurf, etc.)                    │
+└─────────────────────────────┬───────────────────────────────────────────────┘
+                              │ MCP Protocol (SSE / Streamable HTTP)
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     Cloudflare Workers — Edge Runtime                       │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                        OAuthProvider Layer                            │  │
+│  │          Google · GitHub · Twitter · LinkedIn (Multi-provider)        │  │
+│  └───────────────────────────┬───────────────────────────────────────────┘  │
+│                              ▼                                              │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │              AlgorandRemoteMCP (McpAgent / McpServer)                 │  │
+│  │                                                                       │  │
+│  │  ┌─────────────── Tool Managers ───────────────────────────────────┐  │  │
+│  │  │                                                                 │  │  │
+│  │  │  walletManager ─── accountManager ─── utilityManager            │  │  │
+│  │  │  transactionManager/                                            │  │  │
+│  │  │    ├── generalTransaction   (pay, sign, submit, keyreg)         │  │  │
+│  │  │    ├── assetTransactions    (ASA create, optin, transfer)       │  │  │
+│  │  │    ├── appTransactions      (create, update, delete, call)      │  │  │
+│  │  │    └── groupTransactions    (atomic groups)                     │  │  │
+│  │  │  algodManager ─── knowledgeManager                              │  │  │
+│  │  │  arc26Manager ─── receiptManager ─── ap2Manager                 │  │  │
+│  │  │  tinymanManager                                                 │  │  │
+│  │  │  apiManager/                                                    │  │  │
+│  │  │    ├── algod/       (account, application, asset, txn queries)  │  │  │
+│  │  │    ├── indexer/     (search & lookup across all data types)     │  │  │
+│  │  │    ├── hayrouter/   (DEX aggregator — quote, swap, optin)      │  │  │
+│  │  │    └── nfd/         (Algorand Name Service lookups)            │  │  │
+│  │  └─────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  ┌─────────────── Resources ───────────────────────────────────────┐  │  │
+│  │  │  algorand://remote-mcp-skill         (Skill definition)        │  │  │
+│  │  │  algorand://knowledge/taxonomy       (Knowledge base)          │  │  │
+│  │  │  algorand://knowledge/taxonomy/{cat} (Category docs)           │  │  │
+│  │  └─────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  ┌─────────────── Utils ───────────────────────────────────────────┐  │  │
+│  │  │  ResponseProcessor (pagination, BigInt-safe JSON)               │  │  │
+│  │  │  vaultManager (Vault API client)                                │  │  │
+│  │  │  Skill.js (skill content)                                       │  │  │
+│  │  └─────────────────────────────────────────────────────────────────┘  │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─────────────── Cloudflare Bindings ────────────────────────────────────┐ │
+│  │  Durable Objects (session state)  ·  KV (OAuth tokens, client reg)    │ │
+│  │  R2 Bucket (knowledge documents)  ·  Service Bindings (Vault worker)  │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+└──────────┬──────────────────┬──────────────────┬──────────────────┬─────────┘
+           │                  │                  │                  │
+           ▼                  ▼                  ▼                  ▼
+┌──────────────────┐ ┌────────────────┐ ┌────────────────┐ ┌───────────────┐
+│  HashiCorp Vault │ │  Algorand Node │ │  DEX Protocols │ │  External APIs│
+│  (CF Worker)     │ │  (Algod +      │ │                │ │               │
+│                  │ │   Indexer)     │ │  Haystack      │ │  NFD API      │
+│  Ed25519 keypair │ │                │ │  Router        │ │  Pera API     │
+│  generation      │ │  Nodely.io /   │ │  ┌──────────┐  │ │               │
+│  Transit engine  │ │  AlgoNode      │ │  │ Tinyman  │  │ │               │
+│  signing         │ │                │ │  │ Pact     │  │ │               │
+│  No private key  │ │  MainNet /     │ │  │ Folks    │  │ │               │
+│  exposure        │ │  TestNet       │ │  │ LST      │  │ │               │
+│                  │ │                │ │  └──────────┘  │ │               │
+└──────────────────┘ └────────────────┘ │                │ └───────────────┘
+                                        │  Tinyman SDK   │
+                                        │  (direct)      │
+                                        └────────────────┘
+```
+
+### Component Summary
+
+- **AlgorandRemoteMCP**: Main MCP agent extending McpAgent on Cloudflare Workers
+- **OAuthProvider**: Multi-provider authentication layer (Google, GitHub, Twitter, LinkedIn)
+- **Tool Managers**: 14 specialized managers covering accounts, wallets, transactions, assets, applications, APIs, DEX operations, ARC-26 URIs, receipts, AP2 protocol, and knowledge
+- **Resource Providers**: URI-based access to skill definition and knowledge base via R2
+- **ResponseProcessor**: Standardized response formatting with pagination and BigInt-safe serialization
+- **HashiCorp Vault**: Ed25519 keypair generation and secure signing via Transit engine — no private key exposure
+- **Cloudflare Bindings**: Durable Objects for session state, KV for OAuth, R2 for knowledge docs, Service Bindings for Vault worker
 
 ## Tools
 
@@ -205,7 +280,7 @@ Read Algorand MCP skill.
 ### Skill
 | URI | Description |
 |-----|-------------|
-| `algorand://algorand-mcp-skill` | Comprehensive Algorand MCP skill |
+| `algorand://remote-mcp-skill` | Comprehensive Algorand MCP skill |
 
 ## Development
 
