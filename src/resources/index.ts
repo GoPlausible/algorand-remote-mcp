@@ -2,5 +2,4 @@
  * Resources index file for exporting all resource registration functions
  */
 export * from './knowledge';
-export * from './guide';
-// Note: guide/index.ts exports registerSkillResource
+export * from './skill';

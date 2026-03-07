@@ -36,7 +36,7 @@ Add to your MCP client configuration:
 
 Restart your LLM agent and prompt:
 ```
-Read Algorand Remote MCP guide.
+Read Algorand MCP skill.
 ```
 
 ## Architecture
@@ -174,7 +174,7 @@ Read Algorand Remote MCP guide.
 | `sdk_app_address_by_id` | Get the address for an application ID |
 | `sdk_verify_bytes` | Verify a signature against bytes |
 | `sdk_sign_bytes` | Sign bytes with a secret key |
-| `algorand_mcp_guide` | Access comprehensive Algorand Remote MCP guide |
+| `algorand_mcp_skill` | Access comprehensive Algorand MCP skill |
 
 ### ARC-26 URI & Receipts
 | Tool | Description |
@@ -202,10 +202,10 @@ Read Algorand Remote MCP guide.
 | `algorand://knowledge/taxonomy` | Full taxonomy of knowledge resources |
 | `algorand://knowledge/taxonomy/{category}` | Category-specific resources (arcs, sdks, algokit, puya, etc.) |
 
-### Guide
+### Skill
 | URI | Description |
 |-----|-------------|
-| `algorand://remote-mcp-guide` | Comprehensive Algorand Remote MCP guide |
+| `algorand://algorand-mcp-skill` | Comprehensive Algorand MCP skill |
 
 ## Development
 
@@ -278,7 +278,7 @@ src/
 ├── oauth-handler.ts              # OAuth authentication handler
 ├── workers-oauth-utils.ts        # OAuth utilities
 ├── resources/
-│   ├── guide/                    # Guide resources
+│   ├── skill/                    # Skill resource
 │   └── knowledge/                # Knowledge base resources
 ├── tools/
 │   ├── accountManager.ts         # Account management
@@ -301,7 +301,7 @@ src/
 │       ├── assetTransactions.ts  # Asset create, optin, transfer
 │       └── groupTransactions.ts  # Atomic transaction groups
 └── utils/
-    ├── Guide.js                  # Guide content
+    ├── Skill.js                  # Skill content
     ├── vaultManager.ts           # HashiCorp Vault integration
     └── responseProcessor.ts      # Response formatting and pagination
 ```
