@@ -3,3 +3,4 @@
  */
 export * from './knowledge';
 export * from './guide';
+// Note: guide/index.ts exports registerSkillResource

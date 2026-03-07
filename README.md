@@ -64,6 +64,7 @@ Read Algorand Remote MCP guide.
 | `wallet_get_publickey` | Get the vault wallet's public key |
 | `wallet_get_address` | Get the vault wallet's Algorand address |
 | `wallet_get_info` | Get account information (balance, assets) |
+| `wallet_get_role` | Get the role UUID for the configured wallet to be used to login into Hashicorp Vault with OIDC |
 | `wallet_get_assets` | Get assets held by the wallet |
 | `wallet_reset_account` | Reset wallet and generate new keys (destructive) |
 | `wallet_logout` | Logout from OAuth provider |

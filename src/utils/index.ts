@@ -3,5 +3,5 @@
  */
 
 export * from './responseProcessor';
-export * from './Guide';
+export * from './Skill';
 export * from './vaultManager';

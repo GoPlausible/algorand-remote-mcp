@@ -25,7 +25,7 @@ import {
 	registerAp2Tools,
 	registerTinymanTools
 } from './tools';
-import { registerKnowledgeResources, registerGuideResource } from './resources';
+import { registerKnowledgeResources, registerSkillResource } from './resources';
 
 
 
@@ -72,7 +72,7 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 
 		// Register resources
 		this.registerKnowledgeResources();
-		this.registerGuideResources();
+		this.registerSkillResources();
 
 		// Register tools by category
 		await this.registerWalletTools();
@@ -100,11 +100,11 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 	}
 
 	/**
-	 * Register guide resources
+	 * Register skill resources
 	 */
-	private registerGuideResources() {
-		// Register guide resources for agent usage guidance
-		registerGuideResource(this.server, this.env, this.props);
+	private registerSkillResources() {
+		// Register skill resources for agent usage
+		registerSkillResource(this.server, this.env, this.props);
 	}
 
 	/**

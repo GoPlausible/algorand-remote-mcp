@@ -33,6 +33,27 @@ export class ResponseProcessor {
   private static items_per_page = 10;
 
   /**
+   * JSON replacer that converts BigInt values to Numbers (or strings if too large)
+   */
+  private static bigIntReplacer(_key: string, value: any): any {
+    if (typeof value === 'bigint') {
+      // If the BigInt fits safely in a Number, convert it; otherwise use string
+      if (value >= Number.MIN_SAFE_INTEGER && value <= Number.MAX_SAFE_INTEGER) {
+        return Number(value);
+      }
+      return value.toString();
+    }
+    return value;
+  }
+
+  /**
+   * BigInt-safe JSON.stringify wrapper
+   */
+  private static safeStringify(value: any, space?: number): string {
+    return JSON.stringify(value, ResponseProcessor.bigIntReplacer, space);
+  }
+
+  /**
    * Set the pagination size from Durable Object state
    */
   static setItemsPerPage(itemsPerPage: number): void {
@@ -222,7 +243,7 @@ export class ResponseProcessor {
         return {
           content: [{
             type: 'text',
-            text: JSON.stringify(wrappedResponse, null, 2)
+            text: ResponseProcessor.safeStringify(wrappedResponse, 2)
           }]
         };
       } else {
@@ -230,7 +251,7 @@ export class ResponseProcessor {
         return {
           content: [{
             type: 'text',
-            text: JSON.stringify({ data: arrayResponse }, null, 2)
+            text: ResponseProcessor.safeStringify({ data: arrayResponse }, 2)
           }]
         };
       }
@@ -240,7 +261,7 @@ export class ResponseProcessor {
     if (typeof response === 'object' && response !== null) {
       console.log('[ResponseProcessor] Processing object response');
       // Create a deep copy to avoid modifying the original object
-      const processed = JSON.parse(JSON.stringify(response));
+      const processed = JSON.parse(ResponseProcessor.safeStringify(response));
       let paginatedField: string | undefined;
       let paginationMetadata: PaginationMetadata | undefined;
       
@@ -302,7 +323,7 @@ export class ResponseProcessor {
         return {
           content: [{
             type: 'text',
-            text: JSON.stringify(wrappedResponse, null, 2)
+            text: ResponseProcessor.safeStringify(wrappedResponse, 2)
           }]
         };
       }
@@ -315,11 +336,11 @@ export class ResponseProcessor {
       return {
         content: [{
           type: 'text',
-          text: JSON.stringify(wrappedResponse, null, 2)
+          text: ResponseProcessor.safeStringify(wrappedResponse, 2)
         }]
       };
     }
-  
+
     // Return other values wrapped in data property
     const wrappedResponse = {
       data: response
@@ -328,7 +349,7 @@ export class ResponseProcessor {
     return {
       content: [{
         type: 'text',
-        text: JSON.stringify(wrappedResponse, null, 2)
+        text: ResponseProcessor.safeStringify(wrappedResponse, 2)
       }]
     };
   }

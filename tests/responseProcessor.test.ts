@@ -166,4 +166,48 @@ describe('ResponseProcessor', () => {
       expect(parsed.metadata.currentPage).toBe(1);
     });
   });
+
+  describe('BigInt serialization', () => {
+    it('should serialize objects containing BigInt values', () => {
+      const obj = {
+        amount: BigInt(1000000),
+        address: 'TESTADDR',
+        balance: BigInt(5000000)
+      };
+      const result = ResponseProcessor.processResponse(obj);
+      const parsed = JSON.parse(result.content[0].text);
+      expect(parsed.data.amount).toBe(1000000);
+      expect(parsed.data.balance).toBe(5000000);
+      expect(parsed.data.address).toBe('TESTADDR');
+    });
+
+    it('should serialize arrays containing BigInt values', () => {
+      const arr = [{ amount: BigInt(100) }, { amount: BigInt(200) }];
+      const result = ResponseProcessor.processResponse(arr);
+      const parsed = JSON.parse(result.content[0].text);
+      expect(parsed.data[0].amount).toBe(100);
+      expect(parsed.data[1].amount).toBe(200);
+    });
+
+    it('should convert very large BigInts to strings', () => {
+      const obj = { bigValue: BigInt('99999999999999999999') };
+      const result = ResponseProcessor.processResponse(obj);
+      const parsed = JSON.parse(result.content[0].text);
+      expect(parsed.data.bigValue).toBe('99999999999999999999');
+    });
+
+    it('should handle nested objects with BigInt values', () => {
+      const obj = {
+        accounts: [{
+          address: 'ADDR1',
+          amount: BigInt(3000000),
+          assets: [{ assetId: 31566704, amount: BigInt(500) }]
+        }]
+      };
+      const result = ResponseProcessor.processResponse(obj);
+      const parsed = JSON.parse(result.content[0].text);
+      expect(parsed.data.accounts[0].amount).toBe(3000000);
+      expect(parsed.data.accounts[0].assets[0].amount).toBe(500);
+    });
+  });
 });

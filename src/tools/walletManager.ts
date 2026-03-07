@@ -185,19 +185,19 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         let providerEmail = `${props.provider}--${props.email}`
 
         const entityId = await env.VAULT_ENTITIES?.get(providerEmail);
-        let providerEntity = `${props.provider}--${entityId}`
+        // let providerEntity = `${props.provider}--${entityId}`
       
         console.log(`Entity ID for ${props.email} from KV store:`, entityId);
-        let roleId = null;
-        if (!!entityId) {
-          console.log(`Fetching role ID from KV for entity ${providerEntity}`);
-          roleId = await env.VAULT_ENTITIES?.get(providerEntity);
-          console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
-        }
+        // let roleId = null;
+        // if (!!entityId) {
+        //   console.log(`Fetching role ID from KV for entity ${providerEntity}`);
+        //   roleId = await env.VAULT_ENTITIES?.get(providerEntity);
+        //   console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
+        // }
         return ResponseProcessor.processResponse({
           publicKey: publicKeyResult.publicKey,
           format: 'base64',
-          role: roleId,
+          // role: roleId,
           user: props.email,
           provider: props.provider,
         });
@@ -235,17 +235,17 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
         let providerEntity = `${props.provider}--${entityId}`
         console.log(`Entity ID for ${providerEmail} from KV store:`, providerEntity);
 
-        let roleId = null;
-        if (!!entityId) {
-          console.log(`Fetching role ID from KV for entity ${providerEntity}`);
-          roleId = await env.VAULT_ENTITIES?.get(providerEntity);
-          console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
-        }
+        // let roleId = null;
+        // if (!!entityId) {
+        //   console.log(`Fetching role ID from KV for entity ${providerEntity}`);
+        //   roleId = await env.VAULT_ENTITIES?.get(providerEntity);
+        //   console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
+        // }
 
 
         return ResponseProcessor.processResponse({
           address,
-          role: roleId,
+          // role: roleId,
           user: props.email,
           provider: props.provider,
         });
@@ -261,47 +261,47 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
   );
 
   // // Get wallet role UUID
-  // server.tool(
-  //   'wallet_get_role',
-  //   'Get the role UUID for the configured wallet to be used to login into Hashicorp Vault with OIDC',
-  //   {},
-  //   async () => {
-  //     try {
-  //       let providerEmail = `${props.provider}--${props.email}`
-  //       const entityId = await env.VAULT_ENTITIES?.get(providerEmail);
-  //       let providerEntity = `${props.provider}--${entityId}`
-  //       console.log(`Entity ID for ${providerEmail} from KV store:`, providerEntity);
-  //       let roleId = null;
-  //       if (!!entityId) {
-  //         console.log(`Fetching role ID from KV for entity ${providerEntity}`);
-  //         roleId = await env.VAULT_ENTITIES?.get(providerEntity);
-  //         console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
-  //       }
-  //       if (!entityId) {
-  //         return {
-  //           content: [{
-  //             type: 'text',
-  //             text: 'No active agent wallet configured'
-  //           }]
-  //         };
-  //       }
+  server.tool(
+    'wallet_get_role',
+    'Get the role UUID for the configured wallet to be used to login into Hashicorp Vault with OIDC. This is a very sensitive piece of information. Always protect it and avoid sharing it!',
+    {},
+    async () => {
+      try {
+        let providerEmail = `${props.provider}--${props.email}`
+        const entityId = await env.VAULT_ENTITIES?.get(providerEmail);
+        let providerEntity = `${props.provider}--${entityId}`
+        console.log(`Entity ID for ${providerEmail} from KV store:`, providerEntity);
+        let roleId = null;
+        if (!!entityId) {
+          console.log(`Fetching role ID from KV for entity ${providerEntity}`);
+          roleId = await env.VAULT_ENTITIES?.get(providerEntity);
+          console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
+        }
+        if (!entityId) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'No active agent wallet configured'
+            }]
+          };
+        }
 
-  //       return ResponseProcessor.processResponse({
-  //         role: roleId,
-  //         user: props.email,
-  //         provider: props.provider,
+        return ResponseProcessor.processResponse({
+          role: roleId,
+          user: props.email,
+          provider: props.provider,
 
-  //       });
-  //     } catch (error: any) {
-  //       return {
-  //         content: [{
-  //           type: 'text',
-  //           text: `Failed to get address: ${error.message || 'Unknown error'}`
-  //         }]
-  //       };
-  //     }
-  //   }
-  // );
+        });
+      } catch (error: any) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Failed to get role: ${error.message || 'Unknown error'}`
+          }]
+        };
+      }
+    }
+  );
 
   // Get wallet account information
   server.tool(
@@ -321,12 +321,12 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
       const entityId = await env.VAULT_ENTITIES?.get(providerEmail);
       let providerEntity = `${props.provider}--${entityId}`
       console.log(`Entity ID for ${providerEmail} from KV store:`, providerEntity);
-      let roleId = null;
-      if (!!entityId) {
-        console.log(`Fetching role ID from KV for entity ${providerEntity}`);
-        roleId = await env.VAULT_ENTITIES?.get(providerEntity);
-        console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
-      }
+      // let roleId = null;
+      // if (!!entityId) {
+      //   console.log(`Fetching role ID from KV for entity ${providerEntity}`);
+      //   roleId = await env.VAULT_ENTITIES?.get(providerEntity);
+      //   console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
+      // }
 
       try {
         // Get address using the unified approach
@@ -359,7 +359,7 @@ export async function registerWalletTools(server: McpServer, env: Env, props: Pr
             assets: accountInfo.assets || [],
             user: props.email,
             provider: props.provider,
-            role: roleId,
+            // role: roleId,
             publickey: pk
           }]
         });

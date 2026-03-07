@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 /**
  * Tests for Resources modules
- * Tests knowledge resource categories, taxonomy paths, and guide resource
+ * Tests knowledge resource categories, taxonomy paths, and skill resource
  */
 
 // Category names from knowledge/index.ts
@@ -100,22 +100,22 @@ describe('Knowledge Resources', () => {
       });
     });
 
-    it('should use algorand:// scheme for guide', () => {
-      const uri = 'algorand://remote-mcp-guide';
+    it('should use algorand:// scheme for skill', () => {
+      const uri = 'algorand://remote-mcp-skill';
       expect(uri).toMatch(/^algorand:\/\//);
     });
   });
 });
 
-describe('Guide Resource', () => {
+describe('Skill Resource', () => {
   it('should have a fixed URI', () => {
-    const guideUri = 'algorand://remote-mcp-guide';
-    expect(guideUri).toBe('algorand://remote-mcp-guide');
+    const skillUri = 'algorand://remote-mcp-skill';
+    expect(skillUri).toBe('algorand://remote-mcp-skill');
   });
 
   it('should have a name', () => {
-    const guideName = 'Algorand MCP Guide';
-    expect(guideName).toBe('Algorand MCP Guide');
+    const skillName = 'Algorand MCP Skill';
+    expect(skillName).toBe('Algorand MCP Skill');
   });
 });
 
