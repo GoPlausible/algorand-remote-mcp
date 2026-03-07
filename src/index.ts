@@ -6,7 +6,7 @@ import { ResponseProcessor } from './utils';
 import OAuthProvider from "./oauth-provider";
 import { OauthHandler } from "./oauth-handler";
 import {
-  ensureUserAccount,
+	ensureUserAccount,
 } from './utils/vaultManager';
 // import algosdk from 'algosdk';
 import {
@@ -33,7 +33,8 @@ import { registerKnowledgeResources, registerSkillResource } from './resources';
 export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 	server = new McpServer({
 		name: "Algorand Remote MCP",
-		version: "1.2.0",
+		version: "1.8.0",
+		description: "Algorand Remote MCP for interacting with the Algorand blockchain. Use algorand_mcp_skill tool at start of each session to learn how to interact and operate Algorand Remote MCP."
 	});
 
 	// Initialize state with default values
@@ -46,12 +47,12 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 	async init() {
 		// Configure ResponseProcessor with pagination settings
 		console.log("Initializing Algorand Remote MCP...");
-		console.log('COOKIE_ENCRYPTION_KEY: ',this.env.COOKIE_ENCRYPTION_KEY)
+		console.log('COOKIE_ENCRYPTION_KEY: ', this.env.COOKIE_ENCRYPTION_KEY)
 		console.log("Current state:", this.state);
 		console.log("Props name:", this.props?.name);
 		console.log("Props email:", this.props?.email);
 		// Set provider in state if available in props
-	
+
 		console.log("Props User ID:", this.props?.id);
 		console.log("Props clientId:", this.props?.clientId);
 		// Set default page size or use from state if available
