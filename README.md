@@ -13,6 +13,7 @@ This is a **remote MCP** implementation running on Cloudflare Workers with:
 - **algosdk v3.5.2** for Algorand SDK operations
 - **Haystack Router** for best-price DEX aggregation across Tinyman, Pact, Folks, and LST protocols
 - **Tinyman SDK** for direct DEX swap operations
+- **Alpha Arcade SDK** for prediction market trading (orderbooks, limit/market orders, positions)
 
 ## Quick Start
 
@@ -68,7 +69,7 @@ Read Algorand MCP skill.
 │  │  │    └── groupTransactions    (atomic groups)                     │  │  │
 │  │  │  algodManager ─── knowledgeManager                              │  │  │
 │  │  │  arc26Manager ─── receiptManager ─── ap2Manager                 │  │  │
-│  │  │  tinymanManager                                                 │  │  │
+│  │  │  tinymanManager ─── alphaArcadeManager                          │  │  │
 │  │  │  apiManager/                                                    │  │  │
 │  │  │    ├── algod/       (account, application, asset, txn queries)  │  │  │
 │  │  │    ├── indexer/     (search & lookup across all data types)     │  │  │
@@ -97,19 +98,20 @@ Read Algorand MCP skill.
            │                  │                  │                  │
            ▼                  ▼                  ▼                  ▼
 ┌──────────────────┐ ┌────────────────┐ ┌────────────────┐ ┌───────────────┐
-│  HashiCorp Vault │ │  Algorand Node │ │  DEX Protocols │ │  External APIs│
+│  HashiCorp Vault │ │  Algorand Node │ │  DEX & Markets │ │  External APIs│
 │  (CF Worker)     │ │  (Algod +      │ │                │ │               │
 │                  │ │   Indexer)     │ │  Haystack      │ │  NFD API      │
 │  Ed25519 keypair │ │                │ │  Router        │ │  Pera API     │
-│  generation      │ │  Nodely.io /   │ │  ┌──────────┐  │ │               │
-│  Transit engine  │ │  AlgoNode      │ │  │ Tinyman  │  │ │               │
+│  generation      │ │  Nodely.io /   │ │  ┌──────────┐  │ │  Alpha Arcade │
+│  Transit engine  │ │  AlgoNode      │ │  │ Tinyman  │  │ │  API          │
 │  signing         │ │                │ │  │ Pact     │  │ │               │
 │  No private key  │ │  MainNet /     │ │  │ Folks    │  │ │               │
 │  exposure        │ │  TestNet       │ │  │ LST      │  │ │               │
 │                  │ │                │ │  └──────────┘  │ │               │
 └──────────────────┘ └────────────────┘ │                │ └───────────────┘
                                         │  Tinyman SDK   │
-                                        │  (direct)      │
+                                        │  Alpha Arcade  │
+                                        │  SDK           │
                                         └────────────────┘
 ```
 
@@ -117,7 +119,7 @@ Read Algorand MCP skill.
 
 - **AlgorandRemoteMCP**: Main MCP agent extending McpAgent on Cloudflare Workers
 - **OAuthProvider**: Multi-provider authentication layer (Google, GitHub, Twitter, LinkedIn)
-- **Tool Managers**: 14 specialized managers covering accounts, wallets, transactions, assets, applications, APIs, DEX operations, ARC-26 URIs, receipts, AP2 protocol, and knowledge
+- **Tool Managers**: 15 specialized managers covering accounts, wallets, transactions, assets, applications, APIs, DEX operations, prediction markets, ARC-26 URIs, receipts, AP2 protocol, and knowledge
 - **Resource Providers**: URI-based access to skill definition and knowledge base via R2
 - **ResponseProcessor**: Standardized response formatting with pagination and BigInt-safe serialization
 - **HashiCorp Vault**: Ed25519 keypair generation and secure signing via Transit engine — no private key exposure
@@ -261,6 +263,24 @@ Read Algorand MCP skill.
 |------|-------------|
 | `generate_ap2_mandate` | Create an AP2 intent, cart, or payment mandate with verifiable credentials |
 
+### Alpha Arcade (Prediction Markets)
+| Tool | Description |
+|------|-------------|
+| `alpha_get_live_markets` | Fetch all live prediction markets (title, prices, volume, multi-choice options) |
+| `alpha_get_reward_markets` | Fetch markets with liquidity rewards |
+| `alpha_get_market` | Get full details for a single market (on-chain + API) |
+| `alpha_get_orderbook` | Unified YES-perspective orderbook with spread calculation |
+| `alpha_get_open_orders` | Fetch open orders for a wallet on a specific market |
+| `alpha_get_positions` | Fetch all YES/NO token positions across markets |
+| `alpha_create_limit_order` | Place a limit order (price & quantity in microunits) |
+| `alpha_create_market_order` | Place a market order with auto-matching and slippage |
+| `alpha_cancel_order` | Cancel an open order and refund collateral |
+| `alpha_amend_order` | Edit an existing unfilled order in-place |
+| `alpha_propose_match` | Propose a match between a maker order and your wallet |
+| `alpha_split_shares` | Split USDC into equal YES + NO outcome tokens |
+| `alpha_merge_shares` | Merge YES + NO tokens back into USDC |
+| `alpha_claim` | Claim USDC from a resolved market by redeeming outcome tokens |
+
 ### Knowledge Base
 | Tool | Description |
 |------|-------------|
@@ -297,6 +317,8 @@ ALGORAND_INDEXER=https://your-indexer-node.com
 ALGORAND_TOKEN=your-api-token
 NFD_API_URL=https://api.nf.domains
 HAYSTACK_API_KEY=your-haystack-api-key
+ALPHA_API_KEY=your-alpha-arcade-api-key           # Optional, enables richer market data
+ALPHA_API_BASE_URL=https://platform.alphaarcade.com/api  # Optional, default shown
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 HCV_WORKER_URL=https://your-hashicorp-vault-worker.workers.dev
@@ -342,6 +364,14 @@ npm run lint:fix     # Lint and auto-fix with Biome
 ### DEX Swaps via Tinyman
 1. Execute fixed-input or fixed-output swap (`tinyman_fixed_input_swap` / `tinyman_fixed_output_swap`)
 
+### Prediction Markets via Alpha Arcade
+1. Browse markets (`alpha_get_live_markets`)
+2. Check orderbook (`alpha_get_orderbook`)
+3. Place order (`alpha_create_limit_order` or `alpha_create_market_order`)
+4. Monitor positions (`alpha_get_positions`) and open orders (`alpha_get_open_orders`)
+5. Manage orders — amend (`alpha_amend_order`) or cancel (`alpha_cancel_order`)
+6. Claim winnings from resolved markets (`alpha_claim`)
+
 ## Project Structure
 
 ```
@@ -361,6 +391,7 @@ src/
 │   ├── knowledgeManager.ts       # Knowledge base tools
 │   ├── receiptManager.ts         # Transaction receipt tools
 │   ├── tinymanManager.ts         # Tinyman DEX tools
+│   ├── alphaArcadeManager.ts     # Alpha Arcade prediction market tools
 │   ├── utilityManager.ts         # Utility tools
 │   ├── walletManager.ts          # Wallet management tools
 │   ├── apiManager/
@@ -386,6 +417,7 @@ src/
 | `algosdk` | ^3.5.2 | Algorand JavaScript SDK |
 | `@txnlab/haystack-router` | ^2.0.5 | DEX aggregator for best-price swaps |
 | `@tinymanorg/tinyman-js-sdk` | ^5.1.2 | Tinyman DEX SDK |
+| `@alpha-arcade/sdk` | latest | Prediction market trading SDK |
 | `@modelcontextprotocol/sdk` | ^1.12.1 | MCP protocol SDK |
 | `agents` | ^0.0.95 | Cloudflare Agents SDK |
 | `algo-msgpack-with-bigint` | ^2.1.1 | MessagePack with BigInt support |
