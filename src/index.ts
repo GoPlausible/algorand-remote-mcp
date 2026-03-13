@@ -23,7 +23,8 @@ import {
 	registerKnowledgeTools,
 	registerWalletTools,
 	registerAp2Tools,
-	registerTinymanTools
+	registerTinymanTools,
+	registerAlphaArcadeTools
 } from './tools';
 import { registerKnowledgeResources, registerSkillResource } from './resources';
 
@@ -33,8 +34,14 @@ import { registerKnowledgeResources, registerSkillResource } from './resources';
 export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 	server = new McpServer({
 		name: "Algorand Remote MCP",
-		version: "1.8.0",
-		description: "Algorand Remote MCP for interacting with the Algorand blockchain. Use algorand_mcp_skill tool at start of each session to learn how to interact and operate Algorand Remote MCP."
+		version: "1.9.0",
+		description: "Algorand Remote MCP for interacting with the Algorand blockchain. Use algorand_mcp_skill tool at start of each session to learn how to interact and operate Algorand Remote MCP.",
+		websiteUrl: "https://goplausible.com",
+		icons: [{
+			src: "https://goplausible.com/favicon.ico",
+			mimeType: "image/x-icon",
+			sizes: ["64x64"]
+		}]
 	});
 
 	// Initialize state with default values
@@ -87,6 +94,7 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 		await this.registerTransactionTools();
 		this.registerBasicUtilityTools();
 		await this.registerTinymanTools()
+		this.registerAlphaArcadeTools()
 		// Additional tool categories will be added here
 	}
 
@@ -200,6 +208,12 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 	private async registerTinymanTools() {
 		// Register wallet management tools
 		await registerTinymanTools(this.server, this.env, this.props);
+	}
+	/**
+	 * Register Alpha Arcade prediction market tools
+	 */
+	private registerAlphaArcadeTools() {
+		registerAlphaArcadeTools(this.server, this.env, this.props);
 	}
 	onStateUpdate(state: State) {
 		// console.log({ stateUpdate: state });

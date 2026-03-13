@@ -1,6 +1,6 @@
 {
 	"name": "algorand-remote-mcp",
-	"version": "1.8.0",
+	"version": "1.9.0",
 	"private": true,
 	"scripts": {
 		"build": "wrangler deploy --dry-run --outdir=dist --minify",
@@ -15,6 +15,7 @@
 		"test:watch": "vitest"
 	},
 	"dependencies": {
+		"@alpha-arcade/sdk": "latest",
 		"@cf-wasm/photon": "^0.1.31",
 		"@juit/qrcode": "^1.0.59",
 		"@modelcontextprotocol/sdk": "^1.12.1",

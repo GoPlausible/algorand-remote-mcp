@@ -501,6 +501,17 @@ export interface Env {
   HCV_WORKER_URL?: string; // Hashicorp Vault Worker binding for secure secret storage
 
   VAULT_OIDC_ACCESSOR: string; // Hashicorp vault OIDC accessors
+
+  /**
+   * Alpha Arcade API key for prediction market access
+   */
+  ALPHA_API_KEY?: string;
+
+  /**
+   * Alpha Arcade API base URL (defaults to https://platform.alphaarcade.com/api)
+   */
+  ALPHA_API_BASE_URL?: string;
+
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   COOKIE_ENCRYPTION_KEY?: string;

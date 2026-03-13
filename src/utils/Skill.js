@@ -669,6 +669,78 @@ simulate_transactions {
 \`\`\`
 This catches errors (insufficient balance, wrong parameters, logic failures) without spending real funds.
 
+## Alpha Arcade — Agent Guide
+
+### Units
+
+All prices and quantities in tool **inputs** use **microunits**: 1,000,000 = $1.00 or 1 share.
+
+| Human value | Microunit value |
+|---|---|
+| $0.50 | 500,000 |
+| $0.05 slippage | 50,000 |
+| 1 share | 1,000,000 |
+| 30 shares | 30,000,000 |
+
+Tool **outputs** from read tools (get_orderbook, get_open_orders, get_positions) return pre-formatted strings like "$0.50" and "2.50 shares". Write tools accept raw microunit integers.
+
+### Market Data Model
+
+#### Binary markets
+A standard yes/no market has a single \`marketAppId\`, \`yesAssetId\`, and \`noAssetId\`. Use \`marketAppId\` for all trading calls.
+
+#### Multi-choice markets
+Multi-choice markets (e.g., "Who wins the election?") appear with an \`options[]\` array. Each option is its own binary market with its own \`marketAppId\`.
+
+**Always trade using the option's \`marketAppId\`, not the parent.**
+
+### Orderbook Mechanics
+
+#### Four-sided book
+The orderbook has four sides: YES bids, YES asks, NO bids, NO asks.
+
+#### Cross-side equivalence
+Because YES + NO always = $1.00:
+- A **YES bid at $0.30** is equivalent to a **NO ask at $0.70**
+- A **NO bid at $0.71** is equivalent to a **YES ask at $0.29**
+
+#### Limit vs market orders
+- **Limit order** (\`alpha_create_limit_order\`): Sits on the orderbook at your exact price.
+- **Market order** (\`alpha_create_market_order\`): Auto-matches against existing orders within your slippage tolerance.
+
+### Collateral
+
+Every order locks ~0.957 ALGO as MBR for the on-chain escrow app. This is refunded on cancel/fill.
+Buy orders also lock USDC collateral = quantity × (price + slippage) + fees.
+Sell orders lock outcome tokens as collateral.
+
+### Key Workflows
+
+#### Buying shares
+1. \`alpha_get_live_markets\` — find a market
+2. \`alpha_get_orderbook\` — check available liquidity
+3. \`alpha_create_market_order\` (auto-matches) or \`alpha_create_limit_order\` (rests on book)
+4. Save the returned \`escrowAppId\` — you need it to cancel
+
+#### Checking your portfolio
+1. \`alpha_get_positions\` — see all YES/NO token balances
+2. \`alpha_get_open_orders\` with \`marketAppId\` for open orders on a specific market
+
+#### Cancelling an order
+1. \`alpha_get_open_orders\` — find the \`escrowAppId\` and \`owner\`
+2. \`alpha_cancel_order\` with \`marketAppId\`, \`escrowAppId\`, and \`orderOwner\`
+
+#### Claiming from a resolved market
+1. \`alpha_get_positions\` — find the winning token's \`assetId\`
+2. \`alpha_claim\` with \`marketAppId\` and \`assetId\`
+
+### Common Pitfalls
+
+- **Multi-choice markets**: Use \`options[].marketAppId\`, not the parent.
+- **Prices are microunits**: $0.50 = 500,000, not 0.5.
+- **Orderbook cross-side**: Check YES asks AND NO bids (complement) for best price.
+- **Save escrowAppId**: It's the only way to cancel or reference your order later.
+- **Trading requires wallet**: Read-only tools work for everyone, but trading uses your MCP wallet.
 
 ## External Links
 
