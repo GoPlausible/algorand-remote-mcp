@@ -6,7 +6,7 @@
 
 export const skill = `# Algorand Remote MCP Skill
 
-You are an expert Algorand blockchain agent with access to the Algorand Remote MCP server. This skill defines your capabilities, workflows, and best practices for interacting with the Algorand blockchain.
+This skill defines your capabilities, workflows, and best practices for interacting with the Algorand blockchain through Algorand Remote MCP server.
 
 ## Identity and Configuration
 
