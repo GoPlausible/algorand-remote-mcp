@@ -3,137 +3,135 @@
  * https://developers.cloudflare.com/workers/wrangler/configuration/
  */
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "algorand-remote-mcp",
-  "main": "src/index.ts",
-  "workers_dev": true,
-  "preview_urls": false,
-  "compatibility_date": "2025-03-10",
-  "compatibility_flags": ["nodejs_compat"],
-  "route": {
-    "pattern": "algorandmcp.goplausible.xyz/*",
-    "zone_id": "592cbc5d1b3eec4db482306cbc966e1d"
-  },
-  "migrations": [
-    {
-      "new_sqlite_classes": ["AlgorandRemoteMCP"],
-      "tag": "v1"
-    }
-  ],
-  "durable_objects": {
-    "bindings": [
-      {
-        "class_name": "AlgorandRemoteMCP",
-        "name": "AlgorandRemoteMCP"
-      }
-    ]
-  },
-  "services": [
-    { "service": "hashicorp-vault-worker", "binding": "HCV_WORKER" }
-  ],
-  /**
-   * PLAUSIBLE_AI bucket
-   * is a property of GoPlausible used for public implementation and you need to make an R2 bucket on cloudflare and configure it here. Use the open data in knowledge folder of server package resources and you find all files to upload to your R2 bucket there. Use taxonomic naming for your uploads and maintain the file naming coming from server package.
-   */
-  "r2_buckets": [
-    {
-      "binding": "PLAUSIBLE_AI",
-      "bucket_name": "plausibleai"
-    }
-  ],
-  "kv_namespaces": [
-    {
-      "binding": "OAUTH_KV",
-      "id": "da4b082a50724566abe044b79b70ce7d"
-    },
-    {
-      "binding": "VAULT_ENTITIES",
-      "id": "eb58182f525a4260a51927f03d6b42a8"
-    },
-    {
-      "binding": "CODE_VERIFIER_KV",
-      "id": "69c21dd2c8d64c2f9ff8563c40d7ab6f"
-    },
-    {
-      "binding": "ARC26_KV",
-      "id": "90b157592d5b40dfae2c501a8d4f8291"
-    },
-    {
-      "binding": "VERIFIED_ASSETS",
-      "id": "60fa6525420a4588b33acd87ee437b77"
-    },
-    {
-      "binding": "A2A_AP2_STORE",
-      "id": "e75975e4855442c488a258f44d8635ae"
-    }
-  ],
-  "observability": {
-    "enabled": false
-  },
-  /**
-   * Environment Variables
-   * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
-   */
-  "vars": {
-    "ALGORAND_NETWORK": "mainnet",
-    "ALGORAND_ALGOD_API": "https://mainnet-api.algonode.cloud/v2",
-    "ALGORAND_ALGOD": "https://mainnet-api.algonode.cloud",
-    "ALGORAND_INDEXER_API": "https://mainnet-idx.algonode.cloud/v2",
-    "ALGORAND_INDEXER": "https://mainnet-idx.algonode.cloud",
-    "ALGORAND_ALGOD_PORT": "",
-    "ALGORAND_INDEXER_PORT": "",
-    "NFD_API_URL": "https://api.nf.domains",
-    "PERA_WALLET_API_URL": "https://mainnet.api.perawallet.app/v1/public",
-    "PERA_EXPLORER_URL": "https://explorer.perawallet.app",
-    "ITEMS_PER_PAGE": "10",
-    "HCV_WORKER_URL": "https://hashicorp-vault-worker.emg110.workers.dev"
-  }
-  
-  /* Secrets */
-  // "secrets": {
-  //   "ALGORAND_TOKEN": "your_algorand_token_here",
-  //   "VAULT_OIDC_ACCESSOR": "your_vault_oidc_accessor_here",
-  //   "HCV_TOKEN": "your_hashicorp_vault_token_here",
-  //   "GOOGLE_CLIENT_SECRET": "your_google_client_secret_here",
-  //   "GOOGLE_CLIENT_ID": "your_google_client_id_here",
-  //   "GITHUB_CLIENT_SECRET": "your_github_client_secret_here",
-  //   "GITHUB_CLIENT_ID": "your_github_client_id_here",
-  //   "LINKEDIN_CLIENT_SECRET": "your_linkedin_client_secret_here",
-  //   "LINKEDIN_CLIENT_ID": "your_linkedin_client_id_here",
-  //   "COOKIE_ENCRYPTION_KEY": "your_cookie_encryption_key_here"
-  //   "TWITTER_CLIENT_SECRET": "your_twitter_client_secret_here",
-  //   "TWITTER_CLIENT_ID": "your_twitter_client_id_here"
-  //  },
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "algorand-remote-mcp",
+	"main": "src/index.ts",
+	"workers_dev": true,
+	"preview_urls": false,
+	"compatibility_date": "2025-03-10",
+	"compatibility_flags": ["nodejs_compat"],
+	"route": {
+		"pattern": "algorandmcp.goplausible.xyz/*",
+		"zone_id": "592cbc5d1b3eec4db482306cbc966e1d"
+	},
+	"migrations": [
+		{
+			"new_sqlite_classes": ["AlgorandRemoteMCP"],
+			"tag": "v1"
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"class_name": "AlgorandRemoteMCP",
+				"name": "AlgorandRemoteMCP"
+			}
+		]
+	},
+	"services": [{ "service": "hashicorp-vault-worker", "binding": "HCV_WORKER" }],
+	/**
+	 * PLAUSIBLE_AI bucket
+	 * is a property of GoPlausible used for public implementation and you need to make an R2 bucket on cloudflare and configure it here. Use the open data in knowledge folder of server package resources and you find all files to upload to your R2 bucket there. Use taxonomic naming for your uploads and maintain the file naming coming from server package.
+	 */
+	"r2_buckets": [
+		{
+			"binding": "PLAUSIBLE_AI",
+			"bucket_name": "plausibleai"
+		}
+	],
+	"kv_namespaces": [
+		{
+			"binding": "OAUTH_KV",
+			"id": "da4b082a50724566abe044b79b70ce7d"
+		},
+		{
+			"binding": "VAULT_ENTITIES",
+			"id": "eb58182f525a4260a51927f03d6b42a8"
+		},
+		{
+			"binding": "CODE_VERIFIER_KV",
+			"id": "69c21dd2c8d64c2f9ff8563c40d7ab6f"
+		},
+		{
+			"binding": "ARC26_KV",
+			"id": "90b157592d5b40dfae2c501a8d4f8291"
+		},
+		{
+			"binding": "VERIFIED_ASSETS",
+			"id": "60fa6525420a4588b33acd87ee437b77"
+		},
+		{
+			"binding": "A2A_AP2_STORE",
+			"id": "e75975e4855442c488a258f44d8635ae"
+		}
+	],
+	"observability": {
+		"enabled": false
+	},
+	/**
+	 * Environment Variables
+	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
+	 */
+	"vars": {
+		"ALGORAND_NETWORK": "mainnet",
+		"ALGORAND_ALGOD_API": "https://mainnet-api.algonode.cloud/v2",
+		"ALGORAND_ALGOD": "https://mainnet-api.algonode.cloud",
+		"ALGORAND_INDEXER_API": "https://mainnet-idx.algonode.cloud/v2",
+		"ALGORAND_INDEXER": "https://mainnet-idx.algonode.cloud",
+		"ALGORAND_ALGOD_PORT": "",
+		"ALGORAND_INDEXER_PORT": "",
+		"NFD_API_URL": "https://api.nf.domains",
+		"PERA_WALLET_API_URL": "https://mainnet.api.perawallet.app/v1/public",
+		"PERA_EXPLORER_URL": "https://explorer.perawallet.app",
+		"ITEMS_PER_PAGE": "10",
+		"HCV_WORKER_URL": "https://hashicorp-vault-worker.emg110.workers.dev"
+	}
 
-  /**
-   * Smart Placement
-   * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
-   */
-  // "placement": { "mode": "smart" },
+	/* Secrets */
+	// "secrets": {
+	//   "ALGORAND_TOKEN": "your_algorand_token_here",
+	//   "VAULT_OIDC_ACCESSOR": "your_vault_oidc_accessor_here",
+	//   "HCV_TOKEN": "your_hashicorp_vault_token_here",
+	//   "GOOGLE_CLIENT_SECRET": "your_google_client_secret_here",
+	//   "GOOGLE_CLIENT_ID": "your_google_client_id_here",
+	//   "GITHUB_CLIENT_SECRET": "your_github_client_secret_here",
+	//   "GITHUB_CLIENT_ID": "your_github_client_id_here",
+	//   "LINKEDIN_CLIENT_SECRET": "your_linkedin_client_secret_here",
+	//   "LINKEDIN_CLIENT_ID": "your_linkedin_client_id_here",
+	//   "COOKIE_ENCRYPTION_KEY": "your_cookie_encryption_key_here"
+	//   "TWITTER_CLIENT_SECRET": "your_twitter_client_secret_here",
+	//   "TWITTER_CLIENT_ID": "your_twitter_client_id_here"
+	//  },
 
-  /**
-   * Bindings
-   * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
-   * databases, object storage, AI inference, real-time communication and more.
-   * https://developers.cloudflare.com/workers/runtime-apis/bindings/
-   */
+	/**
+	 * Smart Placement
+	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
+	 */
+	// "placement": { "mode": "smart" },
 
-  /**
-   * For reference on how to set up environment variables, see above 'vars' section.
-   *
-   * For setting up secrets:
-   * https://developers.cloudflare.com/workers/configuration/secrets/
-   */
+	/**
+	 * Bindings
+	 * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
+	 * databases, object storage, AI inference, real-time communication and more.
+	 * https://developers.cloudflare.com/workers/runtime-apis/bindings/
+	 */
 
-  /**
-   * Static Assets
-   * https://developers.cloudflare.com/workers/static-assets/binding/
-   */
-  // "assets": { "directory": "./public/", "binding": "ASSETS" },
+	/**
+	 * For reference on how to set up environment variables, see above 'vars' section.
+	 *
+	 * For setting up secrets:
+	 * https://developers.cloudflare.com/workers/configuration/secrets/
+	 */
 
-  /**
-   * Service Bindings (communicate between multiple Workers)
-   * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
-   */
-  // "services": [{ "binding": "MY_SERVICE", "service": "my-service" }]
+	/**
+	 * Static Assets
+	 * https://developers.cloudflare.com/workers/static-assets/binding/
+	 */
+	// "assets": { "directory": "./public/", "binding": "ASSETS" },
+
+	/**
+	 * Service Bindings (communicate between multiple Workers)
+	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
+	 */
+	// "services": [{ "binding": "MY_SERVICE", "service": "my-service" }]
 }

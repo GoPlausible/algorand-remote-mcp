@@ -3,10 +3,10 @@
  * Handles access to Algorand documentation stored in Cloudflare R2
  */
 
-import { z } from 'zod';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { ResponseProcessor } from '../utils';
-import { Env, Props } from '../types';
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import type { Env, Props } from "../types";
+import { ResponseProcessor } from "../utils";
 
 /**
  * Register knowledge tools to the MCP server
@@ -14,357 +14,394 @@ import { Env, Props } from '../types';
  * @param env The environment object containing Cloudflare bindings
  */
 export function registerKnowledgeTools(server: McpServer, env: Env, props: Props): void {
-  // Get knowledge document
-  server.tool(
-    'get_knowledge_doc',
-    'Get markdown content for specified knowledge documents',
-    {
-      documents: z.array(z.string()).describe('Array of document keys (e.g. ["arcs:specs:arc-0020.md"])')
-    },
-    async ({ documents }) => {
+	// Get knowledge document
+	server.tool(
+		"get_knowledge_doc",
+		"Get markdown content for specified knowledge documents",
+		{
+			documents: z
+				.array(z.string())
+				.describe('Array of document keys (e.g. ["arcs:specs:arc-0020.md"])'),
+		},
+		async ({ documents }) => {
+			try {
+				if (!env.PLAUSIBLE_AI) {
+					console.error("R2 bucket not available");
+					return {
+						content: [
+							{
+								type: "text",
+								text: "R2 bucket not available for knowledge documents",
+							},
+						],
+					};
+				}
 
-      try {
-        if (!env.PLAUSIBLE_AI) {
-          console.error('R2 bucket not available');
-          return {
-            content: [{
-              type: 'text',
-              text: 'R2 bucket not available for knowledge documents'
-            }]
-          };
-        }
+				// Process document keys and fetch content from R2
+				const results = await Promise.all(
+					documents.map(async (docKey) => {
+						try {
+							// Format the document key for R2 path
+							// Normalize to lowercase to handle case-insensitive lookups (e.g., "ARCs" -> "arcs")
+							const r2Key = docKey.toLowerCase().replace(/:/g, "/");
+							console.log(`Looking for document at key: ${r2Key}`);
 
-        // Process document keys and fetch content from R2
-        const results = await Promise.all(documents.map(async (docKey) => {
-          try {
-            // Format the document key for R2 path
-            // Normalize to lowercase to handle case-insensitive lookups (e.g., "ARCs" -> "arcs")
-            const r2Key = docKey.toLowerCase().replace(/:/g, '/');
-            console.log(`Looking for document at key: ${r2Key}`);
+							// Get the document from R2 bucket
+							// @ts-ignore - We've checked PLAUSIBLE_AI exists above
+							let object = await env.PLAUSIBLE_AI.get(r2Key);
 
-            // Get the document from R2 bucket
-            // @ts-ignore - We've checked PLAUSIBLE_AI exists above
-            let object = await env.PLAUSIBLE_AI.get(r2Key);
+							// If not found, try listing objects with this prefix to see what's available
+							if (!object) {
+								console.log(
+									`Object not found at ${r2Key}, trying to list similar objects`,
+								);
+								// @ts-ignore - We've checked PLAUSIBLE_AI exists above
+								const similarObjects = await env.PLAUSIBLE_AI.list({
+									prefix: r2Key.split("/")[0], // Get just the first segment
+									delimiter: "/",
+								});
 
-            // If not found, try listing objects with this prefix to see what's available
-            if (!object) {
-              console.log(`Object not found at ${r2Key}, trying to list similar objects`);
-              // @ts-ignore - We've checked PLAUSIBLE_AI exists above
-              const similarObjects = await env.PLAUSIBLE_AI.list({
-                prefix: r2Key.split('/')[0], // Get just the first segment
-                delimiter: '/'
-              });
+								console.log(
+									`Found ${similarObjects.objects.length} similar objects`,
+								);
+								if (similarObjects.objects.length > 0) {
+									// console.log(`Similar objects: ${similarObjects.objects.map(o => o.key).join(', ')}`);
 
-              console.log(`Found ${similarObjects.objects.length} similar objects`);
-              if (similarObjects.objects.length > 0) {
-                // console.log(`Similar objects: ${similarObjects.objects.map(o => o.key).join(', ')}`);
+									// Try a case-insensitive match from the list of similar objects
+									const exactMatch = similarObjects.objects.find(
+										(o) =>
+											o.key.replace(/\//g, ":").toLowerCase() ===
+											docKey.toLowerCase(),
+									);
 
-                // Try a case-insensitive match from the list of similar objects
-                const exactMatch = similarObjects.objects.find(o =>
-                  o.key.replace(/\//g, ':').toLowerCase() === docKey.toLowerCase()
-                );
+									if (exactMatch) {
+										// @ts-ignore - We've checked PLAUSIBLE_AI exists above
+										object = await env.PLAUSIBLE_AI.get(exactMatch.key);
+									}
+								}
+							}
 
-                if (exactMatch) {
-                  // @ts-ignore - We've checked PLAUSIBLE_AI exists above
-                  object = await env.PLAUSIBLE_AI.get(exactMatch.key);
-                }
-              }
-            }
+							if (!object) {
+								console.error(`Document not found: ${docKey}`);
+								return `Document not found: ${docKey}`;
+							}
 
-            if (!object) {
-              console.error(`Document not found: ${docKey}`);
-              return `Document not found: ${docKey}`;
-            }
+							// Get the text content
+							const content = await object.text();
+							return content;
+						} catch (error) {
+							console.error(`Failed to read document ${docKey}:`, error);
+							return `Failed to read document ${docKey}: ${error instanceof Error ? error.message : "Unknown error"}`;
+						}
+					}),
+				);
 
-            // Get the text content
-            const content = await object.text();
-            return content;
-          } catch (error) {
-            console.error(`Failed to read document ${docKey}:`, error);
-            return `Failed to read document ${docKey}: ${error instanceof Error ? error.message : 'Unknown error'}`;
-          }
-        }));
+				return ResponseProcessor.processResponse({
+					documents: results,
+				});
+			} catch (error: any) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `Error retrieving knowledge documents: ${error.message || "Unknown error"}`,
+						},
+					],
+				};
+			}
+		},
+	);
 
-        return ResponseProcessor.processResponse({
-          documents: results
-        });
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error retrieving knowledge documents: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
+	// List available knowledge documents
+	server.tool(
+		"list_knowledge_docs",
+		"List available knowledge documents by category prefix. Empty prefix lists all top-level categories.",
+		{
+			prefix: z
+				.string()
+				.optional()
+				.default("")
+				.describe("Optional category name as prefix to filter documents"),
+		},
+		async ({ prefix }) => {
+			if (prefix && prefix.length > 0) {
+				try {
+					if (!env.PLAUSIBLE_AI) {
+						console.error("R2 bucket not available");
+						return {
+							content: [
+								{
+									type: "text",
+									text: "R2 bucket not available for knowledge documents",
+								},
+							],
+						};
+					}
 
+					// Format the prefix for R2 listing
+					// Normalize to lowercase to handle case-insensitive lookups
+					const r2Prefix = prefix ? `${prefix.toLowerCase().replace(/:/g, "/")}` : "";
+					console.log(`Listing objects with prefix: '${r2Prefix}'`);
 
-  // List available knowledge documents
-  server.tool(
-    'list_knowledge_docs',
-    'List available knowledge documents by category prefix. Empty prefix lists all top-level categories.',
-    {
-      prefix: z.string().optional().default('').describe('Optional category name as prefix to filter documents')
-    },
-    async ({ prefix }) => {
+					// List objects from the R2 bucket with the given prefix
+					// @ts-ignore - We've checked PLAUSIBLE_AI exists above
+					const objects = await env.PLAUSIBLE_AI.list({
+						prefix: r2Prefix,
+						delimiter: "/",
+					});
 
-      if (prefix && prefix.length > 0) {
-        try {
-          if (!env.PLAUSIBLE_AI) {
-            console.error('R2 bucket not available');
-            return {
-              content: [{
-                type: 'text',
-                text: 'R2 bucket not available for knowledge documents'
-              }]
-            };
-          }
+					console.log(
+						`Found ${objects.objects.length} objects and ${objects.delimitedPrefixes.length} prefixes`,
+					);
 
-          // Format the prefix for R2 listing
-          // Normalize to lowercase to handle case-insensitive lookups
-          const r2Prefix = prefix ? `${prefix.toLowerCase().replace(/:/g, '/')}` : '';
-          console.log(`Listing objects with prefix: '${r2Prefix}'`);
+					// Format the results
+					const results = {
+						files: objects.objects.map((obj) => {
+							// Convert R2 path back to document key format
+							const key = obj.key.replace("taxonomy/", "").replace(/\//g, ":");
+							return {
+								key,
+								size: obj.size,
+								uploaded:
+									obj.uploaded instanceof Date
+										? obj.uploaded.toISOString()
+										: String(obj.uploaded),
+							};
+						}),
+						commonPrefixes: objects.delimitedPrefixes.map((prefix) => {
+							// Convert R2 path prefix back to document key format
+							return prefix.replace("taxonomy/", "").replace(/\//g, ":");
+						}),
+					};
+					return {
+						content: [
+							{
+								type: "text",
+								text: JSON.stringify(results, null, 2),
+							},
+						],
+					};
+				} catch (error: any) {
+					return {
+						content: [
+							{
+								type: "text",
+								text: `Error listing knowledge documents: ${error.message || "Unknown error"}`,
+							},
+						],
+					};
+				}
+			} else {
+				const results = {
+					arcs: "Algorand Request for Comments",
+					sdks: "Software Development Kits",
+					algokit: "AlgoKit",
+					"algokit-utils": "AlgoKit Utils",
+					tealscript: "TEALScript",
+					puya: "Puya",
+					"liquid-auth": "Liquid Auth",
+					python: "Python Development",
+					developers: "Developer Documentation",
+					clis: "CLI Tools",
+					nodes: "Node Management",
+					details: "Developer Details",
+				};
+				return {
+					content: [
+						{
+							type: "text",
+							text: JSON.stringify(results, null, 2),
+						},
+					],
+				};
+			}
+		},
+	);
 
-          // List objects from the R2 bucket with the given prefix
-          // @ts-ignore - We've checked PLAUSIBLE_AI exists above
-          const objects = await env.PLAUSIBLE_AI.list({
-            prefix: r2Prefix,
-            delimiter: '/'
-          });
+	server.tool(
+		"fetch",
+		"Fetch markdown content for specified knowledge documents",
+		{
+			id: z.string().describe('Unique ID of the document (e.g. "arcs:specs:arc-0020.md")'),
+		},
+		async ({ id }) => {
+			try {
+				if (!env.PLAUSIBLE_AI) {
+					console.error("R2 bucket not available");
+					return {
+						content: [
+							{
+								type: "text",
+								text: "R2 bucket not available for knowledge documents",
+							},
+						],
+					};
+				}
+				const results = [];
+				try {
+					// Format the document key for R2 path
+					// Normalize to lowercase to handle case-insensitive lookups (e.g., "ARCs" -> "arcs")
+					const r2Key = id.toLowerCase().replace(/:/g, "/");
+					console.log(`Looking for document at key: ${r2Key}`);
 
-          console.log(`Found ${objects.objects.length} objects and ${objects.delimitedPrefixes.length} prefixes`);
+					// Get the document from R2 bucket
+					// @ts-ignore - We've checked PLAUSIBLE_AI exists above
+					let object = await env.PLAUSIBLE_AI.get(r2Key);
 
+					// If not found, try listing objects with this prefix to see what's available
+					if (!object) {
+						console.log(`Object not found at ${r2Key}, trying to list similar objects`);
+						// @ts-ignore - We've checked PLAUSIBLE_AI exists above
+						const similarObjects = await env.PLAUSIBLE_AI.list({
+							prefix: r2Key.split("/")[0], // Get just the first segment
+							delimiter: "/",
+						});
 
+						console.log(`Found ${similarObjects.objects.length} similar objects`);
+						if (similarObjects.objects.length > 0) {
+							// console.log(`Similar objects: ${similarObjects.objects.map(o => o.key).join(', ')}`);
 
-          // Format the results
-          const results = {
-            files: objects.objects.map((obj) => {
-              // Convert R2 path back to document key format
-              const key = obj.key.replace('taxonomy/', '').replace(/\//g, ':');
-              return {
-                key,
-                size: obj.size,
-                uploaded: obj.uploaded instanceof Date ? obj.uploaded.toISOString() : String(obj.uploaded)
-              };
-            }),
-            commonPrefixes: objects.delimitedPrefixes.map((prefix) => {
-              // Convert R2 path prefix back to document key format
-              return prefix.replace('taxonomy/', '').replace(/\//g, ':');
-            })
-          };
-          return {
-            content: [{
-              type: 'text',
-              text: JSON.stringify(results, null, 2)
-            }]
-          };
-        } catch (error: any) {
-          return {
-            content: [{
-              type: 'text',
-              text: `Error listing knowledge documents: ${error.message || 'Unknown error'}`
-            }]
-          };
-        }
+							// Try a case-insensitive match from the list of similar objects
+							const exactMatch = similarObjects.objects.find(
+								(o) => o.key.replace(/\//g, ":").toLowerCase() === id.toLowerCase(),
+							);
 
+							if (exactMatch) {
+								// @ts-ignore - We've checked PLAUSIBLE_AI exists above
+								object = await env.PLAUSIBLE_AI.get(exactMatch.key);
+							}
+						}
+					}
 
-      } else {
-        const results = {
-          'arcs': 'Algorand Request for Comments',
-          'sdks': 'Software Development Kits',
-          'algokit': 'AlgoKit',
-          'algokit-utils': 'AlgoKit Utils',
-          'tealscript': 'TEALScript',
-          'puya': 'Puya',
-          'liquid-auth': 'Liquid Auth',
-          'python': 'Python Development',
-          'developers': 'Developer Documentation',
-          'clis': 'CLI Tools',
-          'nodes': 'Node Management',
-          'details': 'Developer Details'
-        }
-        return {
-          content: [{
-            type: 'text',
-            text: JSON.stringify(results, null, 2)
-          }]
-        };
-      }
-    }
-  );
+					if (!object) {
+						console.error(`Document not found: ${id}`);
+						return `Document not found: ${id}`;
+					}
 
-  server.tool(
-    'fetch',
-    'Fetch markdown content for specified knowledge documents',
-    {
-      id: z.string().describe('Unique ID of the document (e.g. "arcs:specs:arc-0020.md")')
-    },
-    async ({ id }) => {
+					// Get the text content
+					const content = await object.text();
+					results.push(content);
+				} catch (error) {
+					console.error(`Failed to read document ${id}:`, error);
+					return `Failed to read document ${id}: ${error instanceof Error ? error.message : "Unknown error"}`;
+				}
 
-      try {
-        if (!env.PLAUSIBLE_AI) {
-          console.error('R2 bucket not available');
-          return {
-            content: [{
-              type: 'text',
-              text: 'R2 bucket not available for knowledge documents'
-            }]
-          };
-        }
-        let results = [];
-        try {
-          // Format the document key for R2 path
-          // Normalize to lowercase to handle case-insensitive lookups (e.g., "ARCs" -> "arcs")
-          const r2Key = id.toLowerCase().replace(/:/g, '/');
-          console.log(`Looking for document at key: ${r2Key}`);
+				return ResponseProcessor.processResponse({
+					documents: results,
+				});
+			} catch (error: any) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `Error retrieving knowledge documents: ${error.message || "Unknown error"}`,
+						},
+					],
+				};
+			}
+		},
+	);
 
-          // Get the document from R2 bucket
-          // @ts-ignore - We've checked PLAUSIBLE_AI exists above
-          let object = await env.PLAUSIBLE_AI.get(r2Key);
+	// List available knowledge documents
+	server.tool(
+		"search",
+		"Search available knowledge documents by category as query. Empty query lists all top-level categories",
+		{
+			query: z.string().describe("Search query string"),
+		},
+		async ({ query }) => {
+			if (query && query.length > 0) {
+				try {
+					if (!env.PLAUSIBLE_AI) {
+						console.error("R2 bucket not available");
+						return {
+							content: [
+								{
+									type: "text",
+									text: "R2 bucket not available for knowledge documents",
+								},
+							],
+						};
+					}
 
-          // If not found, try listing objects with this prefix to see what's available
-          if (!object) {
-            console.log(`Object not found at ${r2Key}, trying to list similar objects`);
-            // @ts-ignore - We've checked PLAUSIBLE_AI exists above
-            const similarObjects = await env.PLAUSIBLE_AI.list({
-              prefix: r2Key.split('/')[0], // Get just the first segment
-              delimiter: '/'
-            });
+					// Format the prefix for R2 listing
+					// Normalize to lowercase to handle case-insensitive lookups
+					const r2Prefix = query ? `${query.toLowerCase().replace(/:/g, "/")}` : "";
+					console.log(`Listing objects with prefix: '${r2Prefix}'`);
 
-            console.log(`Found ${similarObjects.objects.length} similar objects`);
-            if (similarObjects.objects.length > 0) {
-              // console.log(`Similar objects: ${similarObjects.objects.map(o => o.key).join(', ')}`);
+					// List objects from the R2 bucket with the given prefix
+					// @ts-ignore - We've checked PLAUSIBLE_AI exists above
+					const objects = await env.PLAUSIBLE_AI.list({
+						prefix: r2Prefix,
+						delimiter: "/",
+					});
 
-              // Try a case-insensitive match from the list of similar objects
-              const exactMatch = similarObjects.objects.find(o =>
-                o.key.replace(/\//g, ':').toLowerCase() === id.toLowerCase()
-              );
+					console.log(
+						`Found ${objects.objects.length} objects and ${objects.delimitedPrefixes.length} prefixes`,
+					);
 
-              if (exactMatch) {
-                // @ts-ignore - We've checked PLAUSIBLE_AI exists above
-                object = await env.PLAUSIBLE_AI.get(exactMatch.key);
-              }
-            }
-          }
+					// Format the results
+					const results = {
+						files: objects.objects.map((obj) => {
+							// Convert R2 path back to document key format
+							const key = obj.key.replace("taxonomy/", "").replace(/\//g, ":");
+							return {
+								key,
+								size: obj.size,
+								uploaded:
+									obj.uploaded instanceof Date
+										? obj.uploaded.toISOString()
+										: String(obj.uploaded),
+							};
+						}),
+						commonPrefixes: objects.delimitedPrefixes.map((prefix) => {
+							// Convert R2 path prefix back to document key format
+							return prefix.replace("taxonomy/", "").replace(/\//g, ":");
+						}),
+					};
 
-          if (!object) {
-            console.error(`Document not found: ${id}`);
-            return `Document not found: ${id}`;
-          }
-
-          // Get the text content
-          const content = await object.text();
-          results.push(content);
-        } catch (error) {
-          console.error(`Failed to read document ${id}:`, error);
-          return `Failed to read document ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        }
-
-        return ResponseProcessor.processResponse({
-          documents: results
-        });
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error retrieving knowledge documents: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
-
-  // List available knowledge documents
-  server.tool(
-    'search',
-    'Search available knowledge documents by category as query. Empty query lists all top-level categories',
-    {
-      query: z.string().describe('Search query string'),
-    },
-    async ({ query }) => {
-
-      if (query && query.length > 0) {
-        try {
-          if (!env.PLAUSIBLE_AI) {
-            console.error('R2 bucket not available');
-            return {
-              content: [{
-                type: 'text',
-                text: 'R2 bucket not available for knowledge documents'
-              }]
-            };
-          }
-
-          // Format the prefix for R2 listing
-          // Normalize to lowercase to handle case-insensitive lookups
-          const r2Prefix = query ? `${query.toLowerCase().replace(/:/g, '/')}` : '';
-          console.log(`Listing objects with prefix: '${r2Prefix}'`);
-
-          // List objects from the R2 bucket with the given prefix
-          // @ts-ignore - We've checked PLAUSIBLE_AI exists above
-          const objects = await env.PLAUSIBLE_AI.list({
-            prefix: r2Prefix,
-            delimiter: '/'
-          });
-
-          console.log(`Found ${objects.objects.length} objects and ${objects.delimitedPrefixes.length} prefixes`);
-
-
-
-          // Format the results
-          const results = {
-            files: objects.objects.map((obj) => {
-              // Convert R2 path back to document key format
-              const key = obj.key.replace('taxonomy/', '').replace(/\//g, ':');
-              return {
-                key,
-                size: obj.size,
-                uploaded: obj.uploaded instanceof Date ? obj.uploaded.toISOString() : String(obj.uploaded)
-              };
-            }),
-            commonPrefixes: objects.delimitedPrefixes.map((prefix) => {
-              // Convert R2 path prefix back to document key format
-              return prefix.replace('taxonomy/', '').replace(/\//g, ':');
-            })
-          };
-
-          return {
-            content: [{
-              type: 'text',
-              text: JSON.stringify(results, null, 2)
-            }]
-          };
-        } catch (error: any) {
-          return {
-            content: [{
-              type: 'text',
-              text: `Error listing knowledge documents: ${error.message || 'Unknown error'}`
-            }]
-          };
-        }
-      } else {
-        const results = {
-          'arcs': 'Algorand Request for Comments',
-          'sdks': 'Software Development Kits',
-          'algokit': 'AlgoKit',
-          'algokit-utils': 'AlgoKit Utils',
-          'tealscript': 'TEALScript',
-          'puya': 'Puya',
-          'liquid-auth': 'Liquid Auth',
-          'python': 'Python Development',
-          'developers': 'Developer Documentation',
-          'clis': 'CLI Tools',
-          'nodes': 'Node Management',
-          'details': 'Developer Details'
-        }
-        return {
-          content: [{
-            type: 'text',
-            text: JSON.stringify(results, null, 2)
-          }]
-        };
-      }
-    }
-  );
+					return {
+						content: [
+							{
+								type: "text",
+								text: JSON.stringify(results, null, 2),
+							},
+						],
+					};
+				} catch (error: any) {
+					return {
+						content: [
+							{
+								type: "text",
+								text: `Error listing knowledge documents: ${error.message || "Unknown error"}`,
+							},
+						],
+					};
+				}
+			} else {
+				const results = {
+					arcs: "Algorand Request for Comments",
+					sdks: "Software Development Kits",
+					algokit: "AlgoKit",
+					"algokit-utils": "AlgoKit Utils",
+					tealscript: "TEALScript",
+					puya: "Puya",
+					"liquid-auth": "Liquid Auth",
+					python: "Python Development",
+					developers: "Developer Documentation",
+					clis: "CLI Tools",
+					nodes: "Node Management",
+					details: "Developer Details",
+				};
+				return {
+					content: [
+						{
+							type: "text",
+							text: JSON.stringify(results, null, 2),
+						},
+					],
+				};
+			}
+		},
+	);
 }

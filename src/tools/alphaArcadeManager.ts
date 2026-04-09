@@ -7,8 +7,8 @@ import { AlphaClient } from "@alpha-arcade/sdk";
 import * as algosdk from "algosdk";
 import { z } from "zod";
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { Env, Props } from "../types";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { Env, Props } from "../types";
 import { getPublicKey, signWithTransit } from "../utils/vaultManager";
 
 // ============================================
@@ -175,13 +175,17 @@ function friendlyTradeError(msg: string): string {
 
 	const isUsdcError = m.includes(String(USDC_ASSET_ID)) || /usdc/i.test(m);
 
-	const overspendAlgo = m.match(/overspend.*?MicroAlgos:\{Raw:(\d+)\}.*?tried to spend \{(\d+)\}/i);
+	const overspendAlgo = m.match(
+		/overspend.*?MicroAlgos:\{Raw:(\d+)\}.*?tried to spend \{(\d+)\}/i,
+	);
 	if (overspendAlgo) {
 		const have = (Number.parseInt(overspendAlgo[1], 10) / 1e6).toFixed(2);
 		const need = (Number.parseInt(overspendAlgo[2], 10) / 1e6).toFixed(2);
 		return `Insufficient ALGO balance. You have ~${have} ALGO but need ~${need} ALGO (escrow collateral + fees). Please fund your wallet with more ALGO.`;
 	}
-	const overspendAsset = m.match(/overspend.*?asset.*?(\d+).*?holding:\{Amount:(\d+)\}.*?tried to spend \{(\d+)\}/i);
+	const overspendAsset = m.match(
+		/overspend.*?asset.*?(\d+).*?holding:\{Amount:(\d+)\}.*?tried to spend \{(\d+)\}/i,
+	);
 	if (overspendAsset) {
 		const assetId = overspendAsset[1];
 		const have = (Number.parseInt(overspendAsset[2], 10) / 1e6).toFixed(2);
@@ -225,11 +229,7 @@ function friendlyTradeError(msg: string): string {
 // Register tools
 // ============================================
 
-export function registerAlphaArcadeTools(
-	server: McpServer,
-	env: Env,
-	props: Props,
-): void {
+export function registerAlphaArcadeTools(server: McpServer, env: Env, props: Props): void {
 	// ------------------------------------------
 	// Read-only tools
 	// ------------------------------------------
@@ -676,9 +676,7 @@ export function registerAlphaArcadeTools(
 			price: z.number().describe("Price in microunits (e.g. 500000 = $0.50)"),
 			quantity: z.number().describe("Quantity in microunits (e.g. 1000000 = 1 share)"),
 			isBuying: z.boolean().describe("true = buy order, false = sell order"),
-			slippage: z
-				.number()
-				.describe("Slippage tolerance in microunits (e.g. 50000 = $0.05)"),
+			slippage: z.number().describe("Slippage tolerance in microunits (e.g. 50000 = $0.05)"),
 		},
 		async ({ marketAppId, position, price, quantity, isBuying, slippage }) => {
 			try {

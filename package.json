@@ -1,12 +1,16 @@
 {
 	"name": "algorand-remote-mcp",
-	"version": "1.9.0",
+	"version": "1.9.1",
 	"private": true,
 	"scripts": {
 		"build": "wrangler deploy --dry-run --outdir=dist --minify",
 		"deploy": "wrangler deploy --minify",
 		"dev": "wrangler dev",
+		"check": "biome check",
+		"check:fix": "biome check --fix",
 		"format": "biome format --write",
+		"format:check": "biome format",
+		"lint": "biome lint",
 		"lint:fix": "biome lint --fix",
 		"start": "wrangler dev",
 		"cf-typegen": "wrangler types",

@@ -3,48 +3,48 @@
  * Direct access to Algorand node asset data
  */
 
-import * as algosdk from 'algosdk';
-import { z } from 'zod';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { ResponseProcessor } from '../../../utils';
-import { Env, AssetVerificationResponse, AssetDetailsResponse } from '../../../types';
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import * as algosdk from "algosdk";
+import { z } from "zod";
+import type { AssetDetailsResponse, AssetVerificationResponse, Env } from "../../../types";
+import { ResponseProcessor } from "../../../utils";
 
 /**
  * Create and validate an Algorand client
  */
 function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | null {
-  if (!algodUrl) {
-    console.error('Algorand node URL not configured');
-    return null;
-  }
+	if (!algodUrl) {
+		console.error("Algorand node URL not configured");
+		return null;
+	}
 
-  return new algosdk.Algodv2(token, algodUrl, '');
+	return new algosdk.Algodv2(token, algodUrl, "");
 }
 /**
-   * Get assets by name
-   * @param {string} name - Asset name
-   * @returns {Array} - Array of assets matching the name
-   */
+ * Get assets by name
+ * @param {string} name - Asset name
+ * @returns {Array} - Array of assets matching the name
+ */
 async function getAssetsByName(name: string, env: Env) {
-  if (!name || !env.VERIFIED_ASSETS) {
-    throw new Error("Asset name is required");
-  }
+	if (!name || !env.VERIFIED_ASSETS) {
+		throw new Error("Asset name is required");
+	}
 
-  // List keys with prefix of the name
-  const keys = await env.VERIFIED_ASSETS.list({ prefix: `key-${name}-` });
-  console.log(`[verified-assets-cron-worker] Found ${keys.keys.length} keys for name: ${name}`);
+	// List keys with prefix of the name
+	const keys = await env.VERIFIED_ASSETS.list({ prefix: `key-${name}-` });
+	console.log(`[verified-assets-cron-worker] Found ${keys.keys.length} keys for name: ${name}`);
 
-  // Fetch all assets with matching keys
-  const assets = await Promise.all(
-    keys.keys.map(async key => {
-      if(!env.VERIFIED_ASSETS) return null;
-      const assetData = await env.VERIFIED_ASSETS.get(key.name);
-      console.log(`[verified-assets-cron-worker] Fetched asset data for key: ${key.name}`);
-      return assetData ? JSON.parse(assetData): null;
-    })
-  );
+	// Fetch all assets with matching keys
+	const assets = await Promise.all(
+		keys.keys.map(async (key) => {
+			if (!env.VERIFIED_ASSETS) return null;
+			const assetData = await env.VERIFIED_ASSETS.get(key.name);
+			console.log(`[verified-assets-cron-worker] Fetched asset data for key: ${key.name}`);
+			return assetData ? JSON.parse(assetData) : null;
+		}),
+	);
 
-  return assets;
+	return assets;
 }
 
 /**
@@ -53,19 +53,19 @@ async function getAssetsByName(name: string, env: Env) {
  * @returns {Object|null} - Asset object or null if not found
  */
 async function getAssetsByAssetId(assetId: number, env: Env) {
-  if (!assetId || !env.VERIFIED_ASSETS) {
-    throw new Error("Asset ID is required");
-  }
+	if (!assetId || !env.VERIFIED_ASSETS) {
+		throw new Error("Asset ID is required");
+	}
 
-  const key = `id-${assetId}`;
-  console.log(`[verified-assets-cron-worker] Fetching asset by ID: ${assetId}`);
-  const assetData = await env.VERIFIED_ASSETS.get(key);
+	const key = `id-${assetId}`;
+	console.log(`[verified-assets-cron-worker] Fetching asset by ID: ${assetId}`);
+	const assetData = await env.VERIFIED_ASSETS.get(key);
 
-  if (!assetData) {
-    return null;
-  }
+	if (!assetData) {
+		return null;
+	}
 
-  return JSON.parse(assetData);
+	return JSON.parse(assetData);
 }
 
 /**
@@ -74,26 +74,28 @@ async function getAssetsByAssetId(assetId: number, env: Env) {
  * @returns {Array} - Array of assets created by the address
  */
 async function getAssetsByCreatorAddress(creatorAddress: string, env: Env) {
-  if (!creatorAddress || !env.VERIFIED_ASSETS) {
-    throw new Error("Creator address is required");
-  }
+	if (!creatorAddress || !env.VERIFIED_ASSETS) {
+		throw new Error("Creator address is required");
+	}
 
-  // List keys with prefix of the creator address
-  const keys = await env.VERIFIED_ASSETS.list({ prefix: `creator-${creatorAddress}-` });
-  console.log(`[verified-assets-cron-worker] Found ${keys.keys.length} keys for creator address: ${creatorAddress}`);
+	// List keys with prefix of the creator address
+	const keys = await env.VERIFIED_ASSETS.list({ prefix: `creator-${creatorAddress}-` });
+	console.log(
+		`[verified-assets-cron-worker] Found ${keys.keys.length} keys for creator address: ${creatorAddress}`,
+	);
 
-  // Fetch all assets with matching keys
-  const assets = await Promise.all(
-    keys.keys.map(async (key) => {
-      if(!env.VERIFIED_ASSETS) return null;
-    
-      const assetData = await env.VERIFIED_ASSETS.get(key.name);
-      console.log(`[verified-assets-cron-worker] Fetched asset data for key: ${key.name}`);
-      return assetData ? JSON.parse(assetData): null;
-    })
-  );
+	// Fetch all assets with matching keys
+	const assets = await Promise.all(
+		keys.keys.map(async (key) => {
+			if (!env.VERIFIED_ASSETS) return null;
 
-  return assets;
+			const assetData = await env.VERIFIED_ASSETS.get(key.name);
+			console.log(`[verified-assets-cron-worker] Fetched asset data for key: ${key.name}`);
+			return assetData ? JSON.parse(assetData) : null;
+		}),
+	);
+
+	return assets;
 }
 
 /**
@@ -102,25 +104,27 @@ async function getAssetsByCreatorAddress(creatorAddress: string, env: Env) {
  * @returns {Array} - Array of assets matching the unit name
  */
 async function getAssetsByUnitName(unitName: string, env: Env) {
-  if (!unitName || !env.VERIFIED_ASSETS) {
-    throw new Error("Unit name is required");
-  }
+	if (!unitName || !env.VERIFIED_ASSETS) {
+		throw new Error("Unit name is required");
+	}
 
-  // List keys with prefix of the unit name
-  const keys = await env.VERIFIED_ASSETS.list({ prefix: `unit-${unitName}-` });
-  console.log(`[verified-assets-cron-worker] Found ${keys.keys.length} keys for unit name: ${unitName}`);
+	// List keys with prefix of the unit name
+	const keys = await env.VERIFIED_ASSETS.list({ prefix: `unit-${unitName}-` });
+	console.log(
+		`[verified-assets-cron-worker] Found ${keys.keys.length} keys for unit name: ${unitName}`,
+	);
 
-  // Fetch all assets with matching keys
-  const assets = await Promise.all(
-    keys.keys.map(async key => {
-      if(!env.VERIFIED_ASSETS) return null;
-      const assetData = await env.VERIFIED_ASSETS.get(key.name);
-      console.log(`[verified-assets-cron-worker] Fetched asset data for key: ${key.name}`);
-      return assetData ? JSON.parse(assetData): null;
-    })
-  );
+	// Fetch all assets with matching keys
+	const assets = await Promise.all(
+		keys.keys.map(async (key) => {
+			if (!env.VERIFIED_ASSETS) return null;
+			const assetData = await env.VERIFIED_ASSETS.get(key.name);
+			console.log(`[verified-assets-cron-worker] Fetched asset data for key: ${key.name}`);
+			return assetData ? JSON.parse(assetData) : null;
+		}),
+	);
 
-  return assets;
+	return assets;
 }
 
 /**
@@ -148,8 +152,6 @@ async function getAssetsByUnitName(unitName: string, env: Env) {
 //   if (`${identifier}`.indexOf('$') === 0) {
 //     assets = await getAssetsByUnitName(`${identifier}`, env);
 //   }
-
-
 
 //   // If still not found, try by asset name
 //   if (assets.length === 0) {
@@ -186,272 +188,304 @@ async function getAssetsByUnitName(unitName: string, env: Env) {
  * Register asset API tools to the MCP server
  */
 export function registerAssetApiTools(server: McpServer, env: Env): void {
-  // Get asset information
-  server.tool(
-    'algod_get_asset_info',
-    'Get asset details from algod',
-    {
-      assetId: z.number().int().describe('The asset ID')
-    },
-    async ({ assetId }) => {
+	// Get asset information
+	server.tool(
+		"algod_get_asset_info",
+		"Get asset details from algod",
+		{
+			assetId: z.number().int().describe("The asset ID"),
+		},
+		async ({ assetId }) => {
+			if (!env.ALGORAND_ALGOD) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: "Algorand node URL not configured",
+						},
+					],
+				};
+			}
 
-      if (!env.ALGORAND_ALGOD) {
-        return {
-          content: [{
-            type: 'text',
-            text: 'Algorand node URL not configured'
-          }]
-        };
-      }
+			try {
+				// Create algod client
+				const algodClient = createAlgoClient(env.ALGORAND_ALGOD, env.ALGORAND_TOKEN || "");
+				if (!algodClient) {
+					throw new Error("Failed to create Algorand client");
+				}
 
-      try {
-        // Create algod client
-        const algodClient = createAlgoClient(env.ALGORAND_ALGOD, env.ALGORAND_TOKEN || '');
-        if (!algodClient) {
-          throw new Error('Failed to create Algorand client');
-        }
+				// Get asset information
+				const response = await algodClient.getAssetByID(Number(assetId)).do();
 
-        // Get asset information
-        const response = await algodClient.getAssetByID(Number(assetId)).do();
+				// Format the response to include more readable asset information
+				const assetParams = response.params;
+				const formattedResponse = {
+					...response,
+					readableParams: {
+						name: assetParams.name,
+						unitName: assetParams.unitName,
+						total: assetParams.total,
+						decimals: assetParams.decimals,
+						defaultFrozen: assetParams.defaultFrozen,
+						creator: assetParams.creator,
+						manager: assetParams.manager,
+						reserve: assetParams.reserve,
+						freeze: assetParams.freeze,
+						clawback: assetParams.clawback,
+						url: assetParams.url ? Buffer.from(assetParams.url).toString() : undefined,
+						metadataHash: assetParams.metadataHash
+							? Buffer.from(assetParams.metadataHash).toString("hex")
+							: undefined,
+					},
+				};
 
-        // Format the response to include more readable asset information
-        const assetParams = response.params;
-        const formattedResponse = {
-          ...response,
-          readableParams: {
-            name: assetParams.name,
-            unitName: assetParams.unitName,
-            total: assetParams.total,
-            decimals: assetParams.decimals,
-            defaultFrozen: assetParams.defaultFrozen,
-            creator: assetParams.creator,
-            manager: assetParams.manager,
-            reserve: assetParams.reserve,
-            freeze: assetParams.freeze,
-            clawback: assetParams.clawback,
-            url: assetParams.url ? Buffer.from(assetParams.url).toString() : undefined,
-            metadataHash: assetParams.metadataHash
-              ? Buffer.from(assetParams.metadataHash).toString('hex')
-              : undefined
-          }
-        };
+				return ResponseProcessor.processResponse(formattedResponse);
+			} catch (error: any) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `Error getting asset info: ${error.message || "Unknown error"}`,
+						},
+					],
+				};
+			}
+		},
+	);
 
-        return ResponseProcessor.processResponse(formattedResponse);
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error getting asset info: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
+	// Get asset holding information
+	server.tool(
+		"algod_get_asset_holding",
+		"Get asset holding information for an account",
+		{
+			address: z.string().describe("Account address"),
+			assetId: z.number().int().describe("The asset ID"),
+		},
+		async ({ address, assetId }) => {
+			if (!env.ALGORAND_ALGOD) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: "Algorand node URL not configured",
+						},
+					],
+				};
+			}
 
-  // Get asset holding information
-  server.tool(
-    'algod_get_asset_holding',
-    'Get asset holding information for an account',
-    {
-      address: z.string().describe('Account address'),
-      assetId: z.number().int().describe('The asset ID')
-    },
-    async ({ address, assetId }) => {
+			try {
+				// Create algod client
+				const algodClient = createAlgoClient(env.ALGORAND_ALGOD, env.ALGORAND_TOKEN || "");
+				if (!algodClient) {
+					throw new Error("Failed to create Algorand client");
+				}
 
-      if (!env.ALGORAND_ALGOD) {
-        return {
-          content: [{
-            type: 'text',
-            text: 'Algorand node URL not configured'
-          }]
-        };
-      }
+				// Validate address
+				if (!algosdk.isValidAddress(address)) {
+					throw new Error("Invalid Algorand address");
+				}
 
-      try {
-        // Create algod client
-        const algodClient = createAlgoClient(env.ALGORAND_ALGOD, env.ALGORAND_TOKEN || '');
-        if (!algodClient) {
-          throw new Error('Failed to create Algorand client');
-        }
+				// Get asset holding information
+				const accountInfo = await algodClient.accountInformation(String(address)).do();
+				const assets = accountInfo.assets || [];
 
-        // Validate address
-        if (!algosdk.isValidAddress(address)) {
-          throw new Error('Invalid Algorand address');
-        }
+				// Find the specific asset
+				const assetInfo = assets.find((asset: any) => asset.assetId === assetId);
 
-        // Get asset holding information
-        const accountInfo = await algodClient.accountInformation(String(address)).do();
-        const assets = accountInfo.assets || [];
+				if (!assetInfo) {
+					return {
+						content: [
+							{
+								type: "text",
+								text: `Account ${address} does not hold asset ${assetId}`,
+							},
+						],
+					};
+				}
 
-        // Find the specific asset
-        const assetInfo = assets.find((asset: any) => asset.assetId === assetId);
+				const formattedResponse = {
+					address,
+					assetId,
+					amount: assetInfo.amount,
+					isFrozen: assetInfo.isFrozen,
+					optedIn: true,
+				};
 
-        if (!assetInfo) {
-          return {
-            content: [{
-              type: 'text',
-              text: `Account ${address} does not hold asset ${assetId}`
-            }]
-          };
-        }
+				return ResponseProcessor.processResponse(formattedResponse);
+			} catch (error: any) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `Error getting asset holding: ${error.message || "Unknown error"}`,
+						},
+					],
+				};
+			}
+		},
+	);
+	// Get asset verification status from Pera Wallet
+	server.tool(
+		"pera_asset_verification_status",
+		"Get the verification status of an Algorand asset from Pera Wallet",
+		{
+			assetId: z
+				.number()
+				.int()
+				.min(0)
+				.max(9223372036854776000)
+				.describe("Asset ID to check verification status"),
+		},
+		async ({ assetId }) => {
+			// Get the Pera Wallet API URL from environment variables or use default
+			const peraWalletApiBaseUrl =
+				env.PERA_WALLET_API_URL || "https://mainnet.api.perawallet.app/v1/public";
+			const verificationEndpoint = `${peraWalletApiBaseUrl}/asset-verifications/${assetId}/`;
 
-        const formattedResponse = {
-          address,
-          assetId,
-          amount: assetInfo.amount,
-          isFrozen: assetInfo.isFrozen,
-          optedIn: true
-        };
+			try {
+				// Make API request to Pera Wallet
+				const response = await fetch(verificationEndpoint);
 
-        return ResponseProcessor.processResponse(formattedResponse);
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error getting asset holding: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
-  // Get asset verification status from Pera Wallet
-  server.tool(
-    'pera_asset_verification_status',
-    'Get the verification status of an Algorand asset from Pera Wallet',
-    {
-      assetId: z.number().int().min(0).max(9223372036854776000)
-        .describe('Asset ID to check verification status')
-    },
-    async ({ assetId }) => {
-      // Get the Pera Wallet API URL from environment variables or use default
-      const peraWalletApiBaseUrl = env.PERA_WALLET_API_URL || 'https://mainnet.api.perawallet.app/v1/public';
-      const verificationEndpoint = `${peraWalletApiBaseUrl}/asset-verifications/${assetId}/`;
+				if (!response.ok) {
+					if (response.status === 404) {
+						// Get the Pera Explorer URL from environment variables or use default
+						const explorerBaseUrl =
+							env.PERA_EXPLORER_URL || "https://explorer.perawallet.app";
+						return ResponseProcessor.processResponse({
+							asset_id: assetId,
+							verification_tier: "unverified" as const,
+							explorer_url: `${explorerBaseUrl}/asset/${assetId}/`,
+							message: "Asset not found in Pera verification database",
+						});
+					}
 
-      try {
-        // Make API request to Pera Wallet
-        const response = await fetch(verificationEndpoint);
+					throw new Error(`API request failed with status: ${response.status}`);
+				}
 
-        if (!response.ok) {
-          if (response.status === 404) {
-            // Get the Pera Explorer URL from environment variables or use default
-            const explorerBaseUrl = env.PERA_EXPLORER_URL || 'https://explorer.perawallet.app';
-            return ResponseProcessor.processResponse({
-              asset_id: assetId,
-              verification_tier: "unverified" as const,
-              explorer_url: `${explorerBaseUrl}/asset/${assetId}/`,
-              message: "Asset not found in Pera verification database"
-            });
-          }
+				const data = (await response.json()) as AssetVerificationResponse;
 
-          throw new Error(`API request failed with status: ${response.status}`);
-        }
+				return ResponseProcessor.processResponse({
+					asset_id: data.asset_id,
+					verification_tier: data.verification_tier,
+					explorer_url: data.explorer_url,
+				});
+			} catch (error: any) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `Error checking asset verification status: ${error.message || "Unknown error"}`,
+						},
+					],
+				};
+			}
+		},
+	);
 
-        const data = await response.json() as AssetVerificationResponse;
+	// Get detailed asset information from Pera Wallet
+	server.tool(
+		"pera_verified_asset_details",
+		"Get detailed information about an Algorand asset from Pera Wallet",
+		{
+			assetId: z
+				.number()
+				.int()
+				.min(0)
+				.max(9223372036854776000)
+				.describe("Asset ID to get detailed information"),
+		},
+		async ({ assetId }) => {
+			// Get the Pera Wallet API URL from environment variables or use default
+			const peraWalletApiBaseUrl =
+				env.PERA_WALLET_API_URL || "https://mainnet.api.perawallet.app/v1/public";
+			const assetDetailsEndpoint = `${peraWalletApiBaseUrl}/assets/${assetId}/`;
 
-        return ResponseProcessor.processResponse({
-          asset_id: data.asset_id,
-          verification_tier: data.verification_tier,
-          explorer_url: data.explorer_url
-        });
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error checking asset verification status: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
+			try {
+				// Make API request to Pera Wallet
+				const response = await fetch(assetDetailsEndpoint);
 
-  // Get detailed asset information from Pera Wallet
-  server.tool(
-    'pera_verified_asset_details',
-    'Get detailed information about an Algorand asset from Pera Wallet',
-    {
-      assetId: z.number().int().min(0).max(9223372036854776000)
-        .describe('Asset ID to get detailed information')
-    },
-    async ({ assetId }) => {
-      // Get the Pera Wallet API URL from environment variables or use default
-      const peraWalletApiBaseUrl = env.PERA_WALLET_API_URL || 'https://mainnet.api.perawallet.app/v1/public';
-      const assetDetailsEndpoint = `${peraWalletApiBaseUrl}/assets/${assetId}/`;
+				if (!response.ok) {
+					if (response.status === 404) {
+						return {
+							content: [
+								{
+									type: "text",
+									text: `Asset with ID ${assetId} not found in Pera Wallet database`,
+								},
+							],
+						};
+					}
 
-      try {
-        // Make API request to Pera Wallet
-        const response = await fetch(assetDetailsEndpoint);
+					throw new Error(`API request failed with status: ${response.status}`);
+				}
 
-        if (!response.ok) {
-          if (response.status === 404) {
-            return {
-              content: [{
-                type: 'text',
-                text: `Asset with ID ${assetId} not found in Pera Wallet database`
-              }]
-            };
-          }
+				const data = (await response.json()) as AssetDetailsResponse;
 
-          throw new Error(`API request failed with status: ${response.status}`);
-        }
+				return ResponseProcessor.processResponse(data);
+			} catch (error: any) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `Error fetching asset details: ${error.message || "Unknown error"}`,
+						},
+					],
+				};
+			}
+		},
+	);
+	// Get verified asset(s) by name
+	server.tool(
+		"pera_verified_asset_search",
+		"Search PeraWallet verified Algorand asset(s) by asset name, unit name, or creator address",
+		{
+			query: z
+				.string()
+				.min(1)
+				.describe("Asset name, unit name, or creator address to search for"),
+		},
+		async ({ query }) => {
+			try {
+				let assets: any[] = [];
 
-        const data = await response.json() as AssetDetailsResponse;
+				// Try searching by asset name
+				assets = await getAssetsByName(query, env);
 
-        return ResponseProcessor.processResponse(data);
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error fetching asset details: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
-  // Get verified asset(s) by name
-  server.tool(
-    'pera_verified_asset_search',
-    'Search PeraWallet verified Algorand asset(s) by asset name, unit name, or creator address',
-    {
-      query: z.string().min(1).describe('Asset name, unit name, or creator address to search for')
-    },
-    async ({ query }) => {
-      try {
-        let assets: any[] = [];
+				// If not found, try by unit name
+				if (!assets || assets.length === 0) {
+					assets = await getAssetsByUnitName(query, env);
+				}
 
-        // Try searching by asset name
-        assets = await getAssetsByName(query, env);
+				// If still not found, try by creator address
+				if (!assets || assets.length === 0) {
+					assets = await getAssetsByCreatorAddress(query, env);
+				}
 
-        // If not found, try by unit name
-        if (!assets || assets.length === 0) {
-          assets = await getAssetsByUnitName(query, env);
-        }
+				// Filter out nulls (if any)
+				const filteredAssets = (assets || []).filter(Boolean);
 
-        // If still not found, try by creator address
-        if (!assets || assets.length === 0) {
-          assets = await getAssetsByCreatorAddress(query, env);
-        }
+				if (filteredAssets.length === 0) {
+					return {
+						content: [
+							{
+								type: "text",
+								text: `No verified assets found for: ${query}`,
+							},
+						],
+					};
+				}
 
-        // Filter out nulls (if any)
-        const filteredAssets = (assets || []).filter(Boolean);
-
-        if (filteredAssets.length === 0) {
-          return {
-            content: [{
-              type: 'text',
-              text: `No verified assets found for: ${query}`
-            }]
-          };
-        }
-
-        return ResponseProcessor.processResponse(filteredAssets);
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error searching verified asset(s): ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
+				return ResponseProcessor.processResponse(filteredAssets);
+			} catch (error: any) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `Error searching verified asset(s): ${error.message || "Unknown error"}`,
+						},
+					],
+				};
+			}
+		},
+	);
 }

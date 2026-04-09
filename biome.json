@@ -4,7 +4,7 @@
 		"enabled": true
 	},
 	"files": {
-		"ignore": ["worker-configuration.d.ts"]
+		"ignore": ["worker-configuration.d.ts", ".notes/**"]
 	},
 	"vcs": {
 		"enabled": true,
@@ -23,6 +23,9 @@
 			},
 			"style": {
 				"noNonNullAssertion": "off"
+			},
+			"complexity": {
+				"noStaticOnlyClass": "off"
 			}
 		}
 	},

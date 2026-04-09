@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from "vitest";
 
 /**
  * Tests for Resources modules
@@ -7,157 +7,168 @@ import { describe, it, expect } from 'vitest';
 
 // Category names from knowledge/index.ts
 const categoryNames = [
-  'arcs', 'sdks', 'algokit', 'algokit-utils',
-  'tealscript', 'puya', 'liquid-auth', 'python',
-  'developers', 'clis', 'nodes', 'details'
+	"arcs",
+	"sdks",
+	"algokit",
+	"algokit-utils",
+	"tealscript",
+	"puya",
+	"liquid-auth",
+	"python",
+	"developers",
+	"clis",
+	"nodes",
+	"details",
 ];
 
 // Category display names from knowledge/index.ts
 const categoryDisplayNames: Record<string, string> = {
-  'arcs': 'Algorand Request for Comments',
-  'sdks': 'Software Development Kits',
-  'algokit': 'AlgoKit',
-  'algokit-utils': 'AlgoKit Utils',
-  'tealscript': 'TEALScript',
-  'puya': 'Puya',
-  'liquid-auth': 'Liquid Auth',
-  'python': 'Python Development',
-  'developers': 'Developer Documentation',
-  'clis': 'CLI Tools',
-  'nodes': 'Node Management',
-  'details': 'Developer Details'
+	arcs: "Algorand Request for Comments",
+	sdks: "Software Development Kits",
+	algokit: "AlgoKit",
+	"algokit-utils": "AlgoKit Utils",
+	tealscript: "TEALScript",
+	puya: "Puya",
+	"liquid-auth": "Liquid Auth",
+	python: "Python Development",
+	developers: "Developer Documentation",
+	clis: "CLI Tools",
+	nodes: "Node Management",
+	details: "Developer Details",
 };
 
 // R2 path construction from knowledge/index.ts
 function buildR2TaxonomyPath(category: string): string {
-  return `taxonomy-categories/${category}.json`;
+	return `taxonomy-categories/${category}.json`;
 }
 
-describe('Knowledge Resources', () => {
-  describe('Category names', () => {
-    it('should have 12 categories', () => {
-      expect(categoryNames).toHaveLength(12);
-    });
+describe("Knowledge Resources", () => {
+	describe("Category names", () => {
+		it("should have 12 categories", () => {
+			expect(categoryNames).toHaveLength(12);
+		});
 
-    it('should include all expected categories', () => {
-      expect(categoryNames).toContain('arcs');
-      expect(categoryNames).toContain('sdks');
-      expect(categoryNames).toContain('algokit');
-      expect(categoryNames).toContain('developers');
-      expect(categoryNames).toContain('python');
-    });
+		it("should include all expected categories", () => {
+			expect(categoryNames).toContain("arcs");
+			expect(categoryNames).toContain("sdks");
+			expect(categoryNames).toContain("algokit");
+			expect(categoryNames).toContain("developers");
+			expect(categoryNames).toContain("python");
+		});
 
-    it('should not have duplicates', () => {
-      const uniqueNames = [...new Set(categoryNames)];
-      expect(uniqueNames).toHaveLength(categoryNames.length);
-    });
-  });
+		it("should not have duplicates", () => {
+			const uniqueNames = [...new Set(categoryNames)];
+			expect(uniqueNames).toHaveLength(categoryNames.length);
+		});
+	});
 
-  describe('Category display names', () => {
-    it('should have a display name for every category', () => {
-      categoryNames.forEach(cat => {
-        expect(categoryDisplayNames[cat]).toBeDefined();
-        expect(categoryDisplayNames[cat].length).toBeGreaterThan(0);
-      });
-    });
+	describe("Category display names", () => {
+		it("should have a display name for every category", () => {
+			for (const cat of categoryNames) {
+				expect(categoryDisplayNames[cat]).toBeDefined();
+				expect(categoryDisplayNames[cat].length).toBeGreaterThan(0);
+			}
+		});
 
-    it('should map arcs correctly', () => {
-      expect(categoryDisplayNames['arcs']).toBe('Algorand Request for Comments');
-    });
+		it("should map arcs correctly", () => {
+			expect(categoryDisplayNames.arcs).toBe("Algorand Request for Comments");
+		});
 
-    it('should map algokit-utils correctly', () => {
-      expect(categoryDisplayNames['algokit-utils']).toBe('AlgoKit Utils');
-    });
-  });
+		it("should map algokit-utils correctly", () => {
+			expect(categoryDisplayNames["algokit-utils"]).toBe("AlgoKit Utils");
+		});
+	});
 
-  describe('R2 taxonomy path construction', () => {
-    it('should build correct path for category', () => {
-      expect(buildR2TaxonomyPath('arcs')).toBe('taxonomy-categories/arcs.json');
-    });
+	describe("R2 taxonomy path construction", () => {
+		it("should build correct path for category", () => {
+			expect(buildR2TaxonomyPath("arcs")).toBe("taxonomy-categories/arcs.json");
+		});
 
-    it('should handle hyphenated category names', () => {
-      expect(buildR2TaxonomyPath('algokit-utils')).toBe('taxonomy-categories/algokit-utils.json');
-    });
+		it("should handle hyphenated category names", () => {
+			expect(buildR2TaxonomyPath("algokit-utils")).toBe(
+				"taxonomy-categories/algokit-utils.json",
+			);
+		});
 
-    it('should build paths for all categories', () => {
-      categoryNames.forEach(cat => {
-        const path = buildR2TaxonomyPath(cat);
-        expect(path).toMatch(/^taxonomy-categories\/.*\.json$/);
-      });
-    });
-  });
+		it("should build paths for all categories", () => {
+			for (const cat of categoryNames) {
+				const path = buildR2TaxonomyPath(cat);
+				expect(path).toMatch(/^taxonomy-categories\/.*\.json$/);
+			}
+		});
+	});
 
-  describe('Resource URI patterns', () => {
-    it('should use algorand:// scheme for taxonomy', () => {
-      const uri = 'algorand://knowledge/taxonomy';
-      expect(uri).toMatch(/^algorand:\/\//);
-    });
+	describe("Resource URI patterns", () => {
+		it("should use algorand:// scheme for taxonomy", () => {
+			const uri = "algorand://knowledge/taxonomy";
+			expect(uri).toMatch(/^algorand:\/\//);
+		});
 
-    it('should use algorand:// scheme for category resources', () => {
-      categoryNames.forEach(cat => {
-        const uri = `algorand://knowledge/taxonomy/${cat}`;
-        expect(uri).toMatch(/^algorand:\/\/knowledge\/taxonomy\/.+$/);
-      });
-    });
+		it("should use algorand:// scheme for category resources", () => {
+			for (const cat of categoryNames) {
+				const uri = `algorand://knowledge/taxonomy/${cat}`;
+				expect(uri).toMatch(/^algorand:\/\/knowledge\/taxonomy\/.+$/);
+			}
+		});
 
-    it('should use algorand:// scheme for skill', () => {
-      const uri = 'algorand://remote-mcp-skill';
-      expect(uri).toMatch(/^algorand:\/\//);
-    });
-  });
+		it("should use algorand:// scheme for skill", () => {
+			const uri = "algorand://remote-mcp-skill";
+			expect(uri).toMatch(/^algorand:\/\//);
+		});
+	});
 });
 
-describe('Skill Resource', () => {
-  it('should have a fixed URI', () => {
-    const skillUri = 'algorand://remote-mcp-skill';
-    expect(skillUri).toBe('algorand://remote-mcp-skill');
-  });
+describe("Skill Resource", () => {
+	it("should have a fixed URI", () => {
+		const skillUri = "algorand://remote-mcp-skill";
+		expect(skillUri).toBe("algorand://remote-mcp-skill");
+	});
 
-  it('should have a name', () => {
-    const skillName = 'Algorand MCP Skill';
-    expect(skillName).toBe('Algorand MCP Skill');
-  });
+	it("should have a name", () => {
+		const skillName = "Algorand MCP Skill";
+		expect(skillName).toBe("Algorand MCP Skill");
+	});
 });
 
-describe('Index Module', () => {
-  describe('MCP Server configuration', () => {
-    it('should have correct server name', () => {
-      const name = 'Algorand Remote MCP';
-      expect(name).toBe('Algorand Remote MCP');
-    });
+describe("Index Module", () => {
+	describe("MCP Server configuration", () => {
+		it("should have correct server name", () => {
+			const name = "Algorand Remote MCP";
+			expect(name).toBe("Algorand Remote MCP");
+		});
 
-    it('should have correct version format', () => {
-      const version = '1.2.0';
-      expect(version).toMatch(/^\d+\.\d+\.\d+$/);
-    });
-  });
+		it("should have correct version format", () => {
+			const version = "1.2.0";
+			expect(version).toMatch(/^\d+\.\d+\.\d+$/);
+		});
+	});
 
-  describe('Default state', () => {
-    it('should have default items_per_page of 10', () => {
-      const initialState = { items_per_page: 10 };
-      expect(initialState.items_per_page).toBe(10);
-    });
-  });
+	describe("Default state", () => {
+		it("should have default items_per_page of 10", () => {
+			const initialState = { items_per_page: 10 };
+			expect(initialState.items_per_page).toBe(10);
+		});
+	});
 
-  describe('OAuth provider paths', () => {
-    it('should configure correct API route', () => {
-      const apiRoute = '/sse';
-      expect(apiRoute).toBe('/sse');
-    });
+	describe("OAuth provider paths", () => {
+		it("should configure correct API route", () => {
+			const apiRoute = "/sse";
+			expect(apiRoute).toBe("/sse");
+		});
 
-    it('should configure correct authorize endpoint', () => {
-      const authorizeEndpoint = '/authorize';
-      expect(authorizeEndpoint).toBe('/authorize');
-    });
+		it("should configure correct authorize endpoint", () => {
+			const authorizeEndpoint = "/authorize";
+			expect(authorizeEndpoint).toBe("/authorize");
+		});
 
-    it('should configure correct token endpoint', () => {
-      const tokenEndpoint = '/token';
-      expect(tokenEndpoint).toBe('/token');
-    });
+		it("should configure correct token endpoint", () => {
+			const tokenEndpoint = "/token";
+			expect(tokenEndpoint).toBe("/token");
+		});
 
-    it('should configure correct client registration endpoint', () => {
-      const clientRegistrationEndpoint = '/register';
-      expect(clientRegistrationEndpoint).toBe('/register');
-    });
-  });
+		it("should configure correct client registration endpoint", () => {
+			const clientRegistrationEndpoint = "/register";
+			expect(clientRegistrationEndpoint).toBe("/register");
+		});
+	});
 });

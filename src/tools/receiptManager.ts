@@ -1,45 +1,48 @@
 /**
  * Receipt Manager for Algorand Remote MCP
  */
-import { PhotonImage, resize, watermark, SamplingFilter } from "@cf-wasm/photon";
-import { z } from 'zod';
-import { ResponseProcessor } from '../utils';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { Env, Props } from '../types';
-import { generate } from '@juit/qrcode'
-import { getLogo, getBgPng } from '../logoUrl'
+import { PhotonImage, SamplingFilter, resize, watermark } from "@cf-wasm/photon";
+import { generate } from "@juit/qrcode";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import { getBgPng, getLogo } from "../logoUrl";
+import type { Env, Props } from "../types";
+import { ResponseProcessor } from "../utils";
 
 function buildHTMLPage({
-  provider,
-  url,
-  uuid,
-  qrPng,
-  from,
-  sender,
-  txId,
-  receiver,
-  amount,
-  asset,
-  note
+	provider,
+	url,
+	uuid,
+	qrPng,
+	from,
+	sender,
+	txId,
+	receiver,
+	amount,
+	asset,
+	note,
 }: {
-  provider: string;
-  url: string;
-  uuid: string;
-  qrPng: string;
-  from: string;
-  sender: string;
-  txId: string;
-  receiver: string;
-  amount?: number;
-  asset?: number;
-  note?: string;
+	provider: string;
+	url: string;
+	uuid: string;
+	qrPng: string;
+	from: string;
+	sender: string;
+	txId: string;
+	receiver: string;
+	amount?: number;
+	asset?: number;
+	note?: string;
 }): string {
-  const label = 'Receipt for Algorand Agent Transaction';
-  const uriType = asset !== undefined ? 'Asset Transfer Receipt' : 'Payment Receipt'
-  const prettyAmount = amount && uriType !== 'Asset Transfer Receipt' ? `${amount / 1e6} Algo` : `${amount} units of Asset ${asset}`;
-  const title = `${label} | ${uriType} | Agent Owner: ${provider === 'algorand' ? from.slice(0, 6) + '...' + from.slice(-6) : from}`;
+	const label = "Receipt for Algorand Agent Transaction";
+	const uriType = asset !== undefined ? "Asset Transfer Receipt" : "Payment Receipt";
+	const prettyAmount =
+		amount && uriType !== "Asset Transfer Receipt"
+			? `${amount / 1e6} Algo`
+			: `${amount} units of Asset ${asset}`;
+	const title = `${label} | ${uriType} | Agent Owner: ${provider === "algorand" ? `${from.slice(0, 6)}...${from.slice(-6)}` : from}`;
 
-  return `
+	return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -49,16 +52,16 @@ function buildHTMLPage({
   <meta name="robots" content="index, follow">
   <meta name="author" property="og:author" content="did:algo:UTI7PAASILRDA3ISHY5M7J7LNRX2AIVQJWI7ZKCCGKVLMFD3VPR5PWSZ4I">
   <meta itemprop="name" content="${title}">
-  <meta itemprop="description" content="${uriType} for ${note && note.length > 0 ? note + ' | ' : ''} ${prettyAmount} from ${typeof sender === 'string' && sender.length > 12 ? `${sender.slice(0, 6)}...${sender.slice(-6)}` : sender} to ${typeof receiver === 'string' && receiver.length > 12 ? `${receiver.slice(0, 6)}...${receiver.slice(-6)}` : receiver}.">
+  <meta itemprop="description" content="${uriType} for ${note && note.length > 0 ? `${note} | ` : ""} ${prettyAmount} from ${typeof sender === "string" && sender.length > 12 ? `${sender.slice(0, 6)}...${sender.slice(-6)}` : sender} to ${typeof receiver === "string" && receiver.length > 12 ? `${receiver.slice(0, 6)}...${receiver.slice(-6)}` : receiver}.">
   <meta itemprop="image" content="${qrPng}" type="image/jpeg">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no" />
-  <meta name="description" content="${uriType} for ${note && note.length > 0 ? note + ' | ' : ''} ${prettyAmount} from ${typeof sender === 'string' && sender.length > 12 ? `${sender.slice(0, 6)}...${sender.slice(-6)}` : sender} to ${typeof receiver === 'string' && receiver.length > 12 ? `${receiver.slice(0, 6)}...${receiver.slice(-6)}` : receiver}." />
+  <meta name="description" content="${uriType} for ${note && note.length > 0 ? `${note} | ` : ""} ${prettyAmount} from ${typeof sender === "string" && sender.length > 12 ? `${sender.slice(0, 6)}...${sender.slice(-6)}` : sender} to ${typeof receiver === "string" && receiver.length > 12 ? `${receiver.slice(0, 6)}...${receiver.slice(-6)}` : receiver}." />
   <!-- Twitter Card data -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:site" content="@goplausible_ai">
   <meta name="twitter:creator" content="@GoPlausible">
   <meta name="twitter:title" content="${title}">
-  <meta name="twitter:description" content="${uriType} for ${note && note.length > 0 ? note + ' | ' : ''} ${prettyAmount} from ${typeof sender === 'string' && sender.length > 12 ? `${sender.slice(0, 6)}...${sender.slice(-6)}` : sender} to ${typeof receiver === 'string' && receiver.length > 12 ? `${receiver.slice(0, 6)}...${receiver.slice(-6)}` : receiver}.">
+  <meta name="twitter:description" content="${uriType} for ${note && note.length > 0 ? `${note} | ` : ""} ${prettyAmount} from ${typeof sender === "string" && sender.length > 12 ? `${sender.slice(0, 6)}...${sender.slice(-6)}` : sender} to ${typeof receiver === "string" && receiver.length > 12 ? `${receiver.slice(0, 6)}...${receiver.slice(-6)}` : receiver}.">
   <meta name="twitter:image" content="${qrPng}" type="image/jpeg">
   <!-- Open Graph data -->
   <meta property="og:image" content="${qrPng}" type="image/jpeg""/>
@@ -66,7 +69,7 @@ function buildHTMLPage({
   <meta property="og:url" content="https://goplausible.xyz/api/receipt/${uuid}" />
   <meta property="og:title" content="${title}"/>
   <meta property="og:type" content="website" />
-  <meta property="og:description"  content="${uriType} for ${note && note.length > 0 ? note + ' | ' : ''} ${prettyAmount} from ${typeof sender === 'string' && sender.length > 12 ? `${sender.slice(0, 6)}...${sender.slice(-6)}` : sender} to ${typeof receiver === 'string' && receiver.length > 12 ? `${receiver.slice(0, 6)}...${receiver.slice(-6)}` : receiver}." />
+  <meta property="og:description"  content="${uriType} for ${note && note.length > 0 ? `${note} | ` : ""} ${prettyAmount} from ${typeof sender === "string" && sender.length > 12 ? `${sender.slice(0, 6)}...${sender.slice(-6)}` : sender} to ${typeof receiver === "string" && receiver.length > 12 ? `${receiver.slice(0, 6)}...${receiver.slice(-6)}` : receiver}." />
 
   <style>
     body {
@@ -155,29 +158,33 @@ function buildHTMLPage({
 <body>
   <div class="card">
     
-     <img src="https://agency.goplausible.xyz/images/Agent.png" alt="${provider === 'twitter' ? 'X' : provider === 'google' ? 'Google' : provider === 'linkedin' ? 'Linkedin' : provider === 'github' ? 'GitHub' : provider === 'algorand' ? 'Agency' : ''}" style="width:64px; height:64px; border-radius:50%; object-fit:cover; margin-bottom:1rem;" />
+     <img src="https://agency.goplausible.xyz/images/Agent.png" alt="${provider === "twitter" ? "X" : provider === "google" ? "Google" : provider === "linkedin" ? "Linkedin" : provider === "github" ? "GitHub" : provider === "algorand" ? "Agency" : ""}" style="width:64px; height:64px; border-radius:50%; object-fit:cover; margin-bottom:1rem;" />
 
-    <h2><strong>👋 Hey ${provider === 'twitter' ? '@' : ''}${provider === 'algorand' ? `${from.slice(0, 6)}...${from.slice(-6)}` : from}</strong></h2>
+    <h2><strong>👋 Hey ${provider === "twitter" ? "@" : ""}${provider === "algorand" ? `${from.slice(0, 6)}...${from.slice(-6)}` : from}</strong></h2>
     
     <h3>Your ${uriType}</h3>
      <h2>${label}</h2>
     <hr style="border: none; height: 1px; background: linear-gradient(90deg, rgba(0,0,0,0.08), rgba(0,0,0,0.02)); margin: 1rem 0 1.5rem;" />
-     <h4 title="${sender}">From: ${typeof sender === 'string' && sender.length > 12 ? `${sender.slice(0, 6)}...${sender.slice(-6)}` : sender}</h4>
-     <h4 title="${receiver}">To: ${typeof receiver === 'string' && receiver.length > 12 ? `${receiver.slice(0, 6)}...${receiver.slice(-6)}` : receiver}</h4>
+     <h4 title="${sender}">From: ${typeof sender === "string" && sender.length > 12 ? `${sender.slice(0, 6)}...${sender.slice(-6)}` : sender}</h4>
+     <h4 title="${receiver}">To: ${typeof receiver === "string" && receiver.length > 12 ? `${receiver.slice(0, 6)}...${receiver.slice(-6)}` : receiver}</h4>
      <h4>Amount: ${prettyAmount}</h4>
-     <h4>Asset/Algo: ${asset || 'Algo'}</h4>
+     <h4>Asset/Algo: ${asset || "Algo"}</h4>
      <h4>Transaction: <a href="https://allo.info/tx/${txId}" target="_blank" rel="noopener noreferrer">${`${txId.slice(0, 6)}...${txId.slice(-6)}`}</a></h4>
-     <h4>Agent Owner : ${provider === 'algorand' ? from.slice(0, 6) + '...' + from.slice(-6) : from}</h4>
-     <h4>Authentication: ${provider === 'twitter' ? 'X via dOAuth' : provider === 'google' ? 'Google via dOAuth' : provider === 'linkedin' ? 'Linkedin via dOAuth' : provider === 'github' ? 'GitHub via dOAuth' : provider === 'algorand' ? 'Algorand Agency via dOAuth' : ''}</h4>
+     <h4>Agent Owner : ${provider === "algorand" ? `${from.slice(0, 6)}...${from.slice(-6)}` : from}</h4>
+     <h4>Authentication: ${provider === "twitter" ? "X via dOAuth" : provider === "google" ? "Google via dOAuth" : provider === "linkedin" ? "Linkedin via dOAuth" : provider === "github" ? "GitHub via dOAuth" : provider === "algorand" ? "Algorand Agency via dOAuth" : ""}</h4>
      <h4>Note: ${note && note.length > 0 ? note : title}</h4>
 
 
     <div class="qr">
-      ${qrPng ? `<img src="${qrPng}" alt="${label}" style="
+      ${
+			qrPng
+				? `<img src="${qrPng}" alt="${label}" style="
         width: 100%;
         box-shadow: 0 4px 14px #607D8B;
         border-radius: 25px;"
-        />` : '<p>No QR code available</p>'}
+        />`
+				: "<p>No QR code available</p>"
+		}
     </div>
 
     <button class="shareBtn" data-sharer="x" data-title="${title}\n" data-hashtags="algorand,agency,goplausible,agentic_commerce" data-url="${url}\n\n"><i class="fa-brands fa-x-twitter"></i></button>
@@ -203,115 +210,117 @@ function buildHTMLPage({
   `.trim();
 }
 
-
 async function generateAlgorandReceipt(params: any): Promise<{ url: string; qrCode: string }> {
-  // Validate address format (base32 string)
-  if (!params.sender || !/^[A-Z2-7]{58}$/.test(params.sender)) {
-    throw new Error('Invalid Algorand sender address format');
-  }
-  if (!params.receiver || !/^[A-Z2-7]{58}$/.test(params.receiver)) {
-    throw new Error('Invalid Algorand receiver address format');
-  }
-  //TODO: check other params validity
+	// Validate address format (base32 string)
+	if (!params.sender || !/^[A-Z2-7]{58}$/.test(params.sender)) {
+		throw new Error("Invalid Algorand sender address format");
+	}
+	if (!params.receiver || !/^[A-Z2-7]{58}$/.test(params.receiver)) {
+		throw new Error("Invalid Algorand receiver address format");
+	}
+	//TODO: check other params validity
 
-  // Start building the url with the scheme and address
-  const url = `https://goplausible.xyz/api/receipt/${params.uuid}`;
+	// Start building the url with the scheme and address
+	const url = `https://goplausible.xyz/api/receipt/${params.uuid}`;
 
-  console.log('Generated URL:', url);
-  const pngBuffer = await generate(url, 'png', {
-    ecLevel: 'H',
-    scale: 8,
-    margin: 2,
-  });
-  console.log('Generated PNG Buffer length:', pngBuffer.length);
-  const blank = PhotonImage.new_from_base64(getBgPng().split(',')[1]);
-  console.log('Created blank image');
-  const qrImg = PhotonImage.new_from_byteslice(new Uint8Array(pngBuffer));
-  console.log('Created QR image from PNG buffer');
-  console.log('Resized QR image');
-  const x = Math.floor((blank.get_width() - qrImg.get_width()) / 2);
-  const y = Math.floor((blank.get_height() - qrImg.get_height()) / 2);
-  console.log(`Calculated position to center QR: (${x}, ${y})`);
-  try {
-    await watermark(blank, qrImg, BigInt(x), BigInt(y));
-  } catch (error) {
-    console.error('Error during watermarking:', error);
-  }
-  console.log('Merged QR onto blank image');
+	console.log("Generated URL:", url);
+	const pngBuffer = await generate(url, "png", {
+		ecLevel: "H",
+		scale: 8,
+		margin: 2,
+	});
+	console.log("Generated PNG Buffer length:", pngBuffer.length);
+	const blank = PhotonImage.new_from_base64(getBgPng().split(",")[1]);
+	console.log("Created blank image");
+	const qrImg = PhotonImage.new_from_byteslice(new Uint8Array(pngBuffer));
+	console.log("Created QR image from PNG buffer");
+	console.log("Resized QR image");
+	const x = Math.floor((blank.get_width() - qrImg.get_width()) / 2);
+	const y = Math.floor((blank.get_height() - qrImg.get_height()) / 2);
+	console.log(`Calculated position to center QR: (${x}, ${y})`);
+	try {
+		await watermark(blank, qrImg, BigInt(x), BigInt(y));
+	} catch (error) {
+		console.error("Error during watermarking:", error);
+	}
+	console.log("Merged QR onto blank image");
 
-  const jpegBytes = blank.get_bytes_jpeg(100); // quality: 0–100
-  console.log('Converted merged image to JPEG bytes');
+	const jpegBytes = blank.get_bytes_jpeg(100); // quality: 0–100
+	console.log("Converted merged image to JPEG bytes");
 
-  return {
-    url,
-    qrCode: Buffer.from(new Uint8Array(jpegBytes)).toString('base64')
-  };
+	return {
+		url,
+		qrCode: Buffer.from(new Uint8Array(jpegBytes)).toString("base64"),
+	};
 }
 /**
  * Register Receipt tools to the MCP server
  */
 export function registerReceiptTools(server: McpServer, env: Env, props: Props): void {
-  console.log('Registering Receipt tools for Algorand Remote MCP');
+	console.log("Registering Receipt tools for Algorand Remote MCP");
 
-  server.tool(
-    'generate_algorand_receipt',
-    'Generate a Receipt and QRCode of it, for an Algorand payment or asset transfer',
-    {
-      sender: z.string().describe('Algorand address (58 characters)'),
-      receiver: z.string().describe('Algorand address (58 characters)'),
-      amount: z.number().optional().describe('Amount in microAlgos (for payment) or asset units (for asset transfer)'),
-      assetId: z.number().optional().describe('Asset ID (for asset transfer)'),
-      txId: z.string().describe('Transaction hash'),
-      note: z.string().optional().describe('Optional note')
-    },
-    async ({ sender, receiver, amount, assetId, note, txId }) => {
-      try {
-        const uuid = crypto.randomUUID().replaceAll('-', '');
-        const toolArgs: any = {
-          sender,
-          receiver,
-          amount,
-          asset: assetId,
-          txId,
-          note,
-          uuid
-        };
-        console.log('Generating Receipt with args:', toolArgs);
+	server.tool(
+		"generate_algorand_receipt",
+		"Generate a Receipt and QRCode of it, for an Algorand payment or asset transfer",
+		{
+			sender: z.string().describe("Algorand address (58 characters)"),
+			receiver: z.string().describe("Algorand address (58 characters)"),
+			amount: z
+				.number()
+				.optional()
+				.describe("Amount in microAlgos (for payment) or asset units (for asset transfer)"),
+			assetId: z.number().optional().describe("Asset ID (for asset transfer)"),
+			txId: z.string().describe("Transaction hash"),
+			note: z.string().optional().describe("Optional note"),
+		},
+		async ({ sender, receiver, amount, assetId, note, txId }) => {
+			try {
+				const uuid = crypto.randomUUID().replaceAll("-", "");
+				const toolArgs: any = {
+					sender,
+					receiver,
+					amount,
+					asset: assetId,
+					txId,
+					note,
+					uuid,
+				};
+				console.log("Generating Receipt with args:", toolArgs);
 
-        const { url, qrCode } = await generateAlgorandReceipt(toolArgs);
-        console.log('Generated Receipt URL:', url);
-        console.log('Generated Receipt QR Code (base64 PNG):', qrCode);
-        await env.ARC26_KV?.put(`image--${uuid}`, qrCode, { expirationTtl: 86400 * 7 }); // Cache for 7 days
+				const { url, qrCode } = await generateAlgorandReceipt(toolArgs);
+				console.log("Generated Receipt URL:", url);
+				console.log("Generated Receipt QR Code (base64 PNG):", qrCode);
+				await env.ARC26_KV?.put(`image--${uuid}`, qrCode, { expirationTtl: 86400 * 7 }); // Cache for 7 days
 
-        const htmlPage = buildHTMLPage({
-          provider: props.provider,
-          url,
-          uuid,
-          qrPng: `https://goplausible.xyz/api/receipt/image/${uuid}.jpeg`,
-          from: props.email,
-          sender,
-          txId,
-          receiver,
-          amount,
-          asset: assetId,
-          note,
-        })
-        await env.ARC26_KV?.put(`rid--${uuid}`, htmlPage, { expirationTtl: 86400 * 7 }); // Cache for 7 days
+				const htmlPage = buildHTMLPage({
+					provider: props.provider,
+					url,
+					uuid,
+					qrPng: `https://goplausible.xyz/api/receipt/image/${uuid}.jpeg`,
+					from: props.email,
+					sender,
+					txId,
+					receiver,
+					amount,
+					asset: assetId,
+					note,
+				});
+				await env.ARC26_KV?.put(`rid--${uuid}`, htmlPage, { expirationTtl: 86400 * 7 }); // Cache for 7 days
 
-        return ResponseProcessor.processResponse({
-          label: `Algorand Agency Receipt link (valid for 7 days)`,
-          qrcode_link: `https://goplausible.xyz/api/receipt/${uuid}`,
-        });
-
-
-      } catch (error: any) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error generating Algorand Receipt: ${error.message || 'Unknown error'}`
-          }]
-        };
-      }
-    }
-  );
+				return ResponseProcessor.processResponse({
+					label: "Algorand Agency Receipt link (valid for 7 days)",
+					qrcode_link: `https://goplausible.xyz/api/receipt/${uuid}`,
+				});
+			} catch (error: any) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `Error generating Algorand Receipt: ${error.message || "Unknown error"}`,
+						},
+					],
+				};
+			}
+		},
+	);
 }

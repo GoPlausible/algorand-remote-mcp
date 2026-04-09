@@ -1,60 +1,58 @@
-import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpAgent } from "agents/mcp";
 import { z } from "zod";
-import { Env, State, Props, VaultResponse } from './types';
-import { ResponseProcessor } from './utils';
-import OAuthProvider from "./oauth-provider";
 import { OauthHandler } from "./oauth-handler";
-import {
-	ensureUserAccount,
-} from './utils/vaultManager';
+import OAuthProvider from "./oauth-provider";
+import { registerKnowledgeResources, registerSkillResource } from "./resources";
 // import algosdk from 'algosdk';
 import {
 	registerAccountTools,
-	registerGeneralTransactionTools,
-	registerAssetTransactionTools,
-	registerAppTransactionTools,
-	registerGroupTransactionTools,
-	registerUtilityTools,
 	registerAlgodTools,
-	registerArc26Tools,
-	registerReceiptTools,
-	registerApiTools,
-	registerKnowledgeTools,
-	registerWalletTools,
+	registerAlphaArcadeTools,
 	registerAp2Tools,
+	registerApiTools,
+	registerAppTransactionTools,
+	registerArc26Tools,
+	registerAssetTransactionTools,
+	registerGeneralTransactionTools,
+	registerGroupTransactionTools,
+	registerKnowledgeTools,
+	registerReceiptTools,
 	registerTinymanTools,
-	registerAlphaArcadeTools
-} from './tools';
-import { registerKnowledgeResources, registerSkillResource } from './resources';
-
-
+	registerUtilityTools,
+	registerWalletTools,
+} from "./tools";
+import { type Env, type Props, type State, VaultResponse } from "./types";
+import { ResponseProcessor } from "./utils";
+import { ensureUserAccount } from "./utils/vaultManager";
 
 // Define our MCP agent with tools
 export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 	server = new McpServer({
 		name: "Algorand Remote MCP",
-		version: "1.9.0",
-		description: "Algorand Remote MCP for interacting with the Algorand blockchain. Use algorand_mcp_skill tool at start of each session to learn how to interact and operate Algorand Remote MCP.",
+		version: "1.9.1",
+		description:
+			"Algorand Remote MCP for interacting with the Algorand blockchain. Use algorand_mcp_skill tool at start of each session to learn how to interact and operate Algorand Remote MCP.",
 		websiteUrl: "https://goplausible.com",
-		icons: [{
-			src: "https://goplausible.com/favicon.ico",
-			mimeType: "image/x-icon",
-			sizes: ["64x64"]
-		}]
+		icons: [
+			{
+				src: "https://goplausible.com/favicon.ico",
+				mimeType: "image/x-icon",
+				sizes: ["64x64"],
+			},
+		],
 	});
 
 	// Initialize state with default values
 	initialState: State = {
-		items_per_page: 10
-
+		items_per_page: 10,
 	};
 
 	// Initialization function that sets up tools and resources
 	async init() {
 		// Configure ResponseProcessor with pagination settings
 		console.log("Initializing Algorand Remote MCP...");
-		console.log('COOKIE_ENCRYPTION_KEY: ', this.env.COOKIE_ENCRYPTION_KEY)
+		console.log("COOKIE_ENCRYPTION_KEY: ", this.env.COOKIE_ENCRYPTION_KEY);
 		console.log("Current state:", this.state);
 		console.log("Props name:", this.props?.name);
 		console.log("Props email:", this.props?.email);
@@ -65,18 +63,25 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 		// Set default page size or use from state if available
 		const itemsPerPage = this.state?.items_per_page || 10;
 		ResponseProcessor.setItemsPerPage(itemsPerPage);
-		// Ensure user has a vault-based account 
+		// Ensure user has a vault-based account
 		try {
 			if (!this.props.email || !this.props.provider) {
-				throw new Error('Email and provider must be provided in props');
+				throw new Error("Email and provider must be provided in props");
 			}
-			console.log(`Ensuring user account for ${this.props.email} with provider ${this.props.provider}`);
-			const accType = await ensureUserAccount(this.env, this.props.email, this.props.provider);
-			console.log(`User ${this.props.email} has a ${accType}-based account on ${this.props.provider} provider`);
+			console.log(
+				`Ensuring user account for ${this.props.email} with provider ${this.props.provider}`,
+			);
+			const accType = await ensureUserAccount(
+				this.env,
+				this.props.email,
+				this.props.provider,
+			);
+			console.log(
+				`User ${this.props.email} has a ${accType}-based account on ${this.props.provider} provider`,
+			);
 		} catch (error: any) {
-			throw new Error(`Failed to ensure user account: ${error.message || 'Unknown error'}`);
+			throw new Error(`Failed to ensure user account: ${error.message || "Unknown error"}`);
 		}
-
 
 		// Register resources
 		this.registerKnowledgeResources();
@@ -93,11 +98,10 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 		this.registerAccountTools();
 		await this.registerTransactionTools();
 		this.registerBasicUtilityTools();
-		await this.registerTinymanTools()
-		this.registerAlphaArcadeTools()
+		await this.registerTinymanTools();
+		this.registerAlphaArcadeTools();
 		// Additional tool categories will be added here
 	}
-
 
 	/**
 	 * Register knowledge resources
@@ -196,7 +200,7 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 		await registerWalletTools(this.server, this.env, this.props);
 	}
 	/**
-	 * Register AP2 tools 
+	 * Register AP2 tools
 	 */
 	private async registerAp2Tools() {
 		// Register AP2 mandate tools
@@ -230,8 +234,6 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 // 		if (url.pathname === "/sse" || url.pathname === "/sse/message") {
 // 			console.log("Serving SSE endpoint");
 
-
-
 // 			return AlgorandRemoteMCP.serveSSE("/sse", {
 // 				binding: "AlgorandRemoteMCP",
 // 				// corsOptions: {
@@ -239,7 +241,7 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 // 				// 	methods: "GET, POST, OPTIONS",
 // 				// 	headers: "Content-Type, Authorization",
 // 				// 	maxAge: 3600,
-// 				// },	
+// 				// },
 // 			}).fetch(request, env, ctx); // Use our custom environment
 // 		}
 
@@ -257,7 +259,7 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 
 export default new OAuthProvider({
 	apiHandler: AlgorandRemoteMCP.mount("/sse", {
-		binding: "AlgorandRemoteMCP"
+		binding: "AlgorandRemoteMCP",
 	}) as any,
 	apiRoute: "/sse",
 	authorizeEndpoint: "/authorize",
@@ -265,4 +267,3 @@ export default new OAuthProvider({
 	defaultHandler: OauthHandler as any,
 	tokenEndpoint: "/token",
 });
-
