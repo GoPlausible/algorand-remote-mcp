@@ -9,17 +9,23 @@ import { generate } from "@juit/qrcode";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getBgPng } from "../logoUrl";
+import {
+	getReceiptFavicon,
+	getReceiptLogoMark,
+	getReceiptLogotype,
+	getReceiptOgImage,
+} from "../utils/receiptAssets";
 import type { Env, Props } from "../types";
 import { ResponseProcessor } from "../utils";
 
 const RECEIPT_CATEGORIES = ["TXN", "x402", "MPP", "AP2", "UCP"] as const;
 type ReceiptCategory = (typeof RECEIPT_CATEGORIES)[number];
 
-const LOGOTYPE_URL =
-	"https://goplausible.mypinata.cloud/ipfs/QmWjvCGPyL9zmA5B84WPqLYF27dL2nFgr1Lw6rMd7CpQPV/images/goPlausible-logo-type-h.png";
-const LOGO_MARK_URL = "https://goplausible.com/logo64.png";
-const OG_IMAGE_URL = "https://goplausible.com/og-image.png";
-const FAVICON_URL = "https://goplausible.com/logo32.png";
+/** Universal Receipt design assets (src/assets), inlined as data URIs. */
+const LOGOTYPE_URL = getReceiptLogotype();
+const LOGO_MARK_URL = getReceiptLogoMark();
+const OG_IMAGE_URL = getReceiptOgImage();
+const FAVICON_URL = getReceiptFavicon();
 
 const CHECK_CIRCLE_SVG = `<svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8.2" fill="#2E7D32"></circle><path d="M5.2 9.3 L7.8 11.9 L12.8 6.4" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
 
@@ -106,6 +112,7 @@ export function buildHTMLPage({
 	receiver,
 	amount,
 	asset,
+	fee,
 	note,
 	category,
 }: {
@@ -120,6 +127,7 @@ export function buildHTMLPage({
 	receiver: string;
 	amount?: number;
 	asset?: number;
+	fee?: number;
 	note?: string;
 	category: ReceiptCategory;
 }): string {
@@ -163,19 +171,15 @@ export function buildHTMLPage({
 			`<span class="mono" title="${receiver}">${shorten(receiver)}</span>`,
 		),
 	];
-	if (asset !== undefined) {
-		rows.push(
-			detailRow(
-				"ASSET",
-				`<span class="mono">${knownAsset ? `${knownAsset.code} · ` : ""}ASA ${asset}</span>`,
-			),
-		);
+	if (asset !== undefined && !knownAsset) {
+		rows.push(detailRow("ASSET", `<span class="mono">ASA ${asset}</span>`));
 	}
 	rows.push(
 		detailRow(
 			"TRANSACTION",
 			`<a class="mono txlink" href="https://allo.info/tx/${txId}" target="_blank" rel="noopener noreferrer">${shorten(txId)} <span class="ext">Allo.info ↗</span></a>`,
 		),
+		detailRow("FEE", `<span class="mono">${formatAmount((fee ?? 1000) / 1e6)} ALGO</span>`),
 	);
 	if (category === "AP2" || category === "UCP") {
 		rows.push(
@@ -427,6 +431,10 @@ export function registerReceiptTools(server: McpServer, env: Env, props: Props):
 				.describe("Amount in microAlgos (for payment) or asset units (for asset transfer)"),
 			assetId: z.number().optional().describe("Asset ID (for asset transfer)"),
 			txId: z.string().describe("Transaction hash"),
+			fee: z
+				.number()
+				.optional()
+				.describe("Transaction fee in microAlgos (defaults to 1000 = 0.001 ALGO)"),
 			note: z.string().optional().describe("Optional note"),
 			category: z
 				.enum(RECEIPT_CATEGORIES)
@@ -435,7 +443,7 @@ export function registerReceiptTools(server: McpServer, env: Env, props: Props):
 					"Optional receipt category: TXN (plain transaction, default), x402, MPP, AP2 or UCP. Selecting UCP also marks AP2 on the receipt (UCP implies AP2)",
 				),
 		},
-		async ({ sender, receiver, amount, assetId, note, txId, category }) => {
+		async ({ sender, receiver, amount, assetId, fee, note, txId, category }) => {
 			try {
 				const uuid = crypto.randomUUID().replaceAll("-", "");
 				const toolArgs: any = {
@@ -443,6 +451,7 @@ export function registerReceiptTools(server: McpServer, env: Env, props: Props):
 					receiver,
 					amount,
 					asset: assetId,
+					fee,
 					txId,
 					note,
 					category,
@@ -466,6 +475,7 @@ export function registerReceiptTools(server: McpServer, env: Env, props: Props):
 					receiver,
 					amount,
 					asset: assetId,
+					fee,
 					note,
 					category,
 				});
