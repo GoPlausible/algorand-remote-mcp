@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 
 /**
  * Tests for Receipt Manager logic
- * Tests address validation patterns and receipt type determination
+ * Tests address validation patterns, receipt type determination and
+ * Universal Receipt category/badge behavior
  */
 
 const validAddress = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ";
@@ -25,19 +26,29 @@ function determineReceiptType(asset?: number): string {
 }
 
 // Re-implement amount formatting from buildHTMLPage
-function formatAmount(amount?: number, asset?: number): string {
-	const uriType = determineReceiptType(asset);
-	return amount && uriType !== "Asset Transfer Receipt"
-		? `${amount / 1e6} Algo`
-		: `${amount} units of Asset ${asset}`;
+function formatAmount(value: number): string {
+	return value.toFixed(6).replace(/\.?0+$/, "");
 }
 
 // Re-implement address truncation from buildHTMLPage
-function truncateAddress(addr: string): string {
-	if (typeof addr === "string" && addr.length > 12) {
-		return `${addr.slice(0, 6)}...${addr.slice(-6)}`;
-	}
-	return addr;
+function shorten(value: string): string {
+	return value.length > 12 ? `${value.slice(0, 6)}…${value.slice(-6)}` : value;
+}
+
+// Re-implement protocol badge state selection from buildHTMLPage
+const RECEIPT_CATEGORIES = ["TXN", "x402", "MPP", "AP2", "UCP"] as const;
+type ReceiptCategory = (typeof RECEIPT_CATEGORIES)[number];
+function badgeState(badge: ReceiptCategory, category: ReceiptCategory): string {
+	return badge === category
+		? "active"
+		: category === "UCP" && badge === "AP2"
+			? "secondary"
+			: "inactive";
+}
+
+// Re-implement detail-row party labels from buildHTMLPage
+function partyLabels(category: ReceiptCategory): [string, string] {
+	return category === "MPP" ? ["PAYER AGENT", "PROVIDER"] : ["FROM", "TO"];
 }
 
 describe("Receipt Manager", () => {
@@ -79,32 +90,68 @@ describe("Receipt Manager", () => {
 	});
 
 	describe("formatAmount", () => {
-		it("should format Algo amount (microAlgos to Algo)", () => {
-			expect(formatAmount(1000000)).toBe("1 Algo");
+		it("should format whole Algo amount (microAlgos to Algo)", () => {
+			expect(formatAmount(1000000 / 1e6)).toBe("1");
 		});
 
-		it("should format asset amount with asset ID", () => {
-			expect(formatAmount(100, 31566704)).toBe("100 units of Asset 31566704");
+		it("should trim trailing zeros", () => {
+			expect(formatAmount(1250000 / 1e6)).toBe("1.25");
+			expect(formatAmount(100000 / 1e6)).toBe("0.1");
+		});
+
+		it("should format zero", () => {
+			expect(formatAmount(0)).toBe("0");
 		});
 	});
 
-	describe("truncateAddress", () => {
+	describe("shorten", () => {
 		it("should truncate long addresses", () => {
-			const result = truncateAddress(validAddress);
-			expect(result).toBe(`${validAddress.slice(0, 6)}...${validAddress.slice(-6)}`);
+			const result = shorten(validAddress);
+			expect(result).toBe(`${validAddress.slice(0, 6)}…${validAddress.slice(-6)}`);
 		});
 
 		it("should not truncate short strings", () => {
-			expect(truncateAddress("short")).toBe("short");
+			expect(shorten("short")).toBe("short");
 		});
 
 		it("should not truncate 12-char strings", () => {
-			expect(truncateAddress("123456789012")).toBe("123456789012");
+			expect(shorten("123456789012")).toBe("123456789012");
 		});
 
 		it("should truncate 13-char strings", () => {
 			const s = "1234567890123";
-			expect(truncateAddress(s)).toBe(`${s.slice(0, 6)}...${s.slice(-6)}`);
+			expect(shorten(s)).toBe(`${s.slice(0, 6)}…${s.slice(-6)}`);
+		});
+	});
+
+	describe("receipt categories", () => {
+		it("should mark the selected category as active", () => {
+			for (const category of RECEIPT_CATEGORIES) {
+				expect(badgeState(category, category)).toBe("active");
+			}
+		});
+
+		it("should mark AP2 as secondary when UCP is selected (UCP implies AP2)", () => {
+			expect(badgeState("UCP", "UCP")).toBe("active");
+			expect(badgeState("AP2", "UCP")).toBe("secondary");
+			expect(badgeState("TXN", "UCP")).toBe("inactive");
+		});
+
+		it("should not mark UCP when AP2 is selected", () => {
+			expect(badgeState("AP2", "AP2")).toBe("active");
+			expect(badgeState("UCP", "AP2")).toBe("inactive");
+		});
+
+		it("should leave other badges inactive", () => {
+			expect(badgeState("x402", "TXN")).toBe("inactive");
+			expect(badgeState("MPP", "x402")).toBe("inactive");
+		});
+
+		it("should use payer agent/provider labels only for MPP", () => {
+			expect(partyLabels("MPP")).toEqual(["PAYER AGENT", "PROVIDER"]);
+			expect(partyLabels("TXN")).toEqual(["FROM", "TO"]);
+			expect(partyLabels("x402")).toEqual(["FROM", "TO"]);
+			expect(partyLabels("UCP")).toEqual(["FROM", "TO"]);
 		});
 	});
 
