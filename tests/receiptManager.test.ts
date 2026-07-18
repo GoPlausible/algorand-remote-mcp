@@ -35,6 +35,14 @@ function shorten(value: string): string {
 	return value.length > 12 ? `${value.slice(0, 6)}…${value.slice(-6)}` : value;
 }
 
+// Re-implement deterministic receipt id derivation from receiptManager.ts
+async function receiptIdFromTxId(txId: string): Promise<string> {
+	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(txId));
+	return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0"))
+		.join("")
+		.slice(0, 32);
+}
+
 // Re-implement protocol badge state selection from buildHTMLPage
 const RECEIPT_CATEGORIES = ["TXN", "x402", "MPP", "AP2", "UCP"] as const;
 type ReceiptCategory = (typeof RECEIPT_CATEGORIES)[number];
@@ -152,6 +160,25 @@ describe("Receipt Manager", () => {
 			expect(partyLabels("TXN")).toEqual(["FROM", "TO"]);
 			expect(partyLabels("x402")).toEqual(["FROM", "TO"]);
 			expect(partyLabels("UCP")).toEqual(["FROM", "TO"]);
+		});
+	});
+
+	describe("receiptIdFromTxId", () => {
+		it("should be deterministic for the same txId", async () => {
+			const a = await receiptIdFromTxId("3A7DSUQXWMBP3EOGFIRIVQXGXQXTUWTA");
+			const b = await receiptIdFromTxId("3A7DSUQXWMBP3EOGFIRIVQXGXQXTUWTA");
+			expect(a).toBe(b);
+		});
+
+		it("should produce 32 lowercase hex chars (URL- and KV-safe)", async () => {
+			const id = await receiptIdFromTxId("3A7DSUQXWMBP3EOGFIRIVQXGXQXTUWTA");
+			expect(id).toMatch(/^[a-f0-9]{32}$/);
+		});
+
+		it("should differ for different txIds", async () => {
+			const a = await receiptIdFromTxId("TXID-ONE");
+			const b = await receiptIdFromTxId("TXID-TWO");
+			expect(a).not.toBe(b);
 		});
 	});
 
