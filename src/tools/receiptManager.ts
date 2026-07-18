@@ -269,9 +269,9 @@ export function buildHTMLPage({
     .header img { height: 48px; display: block; }
     .header .pill { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 1.6px; color: #E89B6B; border: 1px solid rgba(232,155,107,0.45); border-radius: 99px; padding: 5px 12px; white-space: nowrap; }
     .badges { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 22px; }
-    .badge { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; padding: 5px 11px; border-radius: 99px; color: #6B5E52; border: 1px solid #E5DCD3; background: #F8F5F2; }
-    .badge.active { color: #1E140D; background: #E89B6B; border-color: #E89B6B; }
-    .badge.secondary { color: #1E140D; background: #F6DEC9; border-color: #EBC7A8; }
+    .badge { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; padding: 5px 11px; border-radius: 99px; color: #96897C; border: 1px dashed #E5DCD3; background: #F8F5F2; }
+    .badge.active { color: #1E140D; background: #E89B6B; border: 1px solid #E89B6B; }
+    .badge.secondary { color: #1E140D; background: #F6DEC9; border: 1px solid #EBC7A8; }
     .hero { padding: 26px 28px 22px 28px; text-align: center; border-bottom: 1px dashed #E5DCD3; }
     .settled { display: inline-flex; align-items: center; gap: 8px; color: #2E7D32; font-weight: 600; font-size: 13px; margin-bottom: 14px; }
     .amount { display: flex; align-items: center; justify-content: center; gap: 12px; }
