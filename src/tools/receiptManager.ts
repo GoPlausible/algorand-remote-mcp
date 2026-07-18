@@ -318,7 +318,7 @@ export function buildHTMLPage({
   <main class="card">
     <div class="header">
       <img src="${LOGOTYPE_URL}" alt="GoPlausible" />
-      <span class="pill">UNIVERSAL RECEIPT</span>
+      <span class="pill">Valid 90 days</span>
     </div>
     <div class="badges">
       ${badges}
@@ -461,7 +461,7 @@ export function registerReceiptTools(server: McpServer, env: Env, props: Props):
 
 				const { url, qrCode, qrDataUri } = await generateAlgorandReceipt(toolArgs);
 				console.log("Generated Receipt URL:", url);
-				await env.ARC26_KV?.put(`image--${uuid}`, qrCode, { expirationTtl: 86400 * 7 }); // Cache for 7 days
+				await env.ARC26_KV?.put(`image--${uuid}`, qrCode, { expirationTtl: 86400 * 90 }); // Cache for 90 days
 
 				const htmlPage = buildHTMLPage({
 					provider: props.provider,
@@ -479,10 +479,10 @@ export function registerReceiptTools(server: McpServer, env: Env, props: Props):
 					note,
 					category,
 				});
-				await env.ARC26_KV?.put(`rid--${uuid}`, htmlPage, { expirationTtl: 86400 * 7 }); // Cache for 7 days
+				await env.ARC26_KV?.put(`rid--${uuid}`, htmlPage, { expirationTtl: 86400 * 90 }); // Cache for 90 days
 
 				return ResponseProcessor.processResponse({
-					label: "Algorand Agency Universal Receipt link (valid for 7 days)",
+					label: "Algorand Agency Universal Receipt link (valid for 90 days)",
 					category,
 					qrcode_link: `https://goplausible.xyz/api/receipt/${uuid}`,
 				});
