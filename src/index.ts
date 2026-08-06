@@ -21,6 +21,7 @@ import {
 	registerTinymanTools,
 	registerUtilityTools,
 	registerWalletTools,
+	registerX402Tools,
 } from "./tools";
 import { type Env, type Props, type State, VaultResponse } from "./types";
 import { ResponseProcessor } from "./utils";
@@ -100,6 +101,7 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 		this.registerBasicUtilityTools();
 		await this.registerTinymanTools();
 		this.registerAlphaArcadeTools();
+		await this.registerX402Tools();
 		// Additional tool categories will be added here
 	}
 
@@ -218,6 +220,13 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 	 */
 	private registerAlphaArcadeTools() {
 		registerAlphaArcadeTools(this.server, this.env, this.props);
+	}
+	/**
+	 * Register x402 payment protocol tools
+	 */
+	private async registerX402Tools() {
+		// Register x402 discovery, paid request and Bazaar tools
+		await registerX402Tools(this.server, this.env, this.props);
 	}
 	onStateUpdate(state: State) {
 		// console.log({ stateUpdate: state });

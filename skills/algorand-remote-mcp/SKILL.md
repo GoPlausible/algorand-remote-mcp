@@ -757,6 +757,7 @@ Sell orders lock outcome tokens as collateral.
 - Algorand: https://algorand.co
 - Algorand Developer Docs: https://dev.algorand.co/
 - Algorand x402: https://x402.goplausible.xyz
+- Algorand x402 Facilitator: https://facilitator.goplausible.xyz
 - Algorand x402 Test Endpoints: https://example.x402.goplausible.xyz/
 - Testnet Faucet: https://lora.algokit.io/testnet/fund
 - Testnet USDC Faucet: https://faucet.circle.com/

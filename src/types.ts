@@ -496,6 +496,12 @@ export interface Env {
 	VAULT_OIDC_ACCESSOR: string; // Hashicorp vault OIDC accessors
 
 	/**
+	 * x402 Bazaar / facilitator base URL for payment discovery
+	 * (defaults to https://facilitator.goplausible.xyz)
+	 */
+	BAZAAR_BASE_URL?: string;
+
+	/**
 	 * Alpha Arcade API key for prediction market access
 	 */
 	ALPHA_API_KEY?: string;

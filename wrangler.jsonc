@@ -84,7 +84,8 @@
 		"PERA_WALLET_API_URL": "https://mainnet.api.perawallet.app/v1/public",
 		"PERA_EXPLORER_URL": "https://explorer.perawallet.app",
 		"ITEMS_PER_PAGE": "10",
-		"HCV_WORKER_URL": "https://hashicorp-vault-worker.emg110.workers.dev"
+		"HCV_WORKER_URL": "https://hashicorp-vault-worker.emg110.workers.dev",
+		"BAZAAR_BASE_URL": "https://facilitator.goplausible.xyz"
 	}
 
 	/* Secrets */
