@@ -42,7 +42,14 @@ function configuredNetwork(env: Env): NetworkId {
 	return network === "testnet" || network === "localnet" ? network : "mainnet";
 }
 
-// ── Bazaar (discovery) config ────────────────────────────────────────────────
+// ── Bazaar / facilitator config ──────────────────────────────────────────────
+
+/**
+ * Fee-payer address of the GoPlausible facilitator. Sponsors the network fees
+ * for the atomic payment group (the wallet's payment leg carries zero fee).
+ * Used when a payment requirement does not advertise its own `extra.feePayer`.
+ */
+const FACILITATOR_FEE_PAYER = "ZMFK2OI7ZBD2U27ISERZC4S6LKM6WMFJPZQ4MYNJDZ2VNBNMBA67RA22AA";
 
 function bazaarBaseUrl(env: Env): string {
 	return env.BAZAAR_BASE_URL || "https://facilitator.goplausible.xyz";
@@ -400,10 +407,10 @@ async function buildPaymentHeader(
 	props: Props,
 	requirement: PaymentRequirement,
 ): Promise<string> {
-	const feePayer = requirement.extra?.feePayer;
-	if (!feePayer || typeof feePayer !== "string") {
-		throw new Error("Payment requirement is missing `extra.feePayer` (facilitator address).");
-	}
+	const feePayer =
+		typeof requirement.extra?.feePayer === "string" && requirement.extra.feePayer
+			? requirement.extra.feePayer
+			: FACILITATOR_FEE_PAYER;
 
 	const amountStr = getRequirementAmount(requirement);
 	const amount = Number(amountStr);
@@ -474,7 +481,9 @@ async function buildPaymentHeader(
 			],
 			paymentIndex: 1,
 		},
-		accepted: requirement,
+		// Echo the fee payer actually used so the facilitator validates against it
+		// even when the requirement did not advertise `extra.feePayer`.
+		accepted: { ...requirement, extra: { ...requirement.extra, feePayer } },
 	};
 
 	return Buffer.from(JSON.stringify(headerBody), "utf8").toString("base64");

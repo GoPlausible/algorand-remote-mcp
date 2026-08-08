@@ -14,6 +14,7 @@ This is a **remote MCP** implementation running on Cloudflare Workers with:
 - **Haystack Router** for best-price DEX aggregation across Tinyman, Pact, Folks, and LST protocols
 - **Tinyman SDK** for direct DEX swap operations
 - **Alpha Arcade SDK** for prediction market trading (orderbooks, limit/market orders, positions)
+- **x402 payment protocol** for calling x402-protected APIs with automatic USDC/ALGO payment and discovering paid resources via the Bazaar
 
 ## Quick Start
 
@@ -69,7 +70,7 @@ Read Algorand MCP skill.
 │  │  │    └── groupTransactions    (atomic groups)                     │  │  │
 │  │  │  algodManager ─── knowledgeManager                              │  │  │
 │  │  │  arc26Manager ─── receiptManager ─── ap2Manager                 │  │  │
-│  │  │  tinymanManager ─── alphaArcadeManager                          │  │  │
+│  │  │  tinymanManager ─── alphaArcadeManager ─── x402Manager          │  │  │
 │  │  │  apiManager/                                                    │  │  │
 │  │  │    ├── algod/       (account, application, asset, txn queries)  │  │  │
 │  │  │    ├── indexer/     (search & lookup across all data types)     │  │  │
@@ -119,7 +120,7 @@ Read Algorand MCP skill.
 
 - **AlgorandRemoteMCP**: Main MCP agent extending McpAgent on Cloudflare Workers
 - **OAuthProvider**: Multi-provider authentication layer (Google, GitHub, Twitter, LinkedIn)
-- **Tool Managers**: 15 specialized managers covering accounts, wallets, transactions, assets, applications, APIs, DEX operations, prediction markets, ARC-26 URIs, receipts, AP2 protocol, and knowledge
+- **Tool Managers**: 16 specialized managers covering accounts, wallets, transactions, assets, applications, APIs, DEX operations, prediction markets, ARC-26 URIs, receipts, AP2 protocol, x402 payments, and knowledge
 - **Resource Providers**: URI-based access to skill definition and knowledge base via R2
 - **ResponseProcessor**: Standardized response formatting with pagination and BigInt-safe serialization
 - **HashiCorp Vault**: Ed25519 keypair generation and secure signing via Transit engine — no private key exposure
@@ -263,6 +264,15 @@ Read Algorand MCP skill.
 |------|-------------|
 | `generate_ap2_mandate` | Create an AP2 intent, cart, or payment mandate with verifiable credentials |
 
+### x402 Payment Protocol
+| Tool | Description |
+|------|-------------|
+| `x402_discover_payment_requirements` | Probe an x402-protected HTTP endpoint and return its payment requirements without paying |
+| `make_http_request_with_x402` | Call an x402-protected endpoint with automatic USDC/ALGO payment — builds the atomic fee-payer + payment group and vault-signs the payment leg |
+| `bazaar_list` | Browse paid API resources cataloged in the Bazaar (facilitator discovery directory) |
+| `bazaar_search` | Search Bazaar paid API resources by keyword with price/scheme/asset filters |
+| `bazaar_get_resource_details` | Fetch full details for a single Bazaar resource by its exact URL |
+
 ### Alpha Arcade (Prediction Markets)
 | Tool | Description |
 |------|-------------|
@@ -322,6 +332,7 @@ ALPHA_API_BASE_URL=https://platform.alphaarcade.com/api  # Optional, default sho
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 HCV_WORKER_URL=https://your-hashicorp-vault-worker.workers.dev
+BAZAAR_BASE_URL=https://facilitator.goplausible.xyz  # Optional, x402 Bazaar/facilitator base URL (default shown)
 ```
 
 ### Scripts
@@ -372,6 +383,11 @@ npm run lint:fix     # Lint and auto-fix with Biome
 5. Manage orders — amend (`alpha_amend_order`) or cancel (`alpha_cancel_order`)
 6. Claim winnings from resolved markets (`alpha_claim`)
 
+### Paid APIs via x402
+1. Find paid APIs in the Bazaar (`bazaar_search` / `bazaar_list`), or inspect one directly (`bazaar_get_resource_details`)
+2. Check cost and supported networks/assets without paying (`x402_discover_payment_requirements`)
+3. Call and pay in one step (`make_http_request_with_x402`) — selects an affordable requirement, vault-signs the payment leg of the atomic group, and resends with the `PAYMENT-SIGNATURE` header
+
 ## Project Structure
 
 ```
@@ -394,6 +410,7 @@ src/
 │   ├── alphaArcadeManager.ts     # Alpha Arcade prediction market tools
 │   ├── utilityManager.ts         # Utility tools
 │   ├── walletManager.ts          # Wallet management tools
+│   ├── x402Manager.ts            # x402 payment protocol and Bazaar discovery tools
 │   ├── apiManager/
 │   │   ├── algod/                # Algod API tools (account, application, asset, transaction)
 │   │   ├── hayrouter/            # Haystack Router DEX aggregator tools
