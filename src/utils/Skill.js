@@ -201,6 +201,30 @@ Haystack Router is a DEX aggregator and smart order routing protocol on Algorand
 
 Categories: \`arcs\`, \`sdks\`, \`algokit\`, \`algokit-utils\`, \`tealscript\`, \`puya\`, \`liquid-auth\`, \`python\`, \`developers\`, \`clis\`, \`nodes\`, \`details\`
 
+### 12. x402 Paid Resources (Bazaar + Payments)
+
+Pay x402-protected HTTP APIs with USDC from the wallet, and discover paid resources via the Bazaar directory (hosted by the facilitator, \`https://facilitator.goplausible.xyz\`). Payments are gasless — the facilitator sponsors network fees via an atomic fee-payer transaction; the wallet only signs the USDC transfer.
+
+| Tool | Purpose |
+|------|---------|
+| \`x402_discover_payment_requirements\` | Probe a paid endpoint → its \`accepts[]\` (cost, networks, assets). Read-only, no payment |
+| \`make_http_request_with_x402\` | Pay + fetch in one call: builds the atomic group, signs the payment leg, retries with \`PAYMENT-SIGNATURE\` |
+| \`bazaar_list\` | Browse the Bazaar catalog (\`network\`, \`method\`, \`merchantId\`, \`limit\`/\`offset\`; \`full: true\` for verbatim records) |
+| \`bazaar_search\` | Keyword search + client-side filters (\`maxUsdPrice\`, \`scheme\`, \`asset\`, \`payTo\`; mainnet-only by default) |
+| \`bazaar_get_resource_details\` | Verbatim record for one exact \`resource\` URL (full \`accepts[]\` + \`discoveryInfo\`) |
+
+**Use properly**:
+- Preferred flow: discover (free) → confirm cost with user → \`make_http_request_with_x402\` with the \`accepts[]\` passed verbatim as \`paymentRequirements\` and a \`maxAmountPerRequest\` budget cap (atomic units). Without \`paymentRequirements\` the tool probes internally — fine for trusted endpoints.
+- **Mainnet = real money**: confirm URL, USD cost, and \`payTo\` with the user before paying. Always set \`maxAmountPerRequest\`.
+- Amounts are atomic units: USDC has 6 decimals → \`"1000"\` = $0.001, \`"1000000"\` = $1.00. USD = \`amount / 10^extra.decimals\`.
+- The wallet must be opted into the payment ASA (USDC mainnet \`31566704\`, testnet \`10458941\`) and hold enough balance.
+
+**CAIP-2 networks**: \`accepts[].network\` is \`algorand:<genesis hash>\` — testnet \`algorand:SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=\`, mainnet \`algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\`. A CAIP-spec truncated form also exists (first 32 URL-safe chars, e.g. \`algorand:SGO1GKSzyE7IEPItTxCByw9x8FmnrCDe\`) — compare by prefix. Tools also accept friendly names (\`"mainnet"\`, \`"testnet"\`).
+
+**Response format**: a successful paid call returns \`result\` (the resource body), \`paid\` (\`network\`, \`asset\`, \`amount\`, \`payTo\`), and \`paymentResponse\` — the decoded settle result carrying the on-chain txn id (\`paymentResponse.transaction\`). **Always report the txn id to the user as an explorer link**: mainnet \`https://allo.info/tx/<txn id>\`, testnet \`https://lora.algokit.io/testnet/transaction/<txn id>\`. On mainnet also offer the shareable receipt \`https://facilitator.goplausible.xyz/api/receipt/<txn id>\` (receipts are mainnet-only).
+
+Test endpoint (testnet): \`https://example.x402.goplausible.xyz/avm/weather\` — pays 1000 atomic units of USDC ($0.001).
+
 ## Session Initialization Protocol
 
 **MANDATORY**: At the start of every session, perform these steps:
@@ -748,6 +772,7 @@ Sell orders lock outcome tokens as collateral.
 - Algorand: https://algorand.co
 - Algorand Developer Docs: https://dev.algorand.co/
 - Algorand x402: https://x402.goplausible.xyz
+- Algorand x402 Facilitator: https://facilitator.goplausible.xyz
 - Algorand x402 Test Endpoints: https://example.x402.goplausible.xyz/
 - Testnet Faucet: https://lora.algokit.io/testnet/fund
 - Testnet USDC Faucet: https://faucet.circle.com/
