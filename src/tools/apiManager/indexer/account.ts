@@ -12,7 +12,7 @@ import { ResponseProcessor } from "../../../utils";
 /**
  * Create and validate an Indexer client
  */
-function createIndexerClient(indexerUrl: string | undefined): algosdk.Indexer | null {
+export function createIndexerClient(indexerUrl: string | undefined): algosdk.Indexer | null {
 	if (!indexerUrl) {
 		console.error("Algorand indexer URL not configured");
 		return null;

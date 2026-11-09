@@ -1,18 +1,7 @@
 import * as msgpack from "algo-msgpack-with-bigint";
 import * as algosdk from "algosdk";
 import { describe, expect, it } from "vitest";
-
-// Helper matching ConcatArrays from the source
-function ConcatArrays(...arrs: ArrayLike<number>[]) {
-	const size = arrs.reduce((sum, arr) => sum + arr.length, 0);
-	const c = new Uint8Array(size);
-	let offset = 0;
-	for (let i = 0; i < arrs.length; i++) {
-		c.set(arrs[i], offset);
-		offset += arrs[i].length;
-	}
-	return c;
-}
+import { ConcatArrays, encodeSignedTxn } from "../src/tools/transactionManager/generalTransaction";
 
 describe("Transaction Manager - algosdk v3 operations", () => {
 	// Use a deterministic account for tests
@@ -126,25 +115,36 @@ describe("Transaction Manager - algosdk v3 operations", () => {
 				suggestedParams: mockParams,
 			});
 
-			// Simulate vault signing: encode unsigned → get txn object via msgpack
+			// The txn object the source helper decodes from the unsigned encoding
 			const encodedUnsigned = algosdk.encodeUnsignedTransaction(txn);
 			const txnObj = msgpack.decode(encodedUnsigned);
 			expect(txnObj).toBeDefined();
 
 			// Sign the transaction the normal way to get a valid signature
 			const signed = algosdk.signTransaction(txn, testAccount.sk);
+			const sig = algosdk.decodeSignedTransaction(signed.blob).sig!;
 
-			// Reconstruct signed txn manually (as vault code does)
-			const signedTxn: any = {
-				txn: txnObj,
-				sig: signed.blob.slice(0, 64), // Extract just the signature bytes
-			};
-
-			const encoded = new Uint8Array(
-				msgpack.encode(signedTxn, { sortKeys: true, ignoreUndefined: true }),
-			);
+			// Construct the signed txn with the source helper (as the vault signing tool does)
+			const encoded = encodeSignedTxn(txn, sig, testAccount.addr.publicKey, testAddr);
 			expect(encoded).toBeInstanceOf(Uint8Array);
 			expect(encoded.length).toBeGreaterThan(0);
+			expect((msgpack.decode(encoded) as any).txn).toEqual(txnObj);
+		});
+
+		it("should produce the same bytes as algosdk.signTransaction when signer is the sender", () => {
+			const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+				sender: testAddr,
+				receiver: receiverAddr,
+				amount: 100,
+				suggestedParams: mockParams,
+			});
+
+			const signed = algosdk.signTransaction(txn, testAccount.sk);
+			const sig = algosdk.decodeSignedTransaction(signed.blob).sig!;
+
+			const encoded = encodeSignedTxn(txn, sig, testAccount.addr.publicKey, testAddr);
+			expect(encoded).toEqual(signed.blob);
+			expect(msgpack.decode(encoded)).not.toHaveProperty("sgnr");
 		});
 
 		it("should add sgnr field when signer differs from sender", () => {
@@ -156,31 +156,16 @@ describe("Transaction Manager - algosdk v3 operations", () => {
 				suggestedParams: mockParams,
 			});
 
-			const encodedUnsigned = algosdk.encodeUnsignedTransaction(txn);
-			const txnObj = msgpack.decode(encodedUnsigned);
-
-			const signedTxn: any = {
-				txn: txnObj,
-				sig: new Uint8Array(64), // dummy signature
-			};
-
-			// Compare sender public key with signer public key
-			const fromPubKey = txn.sender.publicKey;
 			const signerPubKey = algosdk.decodeAddress(signer.addr.toString()).publicKey;
 
-			let keysMatch = fromPubKey.length === signerPubKey.length;
-			if (keysMatch) {
-				for (let i = 0; i < fromPubKey.length; i++) {
-					if (fromPubKey[i] !== signerPubKey[i]) {
-						keysMatch = false;
-						break;
-					}
-				}
-			}
-
-			if (!keysMatch) {
-				signedTxn.sgnr = signerPubKey;
-			}
+			// dummy signature
+			const encoded = encodeSignedTxn(
+				txn,
+				new Uint8Array(64),
+				signerPubKey,
+				signer.addr.toString(),
+			);
+			const signedTxn = msgpack.decode(encoded) as any;
 
 			expect(signedTxn.sgnr).toBeDefined();
 			expect(signedTxn.sgnr).toEqual(signerPubKey);

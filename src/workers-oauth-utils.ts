@@ -66,7 +66,6 @@ async function importKey(secret: string): Promise<CryptoKey> {
 			"COOKIE_SECRET is not defined. A secret key is required for signing cookies.",
 		);
 	}
-	console.log("[WORKER_OAUTH_UTILS] Importing key for HMAC-SHA256 signing: ", secret); // Log first 10 chars for brevity
 	const enc = new TextEncoder();
 	return crypto.subtle.importKey(
 		"raw",
@@ -283,7 +282,6 @@ export interface ApprovalDialogOptions {
  */
 export function renderApprovalDialog(request: Request, options: ApprovalDialogOptions): Response {
 	const { client, server, state } = options;
-	console.log("[WORKER_OAUTH_UTILS] Rendering approval dialog with options:", options);
 
 	// Encode state for form submission
 	const encodedState = btoa(JSON.stringify(state));
@@ -888,8 +886,6 @@ export async function revokeUpstreamToken(
 					client_id: env.TWITTER_CLIENT_ID, // harmless extra for some implementations
 				});
 
-				console.log(`[WORKER_OAUTH_UTILS] Twitter request params: ${body.toString()}`);
-
 				const resp = await fetch("https://api.x.com/2/oauth2/revoke", {
 					method: "POST",
 					headers: {
@@ -914,8 +910,6 @@ export async function revokeUpstreamToken(
 					client_id: env.LINKEDIN_CLIENT_ID,
 					client_secret: env.LINKEDIN_CLIENT_SECRET,
 				});
-
-				console.log(`[WORKER_OAUTH_UTILS] LinkedIn request params: ${params.toString()}`);
 
 				const resp = await fetch("https://www.linkedin.com/oauth/v2/revoke", {
 					method: "POST",
@@ -1175,7 +1169,6 @@ export function getUpstreamAuthorizeUrl({
 	upstream.searchParams.set("response_type", "code");
 	if (state) upstream.searchParams.set("state", state);
 	if (hostedDomain) upstream.searchParams.set("hd", hostedDomain);
-	console.log(`[WORKER_OAUTH_UTILS] Constructed upstream authorization URL: ${upstream.href}`);
 	return upstream.href;
 }
 
@@ -1278,7 +1271,8 @@ export async function fetchUpstreamAuthToken(
 	});
 
 	if (!resp.ok) {
-		console.error(`[WORKER_OAUTH_UTILS] Failed to fetch access token: ${await resp.text()}`);
+		await resp.text();
+		console.error("[WORKER_OAUTH_UTILS] Failed to fetch access token");
 		return [null, new Response("Failed to fetch access token", { status: 500 })];
 	}
 

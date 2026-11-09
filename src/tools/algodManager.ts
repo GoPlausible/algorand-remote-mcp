@@ -23,6 +23,17 @@ function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | nu
 }
 
 /**
+ * Normalize TEAL source line endings and ensure a final newline
+ */
+export function processTealSource(source: string): string {
+	let processedSource = source.replace(/\r\n/g, "\n");
+	if (!processedSource.endsWith("\n")) {
+		processedSource += "\n";
+	}
+	return processedSource;
+}
+
+/**
  * Register Algod tools to the MCP server
  */
 export function registerAlgodTools(server: McpServer, env: Env, props: Props): void {
@@ -53,10 +64,7 @@ export function registerAlgodTools(server: McpServer, env: Env, props: Props): v
 				}
 
 				// Ensure proper line endings and add final newline
-				let processedSource = source.replace(/\r\n/g, "\n");
-				if (!processedSource.endsWith("\n")) {
-					processedSource += "\n";
-				}
+				const processedSource = processTealSource(source);
 
 				// Convert to Uint8Array
 				const sourceBytes = new TextEncoder().encode(processedSource);

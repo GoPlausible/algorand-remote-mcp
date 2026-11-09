@@ -8,7 +8,7 @@ import type { Env, Props } from "../../types";
 // import { skill } from '../../utils/Skill.js';
 
 // These categories will be dynamically fetched from R2
-const categoryNames = [
+export const categoryNames = [
 	"arcs",
 	"sdks",
 	"algokit",
@@ -52,7 +52,7 @@ async function loadJsonFromR2(env: Env, filename: string): Promise<any> {
 /**
  * Maps internal category names to display names
  */
-const categoryDisplayNames: Record<string, string> = {
+export const categoryDisplayNames: Record<string, string> = {
 	arcs: "Algorand Request for Comments",
 	sdks: "Software Development Kits",
 	algokit: "AlgoKit",

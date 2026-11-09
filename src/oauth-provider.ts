@@ -883,7 +883,6 @@ class OAuthProviderImpl {
 		if (this.isTokenEndpoint(url)) {
 			console.log("[OAUTH_PROVIDER] Handling token endpoint request");
 			const parsed = await this.parseTokenEndpointRequest(request, env);
-			console.log("[OAUTH_PROVIDER] Parsed token endpoint request:", parsed);
 			// If parsing failed, return the error response
 			if (parsed instanceof Response) {
 				return this.addCorsHeaders(parsed, request);
@@ -2490,7 +2489,6 @@ class OAuthHelpersImpl implements OAuthHelpers {
 		// Validate the client ID and redirect URI
 		if (clientId) {
 			const clientInfo = await this.lookupClient(clientId);
-			console.log("Client info:", clientInfo);
 
 			if (!clientInfo) {
 				throw new Error(
@@ -2657,13 +2655,11 @@ class OAuthHelpersImpl implements OAuthHelpers {
 		await this.env.OAUTH_KV.put(grantKey, JSON.stringify(grant), {
 			expirationTtl: codeExpiresIn,
 		});
-		console.log("[OAUTH_PROVIDER] Stored grant with auth code:", grant);
 
 		// Build the redirect URL for authorization code flow
 		const redirectUrl = new URL(options.request.redirectUri);
 		redirectUrl.searchParams.set("code", authCode);
 		if (options.request.state) {
-			console.log("[OAUTH_PROVIDER] Adding state to redirect URL:", options.request.state);
 			redirectUrl.searchParams.set("state", options.request.state);
 			console.log(
 				"[OAUTH_PROVIDER] Adding client ID to redirect URL:",
@@ -2671,7 +2667,6 @@ class OAuthHelpersImpl implements OAuthHelpers {
 			);
 			redirectUrl.searchParams.set("client", options.request.clientId);
 		}
-		console.log("[OAUTH_PROVIDER] Redirect URL:", redirectUrl.toString());
 		return { redirectTo: redirectUrl.toString() };
 	}
 

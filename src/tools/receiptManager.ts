@@ -18,7 +18,7 @@ import {
 	getReceiptOgImage,
 } from "../utils/receiptAssets";
 
-const RECEIPT_CATEGORIES = ["TXN", "x402", "MPP", "AP2", "UCP"] as const;
+export const RECEIPT_CATEGORIES = ["TXN", "x402", "MPP", "AP2", "UCP"] as const;
 type ReceiptCategory = (typeof RECEIPT_CATEGORIES)[number];
 
 /** Universal Receipt design assets (src/assets), inlined as data URIs. */
@@ -84,7 +84,7 @@ function escapeHtml(value: string): string {
 		.replaceAll('"', "&quot;");
 }
 
-function shorten(value: string): string {
+export function shorten(value: string): string {
 	return value.length > 12 ? `${value.slice(0, 6)}…${value.slice(-6)}` : value;
 }
 
@@ -93,15 +93,25 @@ function shorten(value: string): string {
  * hex chars (safe for URLs and KV key names). Same txId always maps to the same
  * receipt, so re-requesting a receipt never creates a redundant KV entry.
  */
-async function receiptIdFromTxId(txId: string): Promise<string> {
+export async function receiptIdFromTxId(txId: string): Promise<string> {
 	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(txId));
 	return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0"))
 		.join("")
 		.slice(0, 32);
 }
 
-function formatAmount(value: number): string {
+export function formatAmount(value: number): string {
 	return value.toFixed(6).replace(/\.?0+$/, "");
+}
+
+// Validate sender and receiver address format (base32 string)
+export function validateReceiptAddresses(params: { sender?: string; receiver?: string }): void {
+	if (!params.sender || !/^[A-Z2-7]{58}$/.test(params.sender)) {
+		throw new Error("Invalid Algorand sender address format");
+	}
+	if (!params.receiver || !/^[A-Z2-7]{58}$/.test(params.receiver)) {
+		throw new Error("Invalid Algorand receiver address format");
+	}
 }
 
 function shareButton(sharer: string, glyphPath: string, title: string, url: string): string {
@@ -384,12 +394,7 @@ async function generateAlgorandReceipt(
 	params: any,
 ): Promise<{ url: string; qrCode: string; qrDataUri: string }> {
 	// Validate address format (base32 string)
-	if (!params.sender || !/^[A-Z2-7]{58}$/.test(params.sender)) {
-		throw new Error("Invalid Algorand sender address format");
-	}
-	if (!params.receiver || !/^[A-Z2-7]{58}$/.test(params.receiver)) {
-		throw new Error("Invalid Algorand receiver address format");
-	}
+	validateReceiptAddresses(params);
 	//TODO: check other params validity
 
 	// Start building the url with the scheme and address

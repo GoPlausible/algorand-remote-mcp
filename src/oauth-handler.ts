@@ -74,7 +74,6 @@ app.get("/authorize", async (c) => {
 		`[OAUTH_HANDLER] Client ID ${clientId} not approved yet, rendering approval dialog`,
 	);
 
-	console.log("[OAUTH_HANDLER] Rendering approval dialog with auth request info:", authReqInfo);
 	return renderApprovalDialog(c.req.raw, {
 		client: await c.env.OAUTH_PROVIDER.lookupClient(clientId),
 		server: {
@@ -109,7 +108,6 @@ app.post("/authorize", async (c) => {
 		c.env.COOKIE_ENCRYPTION_KEY || "",
 	);
 
-	console.log("[OAUTH_HANDLER] Parsed state from form submission:", state);
 	const authReqInfo: AuthRequest = state.authReqInfo as AuthRequest;
 	if (!state.clientId) {
 		console.error("[OAUTH_HANDLER] Invalid state in OAuth approval request! No Client Id");
@@ -132,7 +130,6 @@ app.get("/callback", async (c) => {
 	// Get the oathReqInfo out of KV
 	console.log("[OAUTH_HANDLER] Received OAuth callback request");
 	const stateData = JSON.parse(atob(c.req.query("state") as string));
-	console.log("[OAUTH_HANDLER] Parsed state data from query:", stateData);
 
 	const provider = stateData.provider;
 
@@ -175,13 +172,8 @@ app.get("/callback", async (c) => {
 			userInfoUrl = "https://api.x.com/2/users/me";
 			// redirectUri = new URL("/callback", c.req.url).href;
 
-			console.log("[OAUTH_HANDLER] Retrieved PKCE data for Twitter:", pkce);
 			if (!pkce?.codeVerifier || !pkce?.upstreamRedirectUri) {
-				console.error(
-					"[OAUTH_HANDLER] Missing PKCE for Twitter state:",
-					stateData.authReqInfo,
-					pkce,
-				);
+				console.error("[OAUTH_HANDLER] Missing PKCE data for Twitter callback");
 				return c.text("Twitter session expired or PKCE missing", 400);
 			}
 			//redirectUri = pkce.upstreamRedirectUri;
@@ -391,20 +383,16 @@ app.all("/logout", async (c) => {
 	console.log("[OAUTH_HANDLER] Deleted client from OAUTH_KV:", clientId);
 	if (userId) {
 		const grantsList = await c.env.OAUTH_KV.list({ prefix: `grant:${userId}` });
-		console.log("[OAUTH_HANDLER] grants list:", grantsList);
 		if (grantsList.keys && grantsList.keys.length > 0) {
 			for (const key of grantsList.keys) {
-				console.log("[OAUTH_HANDLER] Deleting grant key:", key.name);
 				await c.env.OAUTH_KV.delete(key.name);
 			}
 			console.log("[OAUTH_HANDLER] All grants deleted for user:", userId);
 		}
 		// Delete all tokens for this user and client
 		const tokenList = await c.env.OAUTH_KV.list({ prefix: `token:${userId}` });
-		console.log("[OAUTH_HANDLER] token list:", tokenList);
 		if (tokenList.keys && tokenList.keys.length > 0) {
 			for (const key of tokenList.keys) {
-				console.log("[OAUTH_HANDLER] Deleting token key:", key.name);
 				await c.env.OAUTH_KV.delete(key.name);
 			}
 			console.log(
@@ -421,27 +409,8 @@ app.all("/logout", async (c) => {
 	const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : undefined;
 	const token = url.searchParams.get("token") || bearer || undefined;
 
-	console.log("[OAUTH_HANDLER] Logout request details:", {
-		provider,
-		hasToken: !!token,
-		tokenType: token ? typeof token : "undefined",
-		tokenLength: token ? token.length : 0,
-		tokenValue: token
-			? `${token.substring(0, 5)}...${token.substring(token.length - 5)}`
-			: "none",
-		auth: !!auth,
-		bearer: !!bearer,
-	});
-
 	// Only attempt token revocation if we have both provider and token
 	if (provider && token) {
-		console.log("[OAUTH_HANDLER] About to call revokeUpstreamToken with:", {
-			provider,
-			tokenLength: token.length,
-			tokenFirstChars: token.substring(0, 5),
-			tokenLastChars: token.substring(token.length - 5),
-		});
-
 		try {
 			const ok = await revokeUpstreamToken(provider, token, c.env);
 			console.log("[OAUTH_HANDLER] Upstream revocation result:", ok ? "ok" : "failed");

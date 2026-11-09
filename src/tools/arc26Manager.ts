@@ -151,7 +151,7 @@ function buildHTMLPage({
 </html>
   `.trim();
 }
-function generateAlgorandUri(
+export function generateAlgorandUri(
 	address: string,
 	label?: string,
 	amount?: number,
@@ -195,6 +195,26 @@ function generateAlgorandUri(
 	}
 
 	return uri;
+}
+// URI type reported by the generate_algorand_uri tool
+export function determineUriType(amount?: number, assetId?: number): string {
+	let uriType = "Account URI";
+	if (amount !== undefined && assetId !== undefined) {
+		uriType = "Asset Transfer URI";
+	} else if (amount !== undefined) {
+		uriType = "Payment URI";
+	}
+	return uriType;
+}
+// URI type reported by the generate_algorand_qrcode tool
+export function determineQrUriType(amount?: number, assetId?: number): string {
+	let uriType = "Account Contact";
+	if (amount !== undefined && amount !== 0 && assetId !== undefined) {
+		uriType = "Asset Transfer Request";
+	} else if (amount !== undefined) {
+		uriType = "Payment Request";
+	}
+	return uriType;
 }
 async function generateAlgorandQr(params: any): Promise<{ uri: string; qrCode: string }> {
 	// Validate address format (base32 string)
@@ -306,12 +326,7 @@ export function registerArc26Tools(server: McpServer, env: Env, props: Props): v
 				const uri = generateAlgorandUri(address, label, amount, assetId, note);
 
 				// Determine URI type
-				let uriType = "Account URI";
-				if (amount !== undefined && assetId !== undefined) {
-					uriType = "Asset Transfer URI";
-				} else if (amount !== undefined) {
-					uriType = "Payment URI";
-				}
+				const uriType = determineUriType(amount, assetId);
 
 				return ResponseProcessor.processResponse({
 					uri,
@@ -361,12 +376,7 @@ export function registerArc26Tools(server: McpServer, env: Env, props: Props): v
 				console.log("Generated ARC-26 URI:", uri);
 				console.log("Generated ARC-26 QR Code (base64 PNG):", qrCode);
 				// Determine URI type
-				let uriType = "Account Contact";
-				if (amount !== undefined && amount !== 0 && assetId !== undefined) {
-					uriType = "Asset Transfer Request";
-				} else if (amount !== undefined) {
-					uriType = "Payment Request";
-				}
+				const uriType = determineQrUriType(amount, assetId);
 
 				const uuid = crypto.randomUUID().replaceAll("-", "");
 

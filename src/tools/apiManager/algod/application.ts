@@ -22,6 +22,46 @@ function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | nu
 }
 
 /**
+ * Process one application global state entry
+ */
+export function processGlobalStateItem(stateItem: any) {
+	const key = Buffer.from(stateItem.key, "base64").toString("utf-8");
+	const value = stateItem.value;
+
+	// Process value based on its type
+	let processedValue: Record<string, unknown> | undefined;
+	if (value.type === 1) {
+		// bytes
+		// Try to decode as UTF-8 string if possible
+		const bytes = Buffer.from(value.bytes, "base64");
+		try {
+			processedValue = {
+				raw: value.bytes,
+				asString: bytes.toString("utf-8"),
+				type: "bytes",
+			};
+		} catch (e) {
+			processedValue = {
+				raw: value.bytes,
+				type: "bytes",
+			};
+		}
+	} else {
+		// uint
+		processedValue = {
+			raw: value.uint,
+			type: "uint",
+		};
+	}
+
+	return {
+		key,
+		keyAsBase64: stateItem.key,
+		value: processedValue,
+	};
+}
+
+/**
  * Register application API tools to the MCP server
  */
 export function registerApplicationApiTools(server: McpServer, env: Env): void {
@@ -233,42 +273,9 @@ export function registerApplicationApiTools(server: McpServer, env: Env): void {
 
 				// Extract and process global state
 				const globalState = appInfo.params?.globalState || [];
-				const processedState = globalState.map((stateItem: any) => {
-					const key = Buffer.from(stateItem.key, "base64").toString("utf-8");
-					const value = stateItem.value;
-
-					// Process value based on its type
-					let processedValue: Record<string, unknown> | undefined;
-					if (value.type === 1) {
-						// bytes
-						// Try to decode as UTF-8 string if possible
-						const bytes = Buffer.from(value.bytes, "base64");
-						try {
-							processedValue = {
-								raw: value.bytes,
-								asString: bytes.toString("utf-8"),
-								type: "bytes",
-							};
-						} catch (e) {
-							processedValue = {
-								raw: value.bytes,
-								type: "bytes",
-							};
-						}
-					} else {
-						// uint
-						processedValue = {
-							raw: value.uint,
-							type: "uint",
-						};
-					}
-
-					return {
-						key,
-						keyAsBase64: stateItem.key,
-						value: processedValue,
-					};
-				});
+				const processedState = globalState.map((stateItem: any) =>
+					processGlobalStateItem(stateItem),
+				);
 
 				return ResponseProcessor.processResponse({
 					appId: appId,

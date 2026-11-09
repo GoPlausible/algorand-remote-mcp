@@ -12,7 +12,7 @@ import { ResponseProcessor } from "../../../utils";
 /**
  * Create and validate an Algorand client
  */
-function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | null {
+export function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | null {
 	if (!algodUrl) {
 		console.error("Algorand node URL not configured");
 		return null;

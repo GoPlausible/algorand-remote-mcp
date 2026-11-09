@@ -15,7 +15,7 @@ import { signWithTransit } from "../utils/vaultManager";
 /**
  * Get asset decimals for a given asset ID
  */
-async function getAssetDecimals(assetId: number, env: Env): Promise<number> {
+export async function getAssetDecimals(assetId: number, env: Env): Promise<number> {
 	try {
 		const algodClient = new algosdk.Algodv2(env.ALGORAND_TOKEN || "", env.ALGORAND_ALGOD, "");
 		if (assetId === 0) return 6; // Algo has 6 decimals
@@ -37,6 +37,71 @@ function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | nu
 	}
 
 	return new algosdk.Algodv2(token, algodUrl, "");
+}
+
+/**
+ * Set a flat per-transaction fee on the suggested params from the quote's total fee
+ */
+export function applyQuoteFee(params: any, quoteData: any): void {
+	// Use the fee from the quote
+	if (quoteData.transaction_fee) {
+		const quoteFee = Number(quoteData.transaction_fee);
+		// Calculate fee per transaction - divide by number of transactions and add a small buffer
+		const feePerTxn = Math.ceil(quoteFee / quoteData.transactions.length) + 1000;
+		params.fee = BigInt(feePerTxn);
+		params.flatFee = true;
+		console.log("[TINYMAN_SWAP] Using fee from quote:", {
+			quoteTotalFee: quoteFee,
+			transactionCount: quoteData.transactions.length,
+			feePerTransaction: feePerTxn,
+		});
+	} else {
+		// Fallback to a safe default if quote doesn't provide fee info
+		params.fee = BigInt(3000);
+		params.flatFee = true;
+		console.log("[TINYMAN_SWAP] Using default fee:", params.fee);
+	}
+}
+
+/**
+ * Prepend the "TX" tag to a base64 encoded transaction for signing with Vault
+ */
+export function prepareForVaultSigning(encodedTxn: string): string {
+	const TAG = Buffer.from("TX");
+	const finalEncodedTxn = new Uint8Array(Buffer.from(encodedTxn, "base64"));
+	const finalEncodedTxnTagged = new Uint8Array(TAG.length + finalEncodedTxn.length);
+	finalEncodedTxnTagged.set(TAG);
+	finalEncodedTxnTagged.set(finalEncodedTxn, TAG.length);
+
+	return Buffer.from(finalEncodedTxnTagged).toString("base64");
+}
+
+/**
+ * Encode a transaction and its Vault signature as a signed transaction
+ */
+export function encodeVaultSignedTxn(txn: algosdk.Transaction, signature: Uint8Array): Uint8Array {
+	// Fix the transaction object to replace appAccounts with accounts
+	const txnObj = msgpack.decode(algosdk.encodeUnsignedTransaction(txn)) as any;
+	if (txnObj.appAccounts) {
+		txnObj.accounts = txnObj.appAccounts;
+		txnObj.appAccounts = undefined;
+	}
+
+	// Create signed transaction with fixed object
+	const signedTxn = {
+		txn: txnObj,
+		sig: signature,
+	};
+
+	// Encode the signed transaction
+	return new Uint8Array(msgpack.encode(signedTxn, { sortKeys: true, ignoreUndefined: true }));
+}
+
+/**
+ * Concatenate encoded signed transactions into one blob for submission
+ */
+export function concatSignedTxns(signedTxns: Uint8Array[]): Buffer {
+	return Buffer.concat(signedTxns.map((stxn) => Buffer.from(stxn)));
 }
 
 /**
@@ -208,24 +273,7 @@ export async function registerTinymanTools(
 				// Get suggested transaction parameters
 				const params = await algodClient.getTransactionParams().do();
 
-				// Use the fee from the quote
-				if (quoteData.transaction_fee) {
-					const quoteFee = Number(quoteData.transaction_fee);
-					// Calculate fee per transaction - divide by number of transactions and add a small buffer
-					const feePerTxn = Math.ceil(quoteFee / quoteData.transactions.length) + 1000;
-					params.fee = BigInt(feePerTxn);
-					params.flatFee = true;
-					console.log("[TINYMAN_SWAP] Using fee from quote:", {
-						quoteTotalFee: quoteFee,
-						transactionCount: quoteData.transactions.length,
-						feePerTransaction: feePerTxn,
-					});
-				} else {
-					// Fallback to a safe default if quote doesn't provide fee info
-					params.fee = BigInt(3000);
-					params.flatFee = true;
-					console.log("[TINYMAN_SWAP] Using default fee:", params.fee);
-				}
+				applyQuoteFee(params, quoteData);
 
 				// Create transactions from the quote data
 				const transactions = [];
@@ -341,16 +389,7 @@ export async function registerTinymanTools(
 					);
 
 					// Prepare for signing with Vault
-					const TAG = Buffer.from("TX");
-					const finalEncodedTxn = new Uint8Array(Buffer.from(encodedTxn, "base64"));
-					const finalEncodedTxnTagged = new Uint8Array(
-						TAG.length + finalEncodedTxn.length,
-					);
-					finalEncodedTxnTagged.set(TAG);
-					finalEncodedTxnTagged.set(finalEncodedTxn, TAG.length);
-
-					const finalEncodedTxnBase64 =
-						Buffer.from(finalEncodedTxnTagged).toString("base64");
+					const finalEncodedTxnBase64 = prepareForVaultSigning(encodedTxn);
 
 					// Sign with Vault
 					if (!enhancedEnv.email || !enhancedEnv.provider) {
@@ -372,29 +411,13 @@ export async function registerTinymanTools(
 					// Create signed transaction
 					const signature = Buffer.from(signatureResult.signature, "base64");
 
-					// Fix the transaction object to replace appAccounts with accounts
-					const txnObj = msgpack.decode(algosdk.encodeUnsignedTransaction(txn)) as any;
-					if (txnObj.appAccounts) {
-						txnObj.accounts = txnObj.appAccounts;
-						txnObj.appAccounts = undefined;
-					}
-
-					// Create signed transaction with fixed object
-					const signedTxn = {
-						txn: txnObj,
-						sig: signature,
-					};
-
-					// Encode the signed transaction
-					const encodedSignedTxn = new Uint8Array(
-						msgpack.encode(signedTxn, { sortKeys: true, ignoreUndefined: true }),
-					);
+					const encodedSignedTxn = encodeVaultSignedTxn(txn, signature);
 					signedTxns.push(encodedSignedTxn);
 				}
 				console.log("[TINYMAN_SWAP] All transactions signed:", signedTxns.length);
 
 				// Submit the signed transactions
-				const txnBlob = Buffer.concat(signedTxns.map((stxn) => Buffer.from(stxn)));
+				const txnBlob = concatSignedTxns(signedTxns);
 				const swapExecutionResponse = await algodClient.sendRawTransaction(txnBlob).do();
 				const txId = swapExecutionResponse.txid;
 				// Wait for confirmation
@@ -589,24 +612,7 @@ export async function registerTinymanTools(
 				// Get suggested transaction parameters
 				const params = await algodClient.getTransactionParams().do();
 
-				// Use the fee from the quote
-				if (quoteData.transaction_fee) {
-					const quoteFee = Number(quoteData.transaction_fee);
-					// Calculate fee per transaction - divide by number of transactions and add a small buffer
-					const feePerTxn = Math.ceil(quoteFee / quoteData.transactions.length) + 1000;
-					params.fee = BigInt(feePerTxn);
-					params.flatFee = true;
-					console.log("[TINYMAN_SWAP] Using fee from quote:", {
-						quoteTotalFee: quoteFee,
-						transactionCount: quoteData.transactions.length,
-						feePerTransaction: feePerTxn,
-					});
-				} else {
-					// Fallback to a safe default if quote doesn't provide fee info
-					params.fee = BigInt(3000);
-					params.flatFee = true;
-					console.log("[TINYMAN_SWAP] Using default fee:", params.fee);
-				}
+				applyQuoteFee(params, quoteData);
 
 				// Create transactions from the quote data
 				const transactions = [];
@@ -722,16 +728,7 @@ export async function registerTinymanTools(
 					);
 
 					// Prepare for signing with Vault
-					const TAG = Buffer.from("TX");
-					const finalEncodedTxn = new Uint8Array(Buffer.from(encodedTxn, "base64"));
-					const finalEncodedTxnTagged = new Uint8Array(
-						TAG.length + finalEncodedTxn.length,
-					);
-					finalEncodedTxnTagged.set(TAG);
-					finalEncodedTxnTagged.set(finalEncodedTxn, TAG.length);
-
-					const finalEncodedTxnBase64 =
-						Buffer.from(finalEncodedTxnTagged).toString("base64");
+					const finalEncodedTxnBase64 = prepareForVaultSigning(encodedTxn);
 
 					// Sign with Vault
 					if (!enhancedEnv.email || !enhancedEnv.provider) {
@@ -753,29 +750,13 @@ export async function registerTinymanTools(
 					// Create signed transaction
 					const signature = Buffer.from(signatureResult.signature, "base64");
 
-					// Fix the transaction object to replace appAccounts with accounts
-					const txnObj = msgpack.decode(algosdk.encodeUnsignedTransaction(txn)) as any;
-					if (txnObj.appAccounts) {
-						txnObj.accounts = txnObj.appAccounts;
-						txnObj.appAccounts = undefined;
-					}
-
-					// Create signed transaction with fixed object
-					const signedTxn = {
-						txn: txnObj,
-						sig: signature,
-					};
-
-					// Encode the signed transaction
-					const encodedSignedTxn = new Uint8Array(
-						msgpack.encode(signedTxn, { sortKeys: true, ignoreUndefined: true }),
-					);
+					const encodedSignedTxn = encodeVaultSignedTxn(txn, signature);
 					signedTxns.push(encodedSignedTxn);
 				}
 				console.log("[TINYMAN_SWAP] All transactions signed:", signedTxns.length);
 
 				// Submit the signed transactions
-				const txnBlob = Buffer.concat(signedTxns.map((stxn) => Buffer.from(stxn)));
+				const txnBlob = concatSignedTxns(signedTxns);
 				const swapExecutionResponse = await algodClient.sendRawTransaction(txnBlob).do();
 				const txId = swapExecutionResponse.txid;
 				// Wait for confirmation

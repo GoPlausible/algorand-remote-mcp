@@ -1,65 +1,34 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import {
+	determineQrUriType,
+	determineUriType,
+	generateAlgorandUri,
+	registerArc26Tools,
+} from "../src/tools/arc26Manager";
+import type { Env, Props } from "../src/types";
+
+// @cf-wasm/photon's default (workers) entry loads its wasm through an ESM import Node cannot
+// resolve; point it at the library's own Node build so arc26Manager can be imported.
+vi.mock("@cf-wasm/photon", () => import("@cf-wasm/photon/node"));
 
 /**
- * Tests for ARC-26 URI generation logic (generateAlgorandUri)
- * Extracted from arc26Manager.ts pure function
+ * Tests for ARC-26 URI generation logic (generateAlgorandUri) and the URI type
+ * reported by the generate_algorand_uri and generate_algorand_qrcode tools
  */
 
-// Re-implement the pure function for testing (it's not exported)
-function generateAlgorandUri(
-	address: string,
-	label?: string,
-	amount?: number,
-	assetId?: number,
-	note?: string,
-): string {
-	if (!/^[A-Z2-7]{58}$/.test(address)) {
-		throw new Error("Invalid Algorand address format");
-	}
+type ToolResult = { content: { type: string; text: string }[] };
+type ToolHandler = (args: Record<string, unknown>) => Promise<ToolResult>;
 
-	let uri = `algorand://${address}`;
-	const queryParams: string[] = [];
-
-	if (label) {
-		queryParams.push(`label=${encodeURIComponent(label)}`);
-	}
-	if (amount !== undefined) {
-		queryParams.push(`amount=${amount}`);
-	}
-	if (assetId !== undefined) {
-		queryParams.push(`asset=${assetId}`);
-	}
-	if (note) {
-		queryParams.push(`note=${encodeURIComponent(note)}`);
-	}
-
-	if (queryParams.length > 0) {
-		uri += `?${queryParams.join("&")}`;
-	}
-
-	return uri;
-}
-
-// Re-implement URI type determination logic
-function determineUriType(amount?: number, assetId?: number): string {
-	if (amount !== undefined && assetId !== undefined) {
-		return "Asset Transfer URI";
-	}
-	if (amount !== undefined) {
-		return "Payment URI";
-	}
-	return "Account URI";
-}
-
-// Re-implement QR type determination for generate_algorand_qrcode tool
-function determineQrUriType(amount?: number, assetId?: number): string {
-	if (amount !== undefined && amount !== 0 && assetId !== undefined) {
-		return "Asset Transfer Request";
-	}
-	if (amount !== undefined) {
-		return "Payment Request";
-	}
-	return "Account Contact";
+function arc26Tools(env: Partial<Env>): Record<string, ToolHandler> {
+	const tools: Record<string, ToolHandler> = {};
+	const server = {
+		tool: (name: string, _description: string, _schema: unknown, handler: ToolHandler) => {
+			tools[name] = handler;
+		},
+	};
+	const props = { provider: "google", email: "agent-owner@example.com" } as Props;
+	registerArc26Tools(server as any, env as Env, props);
+	return tools;
 }
 
 describe("ARC-26 URI Generation", () => {
@@ -170,24 +139,60 @@ describe("ARC-26 URI Generation", () => {
 		});
 	});
 
+	describe("ARC-26 tools", () => {
+		it("generate_algorand_uri should report the URI and its type", async () => {
+			const result = await arc26Tools({}).generate_algorand_uri({
+				address: validAddress,
+				amount: 100,
+				assetId: 31566704,
+			});
+			expect(JSON.parse(result.content[0].text).data).toEqual({
+				uri: `algorand://${validAddress}?amount=100&asset=31566704`,
+				uriType: "Asset Transfer URI",
+			});
+		});
+
+		it("generate_algorand_qrcode should store a page labelled with the QR URI type", async () => {
+			const store = new Map<string, string>();
+			const kv = {
+				put: vi.fn(async (key: string, value: string) => {
+					store.set(key, value);
+				}),
+			};
+			const result = await arc26Tools({ ARC26_KV: kv as any }).generate_algorand_qrcode({
+				address: validAddress,
+				amount: 0,
+				assetId: 31566704,
+			});
+			const link: string = JSON.parse(result.content[0].text).data.qrcode_link;
+			const uuid = link.split("/").pop();
+			expect(link).toMatch(/^https:\/\/goplausible\.xyz\/api\/arc26\/[a-f0-9]{32}$/);
+			expect(store.get(`id--${uuid}`)).toContain("<h3>Your Payment Request</h3>");
+			expect(store.get(`image--${uuid}`)).toMatch(/^[A-Za-z0-9+/]+=*$/);
+		});
+	});
+
 	describe("Address validation regex", () => {
 		it("should accept valid base32 address", () => {
-			expect(/^[A-Z2-7]{58}$/.test(validAddress)).toBe(true);
+			expect(() => generateAlgorandUri(validAddress)).not.toThrow();
 		});
 
 		it("should reject lowercase", () => {
-			expect(/^[A-Z2-7]{58}$/.test(validAddress.toLowerCase())).toBe(false);
+			expect(() => generateAlgorandUri(validAddress.toLowerCase())).toThrow(
+				"Invalid Algorand address format",
+			);
 		});
 
 		it("should reject wrong length", () => {
-			expect(/^[A-Z2-7]{58}$/.test("AAAA")).toBe(false);
+			expect(() => generateAlgorandUri("AAAA")).toThrow("Invalid Algorand address format");
 		});
 
 		it("should reject invalid chars (0, 1, 8, 9)", () => {
-			expect(/^[A-Z2-7]{58}$/.test(`0${validAddress.slice(1)}`)).toBe(false);
-			expect(/^[A-Z2-7]{58}$/.test(`1${validAddress.slice(1)}`)).toBe(false);
-			expect(/^[A-Z2-7]{58}$/.test(`8${validAddress.slice(1)}`)).toBe(false);
-			expect(/^[A-Z2-7]{58}$/.test(`9${validAddress.slice(1)}`)).toBe(false);
+			for (const ch of ["0", "1", "8", "9"]) {
+				expect(() => generateAlgorandUri(`${ch}${validAddress.slice(1)}`)).toThrow(
+					"Invalid Algorand address format",
+				);
+			}
 		});
 	});
 });

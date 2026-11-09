@@ -25,7 +25,7 @@ function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | nu
  * @param {string} name - Asset name
  * @returns {Array} - Array of assets matching the name
  */
-async function getAssetsByName(name: string, env: Env) {
+export async function getAssetsByName(name: string, env: Env) {
 	if (!name || !env.VERIFIED_ASSETS) {
 		throw new Error("Asset name is required");
 	}
@@ -52,7 +52,7 @@ async function getAssetsByName(name: string, env: Env) {
  * @param {number|string} assetId - Asset ID
  * @returns {Object|null} - Asset object or null if not found
  */
-async function getAssetsByAssetId(assetId: number, env: Env) {
+export async function getAssetsByAssetId(assetId: number, env: Env) {
 	if (!assetId || !env.VERIFIED_ASSETS) {
 		throw new Error("Asset ID is required");
 	}
@@ -73,7 +73,7 @@ async function getAssetsByAssetId(assetId: number, env: Env) {
  * @param {string} creatorAddress - Creator address
  * @returns {Array} - Array of assets created by the address
  */
-async function getAssetsByCreatorAddress(creatorAddress: string, env: Env) {
+export async function getAssetsByCreatorAddress(creatorAddress: string, env: Env) {
 	if (!creatorAddress || !env.VERIFIED_ASSETS) {
 		throw new Error("Creator address is required");
 	}
@@ -103,7 +103,7 @@ async function getAssetsByCreatorAddress(creatorAddress: string, env: Env) {
  * @param {string} unitName - Unit name
  * @returns {Array} - Array of assets matching the unit name
  */
-async function getAssetsByUnitName(unitName: string, env: Env) {
+export async function getAssetsByUnitName(unitName: string, env: Env) {
 	if (!unitName || !env.VERIFIED_ASSETS) {
 		throw new Error("Unit name is required");
 	}

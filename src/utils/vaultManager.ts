@@ -94,7 +94,6 @@ export async function deleteKeypair(
 		}
 
 		const result = await response.json();
-		console.log("Keypair deleted successfully:", result);
 		return { success: true, keyName: keyName };
 	} catch (error: any) {
 		console.error("Error deleting keypair in vault:", error.message || "Unknown error");
@@ -375,7 +374,6 @@ export async function ensureUserAccount(
 	}
 	console.log(`Entity ID for ${email} from KV store:`, providerEntity);
 	if (entityId) roleId = await env.VAULT_ENTITIES.get(providerEntity);
-	console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
 	return "vault";
 }
 
@@ -576,7 +574,6 @@ export async function retrieveSecret(
 				method: "GET",
 			},
 		);
-		console.log("Response from vault:", response);
 
 		if (!response.ok) {
 			// If the secret doesn't exist, don't log an error, just return undefined

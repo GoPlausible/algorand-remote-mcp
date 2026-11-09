@@ -1,13 +1,23 @@
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as msgpack from "algo-msgpack-with-bigint";
 import * as algosdk from "algosdk";
 import { describe, expect, it } from "vitest";
+import {
+	applyQuoteFee,
+	concatSignedTxns,
+	encodeVaultSignedTxn,
+	getAssetDecimals,
+	prepareForVaultSigning,
+	registerTinymanTools,
+} from "../src/tools/tinymanManager";
+import type { Env, Props } from "../src/types";
 
 /**
  * Tests for Tinyman Manager logic
  * Tests client creation, transaction construction, and vault signing patterns
  */
 
-// Re-implement createAlgoClient from tinymanManager.ts
+// Copy of createAlgoClient from src/tools/tinymanManager.ts: exporting it would clash with walletManager's exported createAlgoClient through `export *` in src/tools/index.ts (TS2308), so the real one is exercised through the swap handlers below.
 function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | null {
 	if (!algodUrl) {
 		return null;
@@ -15,14 +25,16 @@ function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | nu
 	return new algosdk.Algodv2(token, algodUrl, "");
 }
 
-// Helper to create TX tag prepended data (vault signing pattern)
-function prepareForVaultSigning(encodedTxnBase64: string): string {
-	const TAG = Buffer.from("TX");
-	const finalEncodedTxn = new Uint8Array(Buffer.from(encodedTxnBase64, "base64"));
-	const finalEncodedTxnTagged = new Uint8Array(TAG.length + finalEncodedTxn.length);
-	finalEncodedTxnTagged.set(TAG);
-	finalEncodedTxnTagged.set(finalEncodedTxn, TAG.length);
-	return Buffer.from(finalEncodedTxnTagged).toString("base64");
+// Register the Tinyman tools on a minimal stand-in server and return their handlers
+async function getSwapHandlers(env: Env): Promise<Map<string, (args: any) => Promise<unknown>>> {
+	const handlers = new Map<string, (args: any) => Promise<unknown>>();
+	const server = {
+		tool: (name: string, _description: string, _schema: unknown, handler: any) => {
+			handlers.set(name, handler);
+		},
+	};
+	await registerTinymanTools(server as unknown as McpServer, env, {} as Props);
+	return handlers;
 }
 
 describe("Tinyman Manager", () => {
@@ -48,6 +60,24 @@ describe("Tinyman Manager", () => {
 		it("should create client with valid URL", () => {
 			const client = createAlgoClient("https://testnet-api.algonode.cloud", "");
 			expect(client).not.toBeNull();
+		});
+
+		it("should make both swap tools fail with 'Failed to create Algorand client' when the node URL is empty", async () => {
+			const handlers = await getSwapHandlers({ ALGORAND_ALGOD: "" } as unknown as Env);
+			const args = {
+				address: testAddr,
+				assetIn: 0,
+				assetOut: 31566704,
+				amount: 1000,
+				slippage: 0.05,
+				network: "testnet",
+			};
+
+			for (const name of ["tinyman_fixed_input_swap", "tinyman_fixed_output_swap"]) {
+				const handler = handlers.get(name);
+				expect(handler).toBeDefined();
+				await expect(handler!(args)).rejects.toThrow("Failed to create Algorand client");
+			}
 		});
 	});
 
@@ -115,16 +145,13 @@ describe("Tinyman Manager", () => {
 			const txnObj = msgpack.decode(algosdk.encodeUnsignedTransaction(txn));
 			const dummySig = new Uint8Array(64);
 
-			const signedTxn = {
-				txn: txnObj,
-				sig: dummySig,
-			};
-
-			const encoded = new Uint8Array(
-				msgpack.encode(signedTxn, { sortKeys: true, ignoreUndefined: true }),
-			);
+			const encoded = encodeVaultSignedTxn(txn, dummySig);
 			expect(encoded).toBeInstanceOf(Uint8Array);
 			expect(encoded.length).toBeGreaterThan(0);
+
+			const decoded = msgpack.decode(encoded) as any;
+			expect(decoded.txn).toEqual(txnObj);
+			expect(decoded.sig).toEqual(dummySig);
 		});
 	});
 
@@ -153,7 +180,7 @@ describe("Tinyman Manager", () => {
 		it("should concatenate signed transactions into blob", () => {
 			const blob1 = new Uint8Array([1, 2, 3]);
 			const blob2 = new Uint8Array([4, 5, 6]);
-			const combined = Buffer.concat([Buffer.from(blob1), Buffer.from(blob2)]);
+			const combined = concatSignedTxns([blob1, blob2]);
 			expect(combined).toHaveLength(6);
 			expect(combined[0]).toBe(1);
 			expect(combined[3]).toBe(4);
@@ -161,24 +188,35 @@ describe("Tinyman Manager", () => {
 	});
 
 	describe("Asset decimals default", () => {
-		it("should default to 6 for Algo (asset 0)", () => {
-			const assetId = 0;
-			const decimals = assetId === 0 ? 6 : 0;
+		it("should default to 6 for Algo (asset 0)", async () => {
+			const env = {
+				ALGORAND_ALGOD: "https://testnet-api.algonode.cloud",
+				ALGORAND_TOKEN: "",
+			} as unknown as Env;
+			const decimals = await getAssetDecimals(0, env);
+			expect(decimals).toBe(6);
+		});
+
+		it("should fall back to 6 when the asset lookup fails", async () => {
+			const env = { ALGORAND_ALGOD: "", ALGORAND_TOKEN: "" } as unknown as Env;
+			const decimals = await getAssetDecimals(31566704, env);
 			expect(decimals).toBe(6);
 		});
 	});
 
 	describe("Fee calculation from quote", () => {
 		it("should calculate per-transaction fee from total", () => {
-			const quoteFee = 9000;
-			const txnCount = 3;
-			const feePerTxn = Math.ceil(quoteFee / txnCount) + 1000;
-			expect(feePerTxn).toBe(4000);
+			const params = { ...mockParams, flatFee: false };
+			applyQuoteFee(params, { transaction_fee: 9000, transactions: [{}, {}, {}] });
+			expect(params.fee).toBe(BigInt(4000));
+			expect(params.flatFee).toBe(true);
 		});
 
 		it("should use default fee when no quote fee", () => {
-			const defaultFee = BigInt(3000);
-			expect(defaultFee).toBe(BigInt(3000));
+			const params = { ...mockParams, fee: BigInt(1000), flatFee: false };
+			applyQuoteFee(params, { transactions: [{}, {}, {}] });
+			expect(params.fee).toBe(BigInt(3000));
+			expect(params.flatFee).toBe(true);
 		});
 	});
 });

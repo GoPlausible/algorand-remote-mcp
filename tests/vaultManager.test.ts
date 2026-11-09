@@ -92,13 +92,27 @@ describe("VaultManager - Guard Clauses", () => {
 });
 
 describe("VaultManager - Address Derivation", () => {
-	it("should derive correct address from a known public key", () => {
+	it("should derive correct address from a known public key", async () => {
 		const account = algosdk.generateAccount();
 		const publicKeyBase64 = Buffer.from(
 			algosdk.decodeAddress(account.addr.toString()).publicKey,
 		).toString("base64");
-		const publicKeyBuffer = Buffer.from(publicKeyBase64, "base64");
-		const derivedAddress = algosdk.encodeAddress(publicKeyBuffer);
+		const fetch = vi.fn(
+			async (_url: string, _init?: RequestInit) =>
+				new Response(JSON.stringify({ public_key: publicKeyBase64 }), { status: 200 }),
+		);
+		const env = {
+			...emptyEnv,
+			HCV_WORKER_URL: "https://vault.test",
+			HCV_WORKER: { fetch },
+		} as unknown as Env;
+		const derivedAddress = await getUserAddress(env, "test@example.com", "google");
 		expect(derivedAddress).toBe(account.addr.toString());
+		expect(fetch).toHaveBeenCalledWith(
+			"https://vault.test/google/transit/publickey/test@example.com",
+			{
+				method: "GET",
+			},
+		);
 	});
 });

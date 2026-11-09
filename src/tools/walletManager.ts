@@ -21,7 +21,7 @@ import {
 /**
  * Create and validate an Algorand client
  */
-function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | null {
+export function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | null {
 	if (!algodUrl) {
 		console.error("Algorand node URL not configured");
 		return null;
@@ -33,7 +33,7 @@ function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | nu
 /**
  * Get account from mnemonic
  */
-function getAccountFromMnemonic(mnemonic: string | undefined): algosdk.Account | null {
+export function getAccountFromMnemonic(mnemonic: string | undefined): algosdk.Account | null {
 	if (!mnemonic) {
 		console.error("No active agent wallet configured");
 		return null;
@@ -45,6 +45,29 @@ function getAccountFromMnemonic(mnemonic: string | undefined): algosdk.Account |
 		console.error("Invalid mnemonic:", error);
 		return null;
 	}
+}
+
+/**
+ * Build a VAULT_ENTITIES KV key from a provider and an email or entity ID
+ */
+export function providerKey(provider: string, emailOrEntityId: string | null): string {
+	return `${provider}--${emailOrEntityId}`;
+}
+
+/**
+ * Convert a base64 public key to an Algorand address
+ */
+export function addressFromBase64PublicKey(publicKeyBase64: string): string {
+	const publicKeyBuffer = Buffer.from(publicKeyBase64, "base64");
+	return algosdk.encodeAddress(publicKeyBuffer);
+}
+
+/**
+ * Get the base64 public key of an Algorand address
+ */
+export function base64PublicKeyFromAddress(address: string): string {
+	const pkBytes = algosdk.decodeAddress(address).publicKey;
+	return Buffer.from(pkBytes).toString("base64");
 }
 
 /**
@@ -75,16 +98,15 @@ export async function registerWalletTools(
 		async () => {
 			try {
 				const publicKeyResult = await getPublicKey(env, props.email, props.provider);
-				let providerEmail = `${props.provider}--${props.email}`;
+				let providerEmail = providerKey(props.provider, props.email);
 				let entityId: string | null = await env.VAULT_ENTITIES.get(providerEmail);
-				let providerEntity: string | null = `${props.provider}--${entityId}`;
+				let providerEntity: string | null = providerKey(props.provider, entityId);
 				console.log(`Entity ID for ${providerEmail} from KV store:`, providerEntity);
 				let roleId = null;
 				if (entityId) {
 					console.log(`Fetching role ID from KV for entity ${entityId}`);
-					providerEntity = `${props.provider}--${entityId}`;
+					providerEntity = providerKey(props.provider, entityId);
 					roleId = await env.VAULT_ENTITIES.get(providerEntity);
-					console.log(`Role ID for ${entityId} from KV store:`, roleId);
 				}
 				if (!roleId || !entityId) {
 					console.log(
@@ -106,8 +128,8 @@ export async function registerWalletTools(
 					await deleteEntity(env, props.email, entityId, roleId, props.provider);
 					console.log(`Deleted entity and role for ${props.email} with ID ${entityId}`);
 
-					providerEmail = `${props.provider}--${props.email}`;
-					providerEntity = `${props.provider}--${entityId}`;
+					providerEmail = providerKey(props.provider, props.email);
+					providerEntity = providerKey(props.provider, entityId);
 					await env.VAULT_ENTITIES.delete(providerEmail);
 					console.log(`Deleted entity ID for ${providerEmail} from KV store`);
 					await env.VAULT_ENTITIES.delete(providerEntity);
@@ -137,11 +159,10 @@ export async function registerWalletTools(
 					console.log(`Public key for ${props.email}: ${newPublicKeyResult.publicKey}`);
 
 					// Convert the public key to an Algorand address
-					const publicKeyBuffer = Buffer.from(newPublicKeyResult.publicKey, "base64");
-					const address = algosdk.encodeAddress(publicKeyBuffer);
-					providerEmail = `${props.provider}--${props.email}`;
+					const address = addressFromBase64PublicKey(newPublicKeyResult.publicKey);
+					providerEmail = providerKey(props.provider, props.email);
 					entityId = await env.VAULT_ENTITIES?.get(providerEmail);
-					providerEntity = `${props.provider}--${entityId}`;
+					providerEntity = providerKey(props.provider, entityId);
 					console.log(`Entity ID for ${providerEmail} from KV store:`, entityId);
 					// let roleId = null;
 					if (!entityId) {
@@ -149,7 +170,6 @@ export async function registerWalletTools(
 					}
 					console.log(`Fetching role ID from KV for entity ${providerEntity}`);
 					roleId = await env.VAULT_ENTITIES?.get(providerEntity);
-					console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
 					if (!roleId) {
 						throw new Error(`No Role ID found for entity: ${providerEntity}`);
 					}
@@ -201,7 +221,6 @@ export async function registerWalletTools(
 	//       // if (!!entityId) {
 	//       //   console.log(`Fetching role ID from KV for entity ${providerEntity}`);
 	//       //   roleId = await env.VAULT_ENTITIES?.get(providerEntity);
-	//       //   console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
 	//       // }
 	//       return ResponseProcessor.processResponse({
 	//         publicKey: publicKeyResult.publicKey,
@@ -248,7 +267,6 @@ export async function registerWalletTools(
 	//       // if (!!entityId) {
 	//       //   console.log(`Fetching role ID from KV for entity ${providerEntity}`);
 	//       //   roleId = await env.VAULT_ENTITIES?.get(providerEntity);
-	//       //   console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
 	//       // }
 	//
 	//
@@ -276,15 +294,14 @@ export async function registerWalletTools(
 		{},
 		async () => {
 			try {
-				const providerEmail = `${props.provider}--${props.email}`;
+				const providerEmail = providerKey(props.provider, props.email);
 				const entityId = await env.VAULT_ENTITIES?.get(providerEmail);
-				const providerEntity = `${props.provider}--${entityId}`;
+				const providerEntity = providerKey(props.provider, entityId);
 				console.log(`Entity ID for ${providerEmail} from KV store:`, providerEntity);
 				let roleId = null;
 				if (entityId) {
 					console.log(`Fetching role ID from KV for entity ${providerEntity}`);
 					roleId = await env.VAULT_ENTITIES?.get(providerEntity);
-					console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
 				}
 				if (!entityId) {
 					return {
@@ -331,15 +348,14 @@ export async function registerWalletTools(
 					],
 				};
 			}
-			const providerEmail = `${props.provider}--${props.email}`;
+			const providerEmail = providerKey(props.provider, props.email);
 			const entityId = await env.VAULT_ENTITIES?.get(providerEmail);
-			const providerEntity = `${props.provider}--${entityId}`;
+			const providerEntity = providerKey(props.provider, entityId);
 			console.log(`Entity ID for ${providerEmail} from KV store:`, providerEntity);
 			// let roleId = null;
 			// if (!!entityId) {
 			//   console.log(`Fetching role ID from KV for entity ${providerEntity}`);
 			//   roleId = await env.VAULT_ENTITIES?.get(providerEntity);
-			//   console.log(`Role ID for ${providerEntity} from KV store:`, roleId);
 			// }
 
 			try {
@@ -365,8 +381,7 @@ export async function registerWalletTools(
 
 				// Get account information
 				const accountInfo = await algodClient.accountInformation(address).do();
-				const pkBytes = algosdk.decodeAddress(address).publicKey;
-				const pk = Buffer.from(pkBytes).toString("base64");
+				const pk = base64PublicKeyFromAddress(address);
 
 				return ResponseProcessor.processResponse({
 					accounts: [
@@ -473,8 +488,6 @@ export async function registerWalletTools(
 				} else {
 					console.log("No token or provider available for logout request");
 				}
-
-				console.log(`Calling logout endpoint: ${logoutUrl.toString()}`);
 
 				// Call the logout endpoint
 				const response = await fetch(logoutUrl.toString(), {

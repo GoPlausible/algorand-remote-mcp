@@ -28,7 +28,7 @@ function createAlgoClient(algodUrl: string, token: string): algosdk.Algodv2 | nu
 
 	return new algosdk.Algodv2(token, algodUrl, "");
 }
-function ConcatArrays(...arrs: ArrayLike<number>[]) {
+export function ConcatArrays(...arrs: ArrayLike<number>[]) {
 	const size = arrs.reduce((sum, arr) => sum + arr.length, 0);
 	const c = new Uint8Array(size);
 
@@ -39,6 +39,45 @@ function ConcatArrays(...arrs: ArrayLike<number>[]) {
 	}
 
 	return c;
+}
+/**
+ * Encode a signed transaction with MessagePack, adding sgnr when the signer is not the sender
+ */
+export function encodeSignedTxn(
+	txn: algosdk.Transaction,
+	signature: Uint8Array,
+	publicKeyBuffer: Uint8Array,
+	signerAddr: string,
+): Uint8Array {
+	const txnObj = msgpack.decode(algosdk.encodeUnsignedTransaction(txn));
+	console.log("Transaction object for encoding:", txnObj);
+
+	// Create a Map for the signed transaction
+	const signedTxn: any = {
+		txn: txnObj,
+		sig: signature,
+	};
+
+	// Add AuthAddr if signing with a different key than From indicates
+	// Compare the actual bytes of the public keys, not their string representations
+	const fromPubKey = txn.sender.publicKey;
+	let keysMatch = fromPubKey.length === publicKeyBuffer.length;
+	if (keysMatch) {
+		for (let i = 0; i < fromPubKey.length; i++) {
+			if (fromPubKey[i] !== publicKeyBuffer[i]) {
+				keysMatch = false;
+				break;
+			}
+		}
+	}
+
+	if (!keysMatch) {
+		// Only add sgnr if the keys are actually different
+		signedTxn.sgnr = algosdk.decodeAddress(signerAddr).publicKey;
+	}
+
+	// Encode the signed transaction using MessagePack
+	return new Uint8Array(msgpack.encode(signedTxn, { sortKeys: true, ignoreUndefined: true }));
 }
 function uint8ToBase64(uint8Array: Uint8Array): string {
 	let binary = "";
@@ -209,7 +248,6 @@ export async function registerGeneralTransactionTools(
 
 				// Convert the base64 signature to Uint8Array
 				const signature = Buffer.from(signatureResult.signature, "base64");
-				console.log("Signature:", signature);
 
 				// Convert the base64 public key to Uint8Array
 				const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, "base64");
@@ -218,39 +256,12 @@ export async function registerGeneralTransactionTools(
 				// Get the address from the public key
 				const signerAddr = algosdk.encodeAddress(publicKeyBuffer);
 				console.log("Signer address:", signerAddr);
-				const txnObj = msgpack.decode(algosdk.encodeUnsignedTransaction(txn));
-				console.log("Transaction object for encoding:", txnObj);
-
-				// Create a Map for the signed transaction
-				const signedTxn: any = {
-					txn: txnObj,
-					sig: signature,
-				};
-				console.log("Signed transaction map:", signedTxn);
-
-				// Add AuthAddr if signing with a different key than From indicates
-				// Compare the actual bytes of the public keys, not their string representations
-				const fromPubKey = txn.sender.publicKey;
-				let keysMatch = fromPubKey.length === publicKeyBuffer.length;
-				if (keysMatch) {
-					for (let i = 0; i < fromPubKey.length; i++) {
-						if (fromPubKey[i] !== publicKeyBuffer[i]) {
-							keysMatch = false;
-							break;
-						}
-					}
-				}
-
-				if (!keysMatch) {
-					// Only add sgnr if the keys are actually different
-					signedTxn.sgnr = algosdk.decodeAddress(signerAddr).publicKey;
-				}
-
-				// Encode the signed transaction using MessagePack
-				const encodedSignedTxn: Uint8Array = new Uint8Array(
-					msgpack.encode(signedTxn, { sortKeys: true, ignoreUndefined: true }),
+				const encodedSignedTxn: Uint8Array = encodeSignedTxn(
+					txn,
+					signature,
+					publicKeyBuffer,
+					signerAddr,
 				);
-				console.log("Encoded signed transaction:", encodedSignedTxn);
 				console.log("TXN ID:", txn.txID());
 				// Return the base64 encoded signed transaction
 				return ResponseProcessor.processResponse({
@@ -296,7 +307,6 @@ export async function registerGeneralTransactionTools(
 
 				// Get the signature from the signed blob
 				const signature = Buffer.from(signatureResult.blob);
-				console.log("Signature:", signature);
 				const txID = signatureResult.txID;
 				console.log("TXID:", txID);
 
@@ -307,39 +317,12 @@ export async function registerGeneralTransactionTools(
 				// Get the address from the public key
 				const signerAddr = account.addr.toString();
 				console.log("Signer address:", signerAddr);
-				const txnObj = msgpack.decode(algosdk.encodeUnsignedTransaction(txn));
-				console.log("Transaction object for encoding:", txnObj);
-
-				// Create a Map for the signed transaction
-				const signedTxn: any = {
-					txn: txnObj,
-					sig: signature,
-				};
-				console.log("Signed transaction map:", signedTxn);
-
-				// Add AuthAddr if signing with a different key than From indicates
-				// Compare the actual bytes of the public keys, not their string representations
-				const fromPubKey = txn.sender.publicKey;
-				let keysMatch = fromPubKey.length === publicKeyBuffer.length;
-				if (keysMatch) {
-					for (let i = 0; i < fromPubKey.length; i++) {
-						if (fromPubKey[i] !== publicKeyBuffer[i]) {
-							keysMatch = false;
-							break;
-						}
-					}
-				}
-
-				if (!keysMatch) {
-					// Only add sgnr if the keys are actually different
-					signedTxn.sgnr = algosdk.decodeAddress(signerAddr).publicKey;
-				}
-
-				// Encode the signed transaction using MessagePack
-				const encodedSignedTxn: Uint8Array = new Uint8Array(
-					msgpack.encode(signedTxn, { sortKeys: true, ignoreUndefined: true }),
+				const encodedSignedTxn: Uint8Array = encodeSignedTxn(
+					txn,
+					signature,
+					publicKeyBuffer,
+					signerAddr,
 				);
-				console.log("Encoded signed transaction:", encodedSignedTxn);
 				console.log("TXN ID:", txn.txID());
 				// Return the base64 encoded signed transaction
 				return ResponseProcessor.processResponse({
@@ -382,10 +365,8 @@ export async function registerGeneralTransactionTools(
 				if (!algodClient) {
 					throw new Error("Failed to create Algorand client");
 				}
-				console.log("Signed TXN:", signedTxn);
 				// Decode and submit transaction
 				const decodedTxn = Buffer.from(signedTxn, "base64");
-				console.log("Decoded signed transaction:", decodedTxn);
 				const response = await algodClient
 					.sendRawTransaction(new Uint8Array(decodedTxn))
 					.do();

@@ -9,6 +9,58 @@ import type { Env } from "../../../types";
 import { ResponseProcessor } from "../../../utils";
 
 /**
+ * Build the NFD lookup URL for a name
+ */
+export function buildNfdUrl(
+	apiBase: string,
+	name: string,
+	view?: string,
+	includeSales?: boolean,
+): string {
+	let url = `${apiBase}/nfd/${encodeURIComponent(name.toLowerCase())}`;
+	const params = new URLSearchParams();
+
+	if (view === "brief") {
+		params.append("view", "brief");
+	}
+
+	if (includeSales) {
+		params.append("includeSales", "true");
+	}
+
+	if (params.toString()) {
+		url += `?${params.toString()}`;
+	}
+	return url;
+}
+
+/**
+ * Build the NFD lookup URL for the names owned by an address
+ */
+export function buildNfdAddressUrl(
+	apiBase: string,
+	address: string,
+	limit: number,
+	offset: number,
+	view?: string,
+): string {
+	let url = `${apiBase}/nfd/address/${encodeURIComponent(address)}`;
+	const params = new URLSearchParams();
+
+	params.append("limit", String(limit));
+	params.append("offset", String(offset));
+
+	if (view) {
+		params.append("view", view);
+	}
+
+	if (params.toString()) {
+		url += `?${params.toString()}`;
+	}
+	return url;
+}
+
+/**
  * Register NFD API tools to the MCP server
  */
 export function registerNfdApiTools(server: McpServer, env: Env): void {
@@ -31,20 +83,7 @@ export function registerNfdApiTools(server: McpServer, env: Env): void {
 			try {
 				const apiBase = env.NFD_API_URL || "https://api.nf.domains";
 
-				let url = `${apiBase}/nfd/${encodeURIComponent(name.toLowerCase())}`;
-				const params = new URLSearchParams();
-
-				if (view === "brief") {
-					params.append("view", "brief");
-				}
-
-				if (includeSales) {
-					params.append("includeSales", "true");
-				}
-
-				if (params.toString()) {
-					url += `?${params.toString()}`;
-				}
+				const url = buildNfdUrl(apiBase, name, view, includeSales);
 
 				const response = await fetch(url, {
 					headers: { "Content-Type": "application/json" },
@@ -87,19 +126,7 @@ export function registerNfdApiTools(server: McpServer, env: Env): void {
 			try {
 				const apiBase = env.NFD_API_URL || "https://api.nf.domains";
 
-				let url = `${apiBase}/nfd/address/${encodeURIComponent(address)}`;
-				const params = new URLSearchParams();
-
-				params.append("limit", String(limit));
-				params.append("offset", String(offset));
-
-				if (view) {
-					params.append("view", view);
-				}
-
-				if (params.toString()) {
-					url += `?${params.toString()}`;
-				}
+				const url = buildNfdAddressUrl(apiBase, address, limit, offset, view);
 
 				const response = await fetch(url, {
 					headers: { "Content-Type": "application/json" },

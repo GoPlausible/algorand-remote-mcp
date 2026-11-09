@@ -9,6 +9,20 @@ import type { Env, Props } from "../types";
 import { ResponseProcessor } from "../utils";
 
 /**
+ * Convert a document key (e.g. "arcs:specs:arc-0020.md") to its lower-cased R2 key
+ */
+export function docKeyToR2Key(docKey: string): string {
+	return docKey.toLowerCase().replace(/:/g, "/");
+}
+
+/**
+ * Convert an R2 key or prefix back to document key format
+ */
+export function r2KeyToDocKey(r2Key: string): string {
+	return r2Key.replace("taxonomy/", "").replace(/\//g, ":");
+}
+
+/**
  * Register knowledge tools to the MCP server
  * @param server The MCP server instance
  * @param env The environment object containing Cloudflare bindings
@@ -43,7 +57,7 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
 						try {
 							// Format the document key for R2 path
 							// Normalize to lowercase to handle case-insensitive lookups (e.g., "ARCs" -> "arcs")
-							const r2Key = docKey.toLowerCase().replace(/:/g, "/");
+							const r2Key = docKeyToR2Key(docKey);
 							console.log(`Looking for document at key: ${r2Key}`);
 
 							// Get the document from R2 bucket
@@ -158,7 +172,7 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
 					const results = {
 						files: objects.objects.map((obj) => {
 							// Convert R2 path back to document key format
-							const key = obj.key.replace("taxonomy/", "").replace(/\//g, ":");
+							const key = r2KeyToDocKey(obj.key);
 							return {
 								key,
 								size: obj.size,
@@ -170,7 +184,7 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
 						}),
 						commonPrefixes: objects.delimitedPrefixes.map((prefix) => {
 							// Convert R2 path prefix back to document key format
-							return prefix.replace("taxonomy/", "").replace(/\//g, ":");
+							return r2KeyToDocKey(prefix);
 						}),
 					};
 					return {
@@ -241,7 +255,7 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
 				try {
 					// Format the document key for R2 path
 					// Normalize to lowercase to handle case-insensitive lookups (e.g., "ARCs" -> "arcs")
-					const r2Key = id.toLowerCase().replace(/:/g, "/");
+					const r2Key = docKeyToR2Key(id);
 					console.log(`Looking for document at key: ${r2Key}`);
 
 					// Get the document from R2 bucket
@@ -344,7 +358,7 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
 					const results = {
 						files: objects.objects.map((obj) => {
 							// Convert R2 path back to document key format
-							const key = obj.key.replace("taxonomy/", "").replace(/\//g, ":");
+							const key = r2KeyToDocKey(obj.key);
 							return {
 								key,
 								size: obj.size,
@@ -356,7 +370,7 @@ export function registerKnowledgeTools(server: McpServer, env: Env, props: Props
 						}),
 						commonPrefixes: objects.delimitedPrefixes.map((prefix) => {
 							// Convert R2 path prefix back to document key format
-							return prefix.replace("taxonomy/", "").replace(/\//g, ":");
+							return r2KeyToDocKey(prefix);
 						}),
 					};
 

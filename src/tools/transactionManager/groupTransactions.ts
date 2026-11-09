@@ -410,7 +410,6 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
 
 						// Convert the base64 signature to Uint8Array
 						const signature = Buffer.from(signatureResult.signature, "base64");
-						console.log("Signature:", signature);
 
 						// Convert the base64 public key to Uint8Array
 						const publicKeyBuffer = Buffer.from(publicKeyResult.publicKey, "base64");
@@ -429,7 +428,6 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
 							txn: txnObj,
 							sig: signature,
 						};
-						console.log("Signed transaction object:", signedTxn);
 
 						// Add AuthAddr if signing with a different key than From indicates
 						// Compare the actual bytes of the public keys, not their string representations
@@ -453,7 +451,6 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
 						const encodedSignedTxn: Uint8Array = new Uint8Array(
 							msgpack.encode(signedTxn, { sortKeys: true, ignoreUndefined: true }),
 						);
-						console.log("Encoded signed transaction:", encodedSignedTxn);
 						console.log("TXN ID:", decodedTxn.txID());
 
 						// Return the base64 encoded signed transaction

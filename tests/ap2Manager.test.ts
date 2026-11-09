@@ -1,72 +1,51 @@
 import * as algosdk from "algosdk";
-import { describe, expect, it } from "vitest";
-import { z } from "zod";
+import { describe, expect, it, vi } from "vitest";
+import {
+	CartMandateSchema,
+	IntentMandateSchema,
+	PaymentMandateSchema,
+	convertMerchantPublicKey,
+	generateVerifiableCredential,
+	parseMandateData,
+} from "../src/tools/ap2Manager";
+import type { Env, Props } from "../src/types";
 
 /**
  * Tests for AP2 Manager logic
  * Tests mandate parsing, schema validation, and VC structure
  */
 
-// Re-implement schemas from ap2Manager.ts
-const AmountSchema = z.object({
-	currency: z.string().default("USDC"),
-	value: z.number(),
-});
+const props = { provider: "google", email: "shopper@example.com" } as Props;
+const shopper = algosdk.generateAccount();
+const merchant = algosdk.generateAccount();
+const shopperPublicKey = Buffer.from(shopper.addr.publicKey).toString("base64");
+const merchantPublicKey = Buffer.from(merchant.addr.publicKey).toString("base64");
 
-const DisplayItemSchema = z.object({
-	label: z.string(),
-	amount: AmountSchema,
-});
+// Env whose vault worker binding answers transit/sign requests with a fixed fake signature
+function vaultEnv(status = 200) {
+	const fetch = vi.fn(
+		async (_url: string, _init?: RequestInit) =>
+			new Response(
+				status === 200
+					? JSON.stringify({ signature: "test-vault-signature" })
+					: "vault down",
+				{ status },
+			),
+	);
+	const env = { HCV_WORKER_URL: "https://vault.test", HCV_WORKER: { fetch } } as unknown as Env;
+	return { env, fetch };
+}
 
-const IntentMandateSchema = z.object({
-	id: z.string(),
-	items: z.array(DisplayItemSchema),
-	total: z.number(),
-	currency: z.string().default("USDC"),
-	signature: z.string(),
-	merchant_public_key: z.string(),
-});
-
-const CartMandateSchema = z.object({
-	id: z.string(),
-	items: z.array(DisplayItemSchema),
-	total: z.number(),
-	currency: z.string().default("USDC"),
-	signature: z.string(),
-	merchant_public_key: z.string(),
-	payment_requirements: z.object({}).passthrough(),
-});
-
-const PaymentMandateSchema = z.object({
-	id: z.string(),
-	total: z.number(),
-	currency: z.string().default("USDC"),
-	signature: z.string(),
-	payment_requirements: z
-		.object({
-			id: z.string(),
-		})
-		.passthrough(),
-	refund_period: z.number(),
-	cart_request_id: z.string(),
-	merchant_agent: z.string(),
-	merchant_public_key: z.string(),
-});
-
-// Re-implement parseMandateData
-const parseMandateData = (mandateStr: string, type: string): any => {
-	const data = JSON.parse(mandateStr);
-	switch (type) {
-		case "intent_mandate":
-			return IntentMandateSchema.parse(data);
-		case "cart_mandate":
-			return CartMandateSchema.parse(data);
-		case "payment_mandate":
-			return PaymentMandateSchema.parse(data);
-		default:
-			throw new Error(`Unsupported mandate type: ${type}`);
-	}
-};
+function generateVc(mandateType: string, mandate: Record<string, unknown> = { id: "m-001" }) {
+	return generateVerifiableCredential(
+		vaultEnv().env,
+		props,
+		mandateType,
+		mandate,
+		shopperPublicKey,
+		merchantPublicKey,
+	);
+}
 
 describe("AP2 Manager", () => {
 	describe("IntentMandateSchema", () => {
@@ -95,6 +74,7 @@ describe("AP2 Manager", () => {
 			};
 			const result = IntentMandateSchema.parse(data);
 			expect(result.currency).toBe("USDC");
+			expect(result.items[0].amount.currency).toBe("USDC");
 		});
 
 		it("should reject missing required fields", () => {
@@ -190,49 +170,119 @@ describe("AP2 Manager", () => {
 	});
 
 	describe("DID generation", () => {
-		it("should generate correct DID from public key", () => {
-			const account = algosdk.generateAccount();
-			const publicKeyBase64 = Buffer.from(account.addr.publicKey).toString("base64");
-			const publicKeyBuffer = Buffer.from(publicKeyBase64, "base64");
-			const address = algosdk.encodeAddress(publicKeyBuffer);
-			const did = `did:algo:${address}`;
-			expect(did).toMatch(/^did:algo:[A-Z2-7]{58}$/);
+		it("should generate correct DID from public key", async () => {
+			const vc = await generateVc("cart_mandate");
+			expect(vc.holder).toMatch(/^did:algo:[A-Z2-7]{58}$/);
+			expect(vc.holder).toBe(`did:algo:${shopper.addr.toString()}`);
+			expect(vc.issuer.id).toBe(`did:algo:${merchant.addr.toString()}`);
 		});
 	});
 
 	describe("VerifiableCredential structure", () => {
-		it("should have correct context and type for intent mandate", () => {
-			const vcType = "IntentMandateCredential";
-			const context = [
+		it("should have correct context and type for intent mandate", async () => {
+			const vc = await generateVc("intent_mandate");
+			expect(vc["@context"]).toHaveLength(2);
+			expect(vc["@context"]).toEqual([
 				"https://www.w3.org/ns/credentials/v2",
 				"https://w3id.org/security/suites/ed25519-2020/v1",
-			];
-			const types = ["VerifiableCredential", vcType];
-			expect(context).toHaveLength(2);
-			expect(types).toContain("VerifiableCredential");
-			expect(types).toContain("IntentMandateCredential");
+			]);
+			expect(vc.type).toContain("VerifiableCredential");
+			expect(vc.type).toContain("IntentMandateCredential");
 		});
 
-		it("should map mandate type to correct VC type", () => {
-			const typeMap: Record<string, string> = {
-				intent_mandate: "IntentMandateCredential",
-				cart_mandate: "CartMandateCredential",
-				payment_mandate: "PaymentMandateCredential",
-			};
-			expect(typeMap.intent_mandate).toBe("IntentMandateCredential");
-			expect(typeMap.cart_mandate).toBe("CartMandateCredential");
-			expect(typeMap.payment_mandate).toBe("PaymentMandateCredential");
+		it("should map mandate type to correct VC type", async () => {
+			expect((await generateVc("intent_mandate")).type).toEqual([
+				"VerifiableCredential",
+				"IntentMandateCredential",
+			]);
+			expect((await generateVc("cart_mandate")).type).toEqual([
+				"VerifiableCredential",
+				"CartMandateCredential",
+			]);
+			expect((await generateVc("payment_mandate")).type).toEqual([
+				"VerifiableCredential",
+				"PaymentMandateCredential",
+			]);
 		});
 
-		it("should map mandate type to correct schema", () => {
-			const schemaMap: Record<string, string> = {
-				intent_mandate: "https://goplausible.xyz/api/schemas/intent-mandate.json",
-				cart_mandate: "https://goplausible.xyz/api/schemas/cart-mandate.json",
-				payment_mandate: "https://goplausible.xyz/api/schemas/payment-mandate.json",
-			};
-			expect(schemaMap.intent_mandate).toContain("intent-mandate");
-			expect(schemaMap.cart_mandate).toContain("cart-mandate");
-			expect(schemaMap.payment_mandate).toContain("payment-mandate");
+		it("should map mandate type to correct schema", async () => {
+			const intent = await generateVc("intent_mandate");
+			const cart = await generateVc("cart_mandate");
+			const payment = await generateVc("payment_mandate");
+			expect(intent.credentialSchema.id).toContain("intent-mandate");
+			expect(cart.credentialSchema.id).toContain("cart-mandate");
+			expect(payment.credentialSchema.id).toContain("payment-mandate");
+			expect(intent.credentialSchema).toEqual({
+				id: "https://goplausible.xyz/api/schemas/intent-mandate.json",
+				type: "JsonSchema",
+			});
+			expect(cart.credentialSchema.id).toBe(
+				"https://goplausible.xyz/api/schemas/cart-mandate.json",
+			);
+			expect(payment.credentialSchema.id).toBe(
+				"https://goplausible.xyz/api/schemas/payment-mandate.json",
+			);
+		});
+
+		it("should embed the typed mandate as the credential subject", async () => {
+			const vc = await generateVc("payment_mandate", { id: "pay-001" });
+			expect(vc.credentialSubject.mandate).toEqual({ type: "PaymentMandate", id: "pay-001" });
+		});
+
+		it("should sign intent and payment mandates through the vault", async () => {
+			for (const mandateType of ["intent_mandate", "payment_mandate"]) {
+				const { env, fetch } = vaultEnv();
+				const vc = await generateVerifiableCredential(
+					env,
+					props,
+					mandateType,
+					{ id: "m-001" },
+					shopperPublicKey,
+					merchantPublicKey,
+				);
+				expect(fetch).toHaveBeenCalledTimes(1);
+				expect(fetch.mock.calls[0][0]).toBe(
+					"https://vault.test/google/transit/sign/shopper@example.com",
+				);
+				expect(vc.proof.proofValue).toBe("test-vault-signature");
+				expect(vc.proof.verificationMethod).toBe(
+					`did:algo:${shopper.addr.toString()}#auth`,
+				);
+			}
+		});
+
+		it("should not sign cart mandates", async () => {
+			const { env, fetch } = vaultEnv();
+			const vc = await generateVerifiableCredential(
+				env,
+				props,
+				"cart_mandate",
+				{ id: "cart-001" },
+				shopperPublicKey,
+				merchantPublicKey,
+			);
+			expect(fetch).not.toHaveBeenCalled();
+			expect(vc.proof.proofValue).toBe("");
+			expect(vc.proof.verificationMethod).toBe(`did:algo:${merchant.addr.toString()}#auth`);
+		});
+
+		it("should throw when the vault does not return a signature", async () => {
+			await expect(
+				generateVerifiableCredential(
+					vaultEnv(500).env,
+					props,
+					"intent_mandate",
+					{ id: "m-001" },
+					shopperPublicKey,
+					merchantPublicKey,
+				),
+			).rejects.toThrow("Failed to get signature from vault");
+		});
+
+		it("should reject an unsupported mandate type when generating a VC", async () => {
+			await expect(generateVc("unknown_type")).rejects.toThrow(
+				"Unsupported mandate type: unknown_type",
+			);
 		});
 	});
 
@@ -242,14 +292,22 @@ describe("AP2 Manager", () => {
 			const address = account.addr.toString();
 			expect(address).toHaveLength(58);
 
-			const publicKeyBytes = algosdk.decodeAddress(address).publicKey;
-			const base64Key = Buffer.from(publicKeyBytes).toString("base64");
+			const mandate = { merchant_public_key: address };
+			convertMerchantPublicKey(mandate);
+			const base64Key = mandate.merchant_public_key;
 			expect(base64Key).toBeDefined();
 			expect(base64Key.length).toBeGreaterThan(0);
+			expect(base64Key).toBe(Buffer.from(account.addr.publicKey).toString("base64"));
 
 			// Verify round-trip
 			const recoveredAddress = algosdk.encodeAddress(Buffer.from(base64Key, "base64"));
 			expect(recoveredAddress).toBe(address);
+		});
+
+		it("should leave a key that is not 58 characters unchanged", () => {
+			const mandate = { merchant_public_key: merchantPublicKey };
+			convertMerchantPublicKey(mandate);
+			expect(mandate.merchant_public_key).toBe(merchantPublicKey);
 		});
 	});
 });

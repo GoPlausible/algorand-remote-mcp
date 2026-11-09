@@ -27,7 +27,7 @@ const DisplayItemSchema = z.object({
 });
 
 // Schema for Intent Mandate data
-const IntentMandateSchema = z.object({
+export const IntentMandateSchema = z.object({
 	id: z.string(),
 	items: z.array(DisplayItemSchema),
 	total: z.number(),
@@ -37,7 +37,7 @@ const IntentMandateSchema = z.object({
 });
 
 // Schema for Cart Mandate data
-const CartMandateSchema = z.object({
+export const CartMandateSchema = z.object({
 	id: z.string(),
 	items: z.array(DisplayItemSchema),
 	total: z.number(),
@@ -48,7 +48,7 @@ const CartMandateSchema = z.object({
 });
 
 // Schema for Payment Mandate data
-const PaymentMandateSchema = z.object({
+export const PaymentMandateSchema = z.object({
 	id: z.string(),
 	total: z.number(),
 	currency: z.string().default("USDC"),
@@ -65,7 +65,7 @@ const PaymentMandateSchema = z.object({
 });
 
 // Parse incoming JSON string to validate mandate data based on type
-const parseMandateData = (mandateStr: string, type: string): any => {
+export const parseMandateData = (mandateStr: string, type: string): any => {
 	const data = JSON.parse(mandateStr);
 
 	switch (type) {
@@ -79,6 +79,16 @@ const parseMandateData = (mandateStr: string, type: string): any => {
 			throw new Error(`Unsupported mandate type: ${type}`);
 	}
 };
+
+// Convert a 58-char base32 merchant address in the mandate to its base64 public key, in place
+export function convertMerchantPublicKey(mandateData: { merchant_public_key: string }): void {
+	if (mandateData.merchant_public_key && mandateData.merchant_public_key.length === 58) {
+		mandateData.merchant_public_key = Buffer.from(
+			algosdk.decodeAddress(mandateData.merchant_public_key).publicKey,
+		).toString("base64");
+		console.log("Converted merchant public key to base64:", mandateData.merchant_public_key);
+	}
+}
 
 // Type definition for verifiable credential
 interface VerifiableCredential {
@@ -117,7 +127,7 @@ interface VerifiableCredential {
  * @param userPublicKey User's public key in base64 format
  * @returns A verifiable credential object
  */
-async function generateVerifiableCredential(
+export async function generateVerifiableCredential(
 	env: Env,
 	props: Props,
 	mandateType: string,
@@ -333,18 +343,7 @@ export async function registerAp2Tools(server: McpServer, env: Env, props: Props
 				// Parse and validate the mandate data based on type
 				const mandateData = mandate;
 				console.log("Parsed mandate data:", mandateData);
-				if (
-					mandateData.merchant_public_key &&
-					mandateData.merchant_public_key.length === 58
-				) {
-					mandateData.merchant_public_key = Buffer.from(
-						algosdk.decodeAddress(mandateData.merchant_public_key).publicKey,
-					).toString("base64");
-					console.log(
-						"Converted merchant public key to base64:",
-						mandateData.merchant_public_key,
-					);
-				}
+				convertMerchantPublicKey(mandateData);
 
 				const mandateObj =
 					type === "intent_mandate"
@@ -480,7 +479,6 @@ export async function registerAp2Tools(server: McpServer, env: Env, props: Props
 				});
 				await env.A2A_AP2_STORE.put(key, value, { expirationTtl: 24 * 60 * 60 });
 				console.log("Stored VC in KV with key:", key);
-				console.log("Generated verifiable credential:", verifiableCredential);
 				return {
 					content: [
 						{

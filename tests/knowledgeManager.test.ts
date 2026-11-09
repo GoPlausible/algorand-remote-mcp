@@ -1,39 +1,72 @@
-import { describe, expect, it } from "vitest";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { describe, expect, it, vi } from "vitest";
+import {
+	docKeyToR2Key,
+	r2KeyToDocKey,
+	registerKnowledgeTools,
+} from "../src/tools/knowledgeManager";
+import type { Env, Props } from "../src/types";
 
 /**
  * Tests for Knowledge Manager logic
  * Tests R2 key formatting, document key conversion, and category listing
  */
 
-// Re-implement key conversion from knowledgeManager.ts
-function docKeyToR2Key(docKey: string): string {
-	return docKey.replace(/:/g, "/");
-}
+type ToolResult = { content: Array<{ type: string; text: string }> };
+type ToolHandler = (args: Record<string, unknown>) => Promise<ToolResult>;
 
-function r2KeyToDocKey(r2Key: string): string {
-	return r2Key.replace("taxonomy/", "").replace(/\//g, ":");
-}
-
-// Default categories from knowledgeManager.ts
-const defaultCategories: Record<string, string> = {
-	arcs: "Algorand Request for Comments",
-	sdks: "Software Development Kits",
-	algokit: "AlgoKit",
-	"algokit-utils": "AlgoKit Utils",
-	tealscript: "TEALScript",
-	puya: "Puya",
-	"liquid-auth": "Liquid Auth",
-	python: "Python Development",
-	developers: "Developer Documentation",
-	clis: "CLI Tools",
-	nodes: "Node Management",
-	details: "Developer Details",
+type R2Listing = {
+	objects: Array<{ key: string; size: number; uploaded: Date }>;
+	delimitedPrefixes: string[];
 };
+
+// In-memory stand-in for the PLAUSIBLE_AI R2 bucket
+function createBucket(
+	store: Record<string, string> = {},
+	listing: R2Listing = { objects: [], delimitedPrefixes: [] },
+) {
+	return {
+		get: vi.fn(async (key: string) => (key in store ? { text: async () => store[key] } : null)),
+		list: vi.fn(async (_options: { prefix: string; delimiter: string }) => listing),
+	};
+}
+
+// Registers the real knowledge tools on a stub server and returns their handlers by name
+function registerTools(bucket?: ReturnType<typeof createBucket>): Map<string, ToolHandler> {
+	const handlers = new Map<string, ToolHandler>();
+	const server = {
+		tool: (name: string, _description: string, _schema: unknown, handler: ToolHandler) => {
+			handlers.set(name, handler);
+		},
+	};
+	const env = (bucket ? { PLAUSIBLE_AI: bucket } : {}) as unknown as Env;
+	registerKnowledgeTools(server as unknown as McpServer, env, {} as Props);
+	return handlers;
+}
+
+async function callTool(
+	handlers: Map<string, ToolHandler>,
+	name: string,
+	args: Record<string, unknown>,
+): Promise<ToolResult> {
+	const handler = handlers.get(name);
+	if (!handler) throw new Error(`Tool not registered: ${name}`);
+	return handler(args);
+}
+
+async function getDefaultCategories(
+	toolName: string,
+	args: Record<string, unknown>,
+): Promise<Record<string, string>> {
+	const result = await callTool(registerTools(), toolName, args);
+	return JSON.parse(result.content[0].text);
+}
 
 describe("Knowledge Manager", () => {
 	describe("docKeyToR2Key", () => {
 		it("should convert colons to forward slashes", () => {
-			expect(docKeyToR2Key("ARCs:specs:arc-0020.md")).toBe("ARCs/specs/arc-0020.md");
+			// The source also lower-cases the key for case-insensitive lookups
+			expect(docKeyToR2Key("ARCs:specs:arc-0020.md")).toBe("arcs/specs/arc-0020.md");
 		});
 
 		it("should handle single segment (no colons)", () => {
@@ -67,42 +100,64 @@ describe("Knowledge Manager", () => {
 		it("should convert back to original doc key", () => {
 			const docKey = "ARCs:specs:arc-0020.md";
 			const r2Key = docKeyToR2Key(docKey);
-			// Note: r2KeyToDocKey strips taxonomy/, so this tests without that prefix
-			const roundTripped = r2Key.replace(/\//g, ":");
-			expect(roundTripped).toBe(docKey);
+			// docKeyToR2Key lower-cases, so a mixed-case key comes back lower-cased
+			expect(r2KeyToDocKey(r2Key)).toBe("arcs:specs:arc-0020.md");
+			expect(r2KeyToDocKey(docKeyToR2Key("arcs:specs:arc-0020.md"))).toBe(
+				"arcs:specs:arc-0020.md",
+			);
 		});
 	});
 
 	describe("R2 prefix extraction", () => {
-		it("should extract first segment for listing", () => {
-			const r2Key = "ARCs/specs/arc-0020.md";
-			const prefix = r2Key.split("/")[0];
-			expect(prefix).toBe("ARCs");
+		it("should extract first segment for listing", async () => {
+			const bucket = createBucket();
+			await callTool(registerTools(bucket), "get_knowledge_doc", {
+				documents: ["ARCs:specs:arc-0020.md"],
+			});
+			expect(bucket.get).toHaveBeenCalledWith("arcs/specs/arc-0020.md");
+			expect(bucket.list).toHaveBeenCalledWith({ prefix: "arcs", delimiter: "/" });
 		});
 
-		it("should handle single-segment keys", () => {
-			const r2Key = "readme.md";
-			const prefix = r2Key.split("/")[0];
-			expect(prefix).toBe("readme.md");
+		it("should handle single-segment keys", async () => {
+			const bucket = createBucket();
+			await callTool(registerTools(bucket), "get_knowledge_doc", {
+				documents: ["readme.md"],
+			});
+			expect(bucket.list).toHaveBeenCalledWith({ prefix: "readme.md", delimiter: "/" });
 		});
 	});
 
 	describe("Default categories", () => {
-		it("should contain all expected categories", () => {
+		it("should contain all expected categories", async () => {
+			const defaultCategories = await getDefaultCategories("list_knowledge_docs", {
+				prefix: "",
+			});
 			expect(Object.keys(defaultCategories)).toContain("arcs");
 			expect(Object.keys(defaultCategories)).toContain("sdks");
 			expect(Object.keys(defaultCategories)).toContain("algokit");
 			expect(Object.keys(defaultCategories)).toContain("developers");
 		});
 
-		it("should have 12 categories", () => {
+		it("should have 12 categories", async () => {
+			const defaultCategories = await getDefaultCategories("list_knowledge_docs", {
+				prefix: "",
+			});
 			expect(Object.keys(defaultCategories)).toHaveLength(12);
 		});
 
-		it("should have non-empty descriptions", () => {
+		it("should have non-empty descriptions", async () => {
+			const defaultCategories = await getDefaultCategories("list_knowledge_docs", {
+				prefix: "",
+			});
 			for (const desc of Object.values(defaultCategories)) {
 				expect(desc.length).toBeGreaterThan(0);
 			}
+		});
+
+		it("should return the same categories from search with an empty query", async () => {
+			expect(await getDefaultCategories("search", { query: "" })).toEqual(
+				await getDefaultCategories("list_knowledge_docs", { prefix: "" }),
+			);
 		});
 	});
 
@@ -119,6 +174,48 @@ describe("Knowledge Manager", () => {
 				expect(r2Key).not.toContain(":");
 				expect(r2Key).toContain("/");
 			}
+		});
+	});
+
+	describe("Tool handlers", () => {
+		it("get_knowledge_doc should read the converted R2 key", async () => {
+			const bucket = createBucket({ "arcs/specs/arc-0020.md": "# ARC-20 test content" });
+			const result = await callTool(registerTools(bucket), "get_knowledge_doc", {
+				documents: ["ARCs:specs:arc-0020.md"],
+			});
+			expect(bucket.get).toHaveBeenCalledWith("arcs/specs/arc-0020.md");
+			expect(bucket.list).not.toHaveBeenCalled();
+			expect(result.content[0].text).toContain("# ARC-20 test content");
+		});
+
+		it("list_knowledge_docs should convert listed R2 keys to document keys", async () => {
+			const bucket = createBucket(
+				{},
+				{
+					objects: [
+						{
+							key: "taxonomy/arcs/specs/arc-0020.md",
+							size: 42,
+							uploaded: new Date("2024-01-01T00:00:00.000Z"),
+						},
+					],
+					delimitedPrefixes: ["taxonomy/arcs/specs/"],
+				},
+			);
+			const result = await callTool(registerTools(bucket), "list_knowledge_docs", {
+				prefix: "ARCs:specs:",
+			});
+			expect(bucket.list).toHaveBeenCalledWith({ prefix: "arcs/specs/", delimiter: "/" });
+			expect(JSON.parse(result.content[0].text)).toEqual({
+				files: [
+					{
+						key: "arcs:specs:arc-0020.md",
+						size: 42,
+						uploaded: "2024-01-01T00:00:00.000Z",
+					},
+				],
+				commonPrefixes: ["arcs:specs:"],
+			});
 		});
 	});
 });
