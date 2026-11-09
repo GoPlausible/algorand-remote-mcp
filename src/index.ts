@@ -31,7 +31,7 @@ import { ensureUserAccount } from "./utils/vaultManager";
 export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 	server = new McpServer({
 		name: "Algorand Remote MCP",
-		version: "1.9.2",
+		version: "1.9.3",
 		description:
 			"Algorand Remote MCP for interacting with the Algorand blockchain. Use algorand_mcp_skill tool at start of each session to learn how to interact and operate Algorand Remote MCP.",
 		websiteUrl: "https://goplausible.com",
