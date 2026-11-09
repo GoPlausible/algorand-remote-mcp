@@ -1,18 +1,20 @@
 import { RouterClient } from "@txnlab/haystack-router";
 import type { Env } from "../../../types";
 
-// Default free tier API key (60 requests/min)
-const DEFAULT_API_KEY = "1b72df7e-1131-4449-8ce1-29b79dd3f51e";
-
 // Memoized RouterClient instances per network
 const routerClients = new Map<string, RouterClient>();
 
 export function getRouterClient(env: Env): RouterClient {
+	if (!env.HAYSTACK_API_KEY) {
+		throw new Error(
+			"HAYSTACK_API_KEY is not configured. Set it as a Worker secret (the free-tier key is listed in the @txnlab/haystack-router README).",
+		);
+	}
 	const network = env.ALGORAND_NETWORK || "mainnet";
 	let client = routerClients.get(network);
 	if (!client) {
 		const config: any = {
-			apiKey: env.HAYSTACK_API_KEY || DEFAULT_API_KEY,
+			apiKey: env.HAYSTACK_API_KEY,
 			autoOptIn: true,
 		};
 		if (env.ALGORAND_ALGOD) {
