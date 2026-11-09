@@ -192,7 +192,8 @@ Haystack Router is a DEX aggregator and smart order routing protocol on Algorand
 | \`bytes_to_bigint\` / \`bigint_to_bytes\` | Convert between bytes and BigInt |
 | \`sign_bytes\` / \`verify_bytes\` | Sign and verify arbitrary bytes |
 | \`compile_teal\` / \`disassemble_teal\` | Compile and disassemble TEAL programs |
-| \`generate_algorand_uri\` | Generate ARC-26 Algorand URI / QR code |
+| \`generate_algorand_uri\` | Generate an ARC-90 Algorand payment URI |
+| \`generate_algorand_qrcode\` | Generate an ARC-90 payment URI and a page with its QR code (valid 1 day) |
 
 ### 11. Knowledge Base
 | Tool | Purpose |
@@ -419,14 +420,15 @@ api_nfd_get_nfds_for_addresses {
 
 ### Top-Up QR Code (Insufficient Funds)
 \`\`\`
-// Generate ARC-26 QR code for easy funding
-generate_algorand_uri {
+// Generate an ARC-90 payment QR code for easy funding
+generate_algorand_qrcode {
   address: "[wallet_address]",
-  amount: 5000000,          // Required amount including MBR and fees
-  asset: 31566704,          // Optional: ASA ID for token top-ups
+  amount: 5000000,          // Integer in base units: microAlgos, or the ASA's smallest unit
+  assetId: 31566704,        // Optional: ASA ID for token top-ups (omit for Algo)
   note: "Fund account"
 }
-→ Returns URI string + SVG QR code — user scans with Pera Wallet
+→ Returns a link to a page with the ARC-90 URI and its QR code (valid for 1 day) — user scans it with their wallet
+// For the bare URI string only, call generate_algorand_uri with the same parameters
 \`\`\`
 
 ### Best-Price Swap via Haystack Router (DEX Aggregator)

@@ -6,7 +6,7 @@ export * from "./accountManager";
 export * from "./transactionManager";
 export * from "./utilityManager";
 export * from "./algodManager";
-export * from "./arc26Manager";
+export * from "./arc90Manager";
 export * from "./receiptManager";
 export * from "./apiManager";
 export * from "./knowledgeManager";

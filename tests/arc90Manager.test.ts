@@ -2,24 +2,25 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	determineQrUriType,
 	determineUriType,
+	encodeArc90QueryValue,
 	generateAlgorandUri,
-	registerArc26Tools,
-} from "../src/tools/arc26Manager";
+	registerArc90Tools,
+} from "../src/tools/arc90Manager";
 import type { Env, Props } from "../src/types";
 
 // @cf-wasm/photon's default (workers) entry loads its wasm through an ESM import Node cannot
-// resolve; point it at the library's own Node build so arc26Manager can be imported.
+// resolve; point it at the library's own Node build so arc90Manager can be imported.
 vi.mock("@cf-wasm/photon", () => import("@cf-wasm/photon/node"));
 
 /**
- * Tests for ARC-26 URI generation logic (generateAlgorandUri) and the URI type
- * reported by the generate_algorand_uri and generate_algorand_qrcode tools
+ * Tests for ARC-90 payment URI generation (generateAlgorandUri, encodeArc90QueryValue) and the
+ * URI type reported by the generate_algorand_uri and generate_algorand_qrcode tools
  */
 
 type ToolResult = { content: { type: string; text: string }[] };
 type ToolHandler = (args: Record<string, unknown>) => Promise<ToolResult>;
 
-function arc26Tools(env: Partial<Env>): Record<string, ToolHandler> {
+function arc90Tools(env: Partial<Env>): Record<string, ToolHandler> {
 	const tools: Record<string, ToolHandler> = {};
 	const server = {
 		tool: (name: string, _description: string, _schema: unknown, handler: ToolHandler) => {
@@ -27,11 +28,21 @@ function arc26Tools(env: Partial<Env>): Record<string, ToolHandler> {
 		},
 	};
 	const props = { provider: "google", email: "agent-owner@example.com" } as Props;
-	registerArc26Tools(server as any, env as Env, props);
+	registerArc90Tools(server as any, env as Env, props);
 	return tools;
 }
 
-describe("ARC-26 URI Generation", () => {
+function memoryKv() {
+	const store = new Map<string, string>();
+	const kv = {
+		put: vi.fn(async (key: string, value: string) => {
+			store.set(key, value);
+		}),
+	};
+	return { store, kv };
+}
+
+describe("ARC-90 URI Generation", () => {
 	// Valid Algorand address for testing (58 chars, base32)
 	const validAddress = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ";
 
@@ -67,6 +78,18 @@ describe("ARC-26 URI Generation", () => {
 			expect(uri).toContain("note=test%20note");
 		});
 
+		it("should include xnote parameter", () => {
+			const uri = generateAlgorandUri(
+				validAddress,
+				undefined,
+				undefined,
+				undefined,
+				undefined,
+				"invoice 42",
+			);
+			expect(uri).toBe(`algorand://${validAddress}?xnote=invoice%2042`);
+		});
+
 		it("should combine multiple parameters", () => {
 			const uri = generateAlgorandUri(
 				validAddress,
@@ -95,14 +118,91 @@ describe("ARC-26 URI Generation", () => {
 			expect(uri).toContain("amount=0");
 		});
 
-		it("should handle asset ID of 0 (Algo)", () => {
+		it("should omit the asset parameter for asset ID 0 (Algo)", () => {
+			// ARC-90: "asset: The asset id this request refers to (if Algos, simply omit this parameter)"
 			const uri = generateAlgorandUri(validAddress, undefined, 1000000, 0);
-			expect(uri).toContain("asset=0");
+			expect(uri).toBe(`algorand://${validAddress}?amount=1000000`);
 		});
 
 		it("should encode special characters in label", () => {
 			const uri = generateAlgorandUri(validAddress, "Hello & World");
 			expect(uri).toContain("label=Hello%20%26%20World");
+		});
+
+		it("should reject a fractional amount (ARC-90 amounts are integers in base units)", () => {
+			expect(() => generateAlgorandUri(validAddress, undefined, 1.5)).toThrow(
+				"Amount must be a non-negative integer",
+			);
+		});
+
+		it("should reject a negative amount", () => {
+			expect(() => generateAlgorandUri(validAddress, undefined, -1)).toThrow(
+				"Amount must be a non-negative integer",
+			);
+		});
+
+		it("should reject a fractional or negative asset ID", () => {
+			expect(() => generateAlgorandUri(validAddress, undefined, 1, 1.5)).toThrow(
+				"Asset ID must be a non-negative integer",
+			);
+			expect(() => generateAlgorandUri(validAddress, undefined, 1, -3)).toThrow(
+				"Asset ID must be a non-negative integer",
+			);
+		});
+	});
+
+	describe("ARC-90 payment examples", () => {
+		// The payment URI examples given in ARC-90 itself
+		const specAddress = "TMTAD6N22HCS2LKH7677L2KFLT3PAQWY6M4JFQFXQS32ECBFC23F57RYX4";
+
+		it("should match the address example", () => {
+			expect(generateAlgorandUri(specAddress)).toBe(`algorand://${specAddress}`);
+		});
+
+		it("should match the address-with-label example", () => {
+			expect(generateAlgorandUri(specAddress, "Silvio")).toBe(
+				`algorand://${specAddress}?label=Silvio`,
+			);
+		});
+
+		it("should match the 150.5 Algos request example", () => {
+			expect(generateAlgorandUri(specAddress, undefined, 150500000)).toBe(
+				`algorand://${specAddress}?amount=150500000`,
+			);
+		});
+
+		it("should match the 150 units of asset 45 example", () => {
+			expect(generateAlgorandUri(specAddress, undefined, 150, 45)).toBe(
+				`algorand://${specAddress}?amount=150&asset=45`,
+			);
+		});
+	});
+
+	describe("encodeArc90QueryValue", () => {
+		it("should percent-encode the = and & separators (ARC-90 example)", () => {
+			expect(encodeArc90QueryValue("foo=bar&baz")).toBe("foo%3Dbar%26baz");
+		});
+
+		it("should encode spaces as %20 (ARC-90 example)", () => {
+			expect(encodeArc90QueryValue("Donation for Event")).toBe("Donation%20for%20Event");
+		});
+
+		it("should encode the characters encodeURIComponent leaves as they are", () => {
+			expect(encodeArc90QueryValue("Bob's (tip)!*")).toBe("Bob%27s%20%28tip%29%21%2A");
+		});
+
+		it("should UTF-8 encode non-ASCII characters before percent-encoding", () => {
+			expect(encodeArc90QueryValue("café")).toBe("caf%C3%A9");
+		});
+
+		it("should leave the RFC 3986 unreserved characters unencoded", () => {
+			expect(encodeArc90QueryValue("AZaz09-._~")).toBe("AZaz09-._~");
+		});
+
+		it("should encode % and HTML characters", () => {
+			expect(encodeArc90QueryValue('100% <b>"x"</b>')).toBe(
+				"100%25%20%3Cb%3E%22x%22%3C%2Fb%3E",
+			);
 		});
 	});
 
@@ -117,6 +217,10 @@ describe("ARC-26 URI Generation", () => {
 
 		it("should identify Asset Transfer URI", () => {
 			expect(determineUriType(100, 31566704)).toBe("Asset Transfer URI");
+		});
+
+		it("should treat asset ID 0 as an Algo payment", () => {
+			expect(determineUriType(1000000, 0)).toBe("Payment URI");
 		});
 	});
 
@@ -137,11 +241,15 @@ describe("ARC-26 URI Generation", () => {
 			// amount=0 is still defined, so it's a Payment Request per the source logic
 			expect(determineQrUriType(0, 31566704)).toBe("Payment Request");
 		});
+
+		it("should treat asset ID 0 as an Algo Payment Request", () => {
+			expect(determineQrUriType(1000000, 0)).toBe("Payment Request");
+		});
 	});
 
-	describe("ARC-26 tools", () => {
+	describe("ARC-90 tools", () => {
 		it("generate_algorand_uri should report the URI and its type", async () => {
-			const result = await arc26Tools({}).generate_algorand_uri({
+			const result = await arc90Tools({}).generate_algorand_uri({
 				address: validAddress,
 				amount: 100,
 				assetId: 31566704,
@@ -152,23 +260,59 @@ describe("ARC-26 URI Generation", () => {
 			});
 		});
 
+		it("generate_algorand_uri should pass xnote through", async () => {
+			const result = await arc90Tools({}).generate_algorand_uri({
+				address: validAddress,
+				amount: 5,
+				xnote: "order #7",
+			});
+			expect(JSON.parse(result.content[0].text).data.uri).toBe(
+				`algorand://${validAddress}?amount=5&xnote=order%20%237`,
+			);
+		});
+
 		it("generate_algorand_qrcode should store a page labelled with the QR URI type", async () => {
-			const store = new Map<string, string>();
-			const kv = {
-				put: vi.fn(async (key: string, value: string) => {
-					store.set(key, value);
-				}),
-			};
-			const result = await arc26Tools({ ARC26_KV: kv as any }).generate_algorand_qrcode({
+			const { store, kv } = memoryKv();
+			const result = await arc90Tools({ ARC90_KV: kv as any }).generate_algorand_qrcode({
 				address: validAddress,
 				amount: 0,
 				assetId: 31566704,
 			});
-			const link: string = JSON.parse(result.content[0].text).data.qrcode_link;
+			const data = JSON.parse(result.content[0].text).data;
+			const link: string = data.qrcode_link;
 			const uuid = link.split("/").pop();
+			// The page is served by goplausible.xyz, which still uses the /api/arc26 route
 			expect(link).toMatch(/^https:\/\/goplausible\.xyz\/api\/arc26\/[a-f0-9]{32}$/);
+			expect(data.label).toBe("Algorand ARC-90 QR Code link (valid for 1 day)");
 			expect(store.get(`id--${uuid}`)).toContain("<h3>Your Payment Request</h3>");
+			expect(store.get(`id--${uuid}`)).toContain("via ARC-90 URI.");
 			expect(store.get(`image--${uuid}`)).toMatch(/^[A-Za-z0-9+/]+=*$/);
+		});
+
+		it("generate_algorand_qrcode should percent-encode the note in the URI and the stored page", async () => {
+			const { store, kv } = memoryKv();
+			const result = await arc90Tools({ ARC90_KV: kv as any }).generate_algorand_qrcode({
+				address: validAddress,
+				amount: 1000000,
+				note: "<script>alert(1)</script> & more",
+				xnote: "ref=1",
+			});
+			const uuid = JSON.parse(result.content[0].text).data.qrcode_link.split("/").pop();
+			const page = store.get(`id--${uuid}`) as string;
+			expect(page).toContain(
+				`algorand://${validAddress}?amount=1000000&note=%3Cscript%3Ealert%281%29%3C%2Fscript%3E%20%26%20more&xnote=ref%3D1`,
+			);
+			expect(page).not.toContain("<script>");
+		});
+
+		it("generate_algorand_qrcode should reject a fractional amount instead of rounding it", async () => {
+			const { kv } = memoryKv();
+			const result = await arc90Tools({ ARC90_KV: kv as any }).generate_algorand_qrcode({
+				address: validAddress,
+				amount: 1.9,
+			});
+			expect(result.content[0].text).toContain("Amount must be a non-negative integer");
+			expect(kv.put).not.toHaveBeenCalled();
 		});
 	});
 

@@ -69,7 +69,7 @@ Read Algorand MCP skill.
 │  │  │    ├── appTransactions      (create, update, delete, call)      │  │  │
 │  │  │    └── groupTransactions    (atomic groups)                     │  │  │
 │  │  │  algodManager ─── knowledgeManager                              │  │  │
-│  │  │  arc26Manager ─── receiptManager ─── ap2Manager                 │  │  │
+│  │  │  arc90Manager ─── receiptManager ─── ap2Manager                 │  │  │
 │  │  │  tinymanManager ─── alphaArcadeManager ─── x402Manager          │  │  │
 │  │  │  apiManager/                                                    │  │  │
 │  │  │    ├── algod/       (account, application, asset, txn queries)  │  │  │
@@ -120,7 +120,7 @@ Read Algorand MCP skill.
 
 - **AlgorandRemoteMCP**: Main MCP agent extending McpAgent on Cloudflare Workers
 - **OAuthProvider**: Multi-provider authentication layer (Google, GitHub, Twitter, LinkedIn)
-- **Tool Managers**: 16 specialized managers covering accounts, wallets, transactions, assets, applications, APIs, DEX operations, prediction markets, ARC-26 URIs, receipts, AP2 protocol, x402 payments, and knowledge
+- **Tool Managers**: 16 specialized managers covering accounts, wallets, transactions, assets, applications, APIs, DEX operations, prediction markets, ARC-90 URIs, receipts, AP2 protocol, x402 payments, and knowledge
 - **Resource Providers**: URI-based access to skill definition and knowledge base via R2
 - **ResponseProcessor**: Standardized response formatting with pagination and BigInt-safe serialization
 - **HashiCorp Vault**: Ed25519 keypair generation and secure signing via Transit engine — no private key exposure
@@ -252,11 +252,11 @@ Read Algorand MCP skill.
 | `sdk_sign_bytes` | Sign bytes with a secret key |
 | `algorand_mcp_skill` | Access comprehensive Algorand MCP skill |
 
-### ARC-26 URI & Receipts
+### ARC-90 URI & Receipts
 | Tool | Description |
 |------|-------------|
-| `generate_algorand_uri` | Generate an ARC-26 compliant URI |
-| `generate_algorand_qrcode` | Generate a QR code for an Algorand URI |
+| `generate_algorand_uri` | Generate an ARC-90 payment URI (ARC-90 supersedes ARC-26) |
+| `generate_algorand_qrcode` | Generate an ARC-90 payment URI and a page with its QR code (link valid for 1 day) |
 | `generate_algorand_receipt` | Generate a transaction receipt |
 
 ### AP2 Protocol
@@ -403,7 +403,7 @@ src/
 │   ├── accountManager.ts         # Account management
 │   ├── algodManager.ts           # Algorand node tools
 │   ├── ap2Manager.ts             # AP2 protocol tools
-│   ├── arc26Manager.ts           # ARC-26 URI and QR tools
+│   ├── arc90Manager.ts           # ARC-90 URI and QR tools
 │   ├── knowledgeManager.ts       # Knowledge base tools
 │   ├── receiptManager.ts         # Transaction receipt tools
 │   ├── tinymanManager.ts         # Tinyman DEX tools

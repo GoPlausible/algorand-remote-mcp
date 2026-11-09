@@ -465,7 +465,7 @@ export function registerReceiptTools(server: McpServer, env: Env, props: Props):
 				const uuid = await receiptIdFromTxId(txId);
 
 				// Same txId → same receipt: return the existing one instead of regenerating
-				const existing = await env.ARC26_KV?.get(`rid--${uuid}`);
+				const existing = await env.ARC90_KV?.get(`rid--${uuid}`);
 				if (existing) {
 					console.log("Receipt already exists for txId, returning existing link:", uuid);
 					return ResponseProcessor.processResponse({
@@ -490,7 +490,7 @@ export function registerReceiptTools(server: McpServer, env: Env, props: Props):
 
 				const { url, qrCode, qrDataUri } = await generateAlgorandReceipt(toolArgs);
 				console.log("Generated Receipt URL:", url);
-				await env.ARC26_KV?.put(`image--${uuid}`, qrCode, { expirationTtl: 86400 * 90 }); // Cache for 90 days
+				await env.ARC90_KV?.put(`image--${uuid}`, qrCode, { expirationTtl: 86400 * 90 }); // Cache for 90 days
 
 				const htmlPage = buildHTMLPage({
 					provider: props.provider,
@@ -508,7 +508,7 @@ export function registerReceiptTools(server: McpServer, env: Env, props: Props):
 					note,
 					category,
 				});
-				await env.ARC26_KV?.put(`rid--${uuid}`, htmlPage, { expirationTtl: 86400 * 90 }); // Cache for 90 days
+				await env.ARC90_KV?.put(`rid--${uuid}`, htmlPage, { expirationTtl: 86400 * 90 }); // Cache for 90 days
 
 				return ResponseProcessor.processResponse({
 					label: "Algorand Agency Universal Receipt link (valid for 90 days)",

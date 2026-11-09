@@ -14,7 +14,7 @@ import { skill } from "../src/utils/Skill.js";
  */
 
 // src/index.ts pulls in modules Node cannot load: agents/mcp and src/oauth-provider import
-// cloudflare:workers, and the receipt/ARC-26 tools import the @cf-wasm/photon wasm build.
+// cloudflare:workers, and the receipt/ARC-90 tools import the @cf-wasm/photon wasm build.
 vi.mock("agents/mcp", () => ({
 	McpAgent: class {
 		static mount(path: string, options: unknown) {

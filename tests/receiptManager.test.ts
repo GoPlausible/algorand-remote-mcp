@@ -95,7 +95,7 @@ function receiptTool(kv: ReturnType<typeof fakeKv>): ToolHandler {
 		},
 	};
 	const props = { provider: "google", email: "agent-owner@example.com" } as Props;
-	registerReceiptTools(server as any, { ARC26_KV: kv } as unknown as Env, props);
+	registerReceiptTools(server as any, { ARC90_KV: kv } as unknown as Env, props);
 	if (!handler) throw new Error("generate_algorand_receipt was not registered");
 	return handler;
 }
