@@ -13,9 +13,9 @@ import { z } from "zod";
 import type { Env, Props } from "../types";
 import { ResponseProcessor } from "../utils";
 
-// QR pages and images are served by goplausible.xyz from the ARC90_KV namespace. That service
-// still serves them under /api/arc26; switch this once it serves /api/arc90.
-const QR_PAGE_BASE_URL = "https://goplausible.xyz/api/arc26";
+// QR pages and images are served by goplausible.xyz from the ARC90_KV namespace; changing this
+// path needs the matching route on goplausible.xyz.
+const QR_PAGE_BASE_URL = "https://goplausible.xyz/api/arc90";
 
 const ALGORAND_ADDRESS = /^[A-Z2-7]{58}$/;
 

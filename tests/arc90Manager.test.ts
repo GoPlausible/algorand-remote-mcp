@@ -281,9 +281,14 @@ describe("ARC-90 URI Generation", () => {
 			const data = JSON.parse(result.content[0].text).data;
 			const link: string = data.qrcode_link;
 			const uuid = link.split("/").pop();
-			// The page is served by goplausible.xyz, which still uses the /api/arc26 route
-			expect(link).toMatch(/^https:\/\/goplausible\.xyz\/api\/arc26\/[a-f0-9]{32}$/);
+			expect(link).toMatch(/^https:\/\/goplausible\.xyz\/api\/arc90\/[a-f0-9]{32}$/);
 			expect(data.label).toBe("Algorand ARC-90 QR Code link (valid for 1 day)");
+			expect(store.get(`id--${uuid}`)).toContain(
+				`<meta property="og:url" content="https://goplausible.xyz/api/arc90/${uuid}" />`,
+			);
+			expect(store.get(`id--${uuid}`)).toContain(
+				`src="https://goplausible.xyz/api/arc90/image/${uuid}.jpeg"`,
+			);
 			expect(store.get(`id--${uuid}`)).toContain("<h3>Your Payment Request</h3>");
 			expect(store.get(`id--${uuid}`)).toContain("via ARC-90 URI.");
 			expect(store.get(`image--${uuid}`)).toMatch(/^[A-Za-z0-9+/]+=*$/);
