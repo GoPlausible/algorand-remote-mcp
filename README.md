@@ -335,6 +335,8 @@ HCV_WORKER_URL=https://your-hashicorp-vault-worker.workers.dev
 BAZAAR_BASE_URL=https://facilitator.goplausible.xyz  # Optional, x402 Bazaar/facilitator base URL (default shown)
 ```
 
+`generate_algorand_uri` and `generate_algorand_qrcode` always emit MainNet URIs, whatever `ALGORAND_NETWORK` says: ARC-90 leaves the network out for MainNet, so wallets read their URIs and QR codes as MainNet requests.
+
 ### Scripts
 ```bash
 npm run dev          # Start local development server
