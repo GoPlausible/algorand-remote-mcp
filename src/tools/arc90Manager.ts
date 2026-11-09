@@ -49,6 +49,9 @@ function buildHTMLPage({
 				? amount
 				: "No payment or transfer amount included!";
 	const title = `${prettyLabel} from ${from}`;
+	// The URI is percent-encoded, so & is the only character in it HTML reads specially; written
+	// as it is, the '&not' of '&note=' would display as '¬e='.
+	const uriText = uri.replaceAll("&", "&amp;");
 
 	return `
 <!DOCTYPE html>
@@ -146,7 +149,7 @@ function buildHTMLPage({
 		}
     </div>
     
-    <div class="uri">${uri}</div>
+    <div class="uri">${uriText}</div>
     <h2>${prettyLabel}</h2>
     <img style="width:120px; height:40px;" src="https://goplausible.mypinata.cloud/ipfs/QmWjvCGPyL9zmA5B84WPqLYF27dL2nFgr1Lw6rMd7CpQPV/images/goPlausible-logo-type-h.png" alt="GoPlausible" />
     <div style="margin-top: 1rem; font-size: 0.5rem; color: #718096;">

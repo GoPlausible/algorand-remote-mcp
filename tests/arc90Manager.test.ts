@@ -304,8 +304,9 @@ describe("ARC-90 URI Generation", () => {
 			});
 			const uuid = JSON.parse(result.content[0].text).data.qrcode_link.split("/").pop();
 			const page = store.get(`id--${uuid}`) as string;
+			// In HTML text & is written &amp;, or the '&not' of '&note=' would display as '¬e='
 			expect(page).toContain(
-				`algorand://${validAddress}?amount=1000000&note=%3Cscript%3Ealert%281%29%3C%2Fscript%3E%20%26%20more&xnote=ref%3D1`,
+				`<div class="uri">algorand://${validAddress}?amount=1000000&amp;note=%3Cscript%3Ealert%281%29%3C%2Fscript%3E%20%26%20more&amp;xnote=ref%3D1</div>`,
 			);
 			expect(page).not.toContain("<script>");
 		});
