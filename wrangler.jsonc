@@ -18,6 +18,10 @@
 		{
 			"new_sqlite_classes": ["AlgorandRemoteMCP"],
 			"tag": "v1"
+		},
+		{
+			"new_sqlite_classes": ["PendingLogins"],
+			"tag": "v2"
 		}
 	],
 	"durable_objects": {
@@ -25,9 +29,24 @@
 			{
 				"class_name": "AlgorandRemoteMCP",
 				"name": "AlgorandRemoteMCP"
+			},
+			// Pending login steps (picker request, login on its way to the provider): one object per
+			// random value, so each is strictly single-use
+			{
+				"class_name": "PendingLogins",
+				"name": "PENDING_LOGINS"
 			}
 		]
 	},
+	// /register: at most 10 registrations per minute from one address (counted per location).
+	// Namespace 1001 is doauth.org's: the clients land in the same shared store, so one budget.
+	"ratelimits": [
+		{
+			"name": "REGISTER_RATE_LIMITER",
+			"namespace_id": "1001",
+			"simple": { "limit": 10, "period": 60 }
+		}
+	],
 	"services": [{ "service": "hashicorp-vault-worker", "binding": "HCV_WORKER" }],
 	/**
 	 * PLAUSIBLE_AI bucket
@@ -47,10 +66,6 @@
 		{
 			"binding": "VAULT_ENTITIES",
 			"id": "eb58182f525a4260a51927f03d6b42a8"
-		},
-		{
-			"binding": "CODE_VERIFIER_KV",
-			"id": "69c21dd2c8d64c2f9ff8563c40d7ab6f"
 		},
 		{
 			"binding": "ARC90_KV",

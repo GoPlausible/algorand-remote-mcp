@@ -1,6 +1,6 @@
 {
 	"name": "algorand-remote-mcp",
-	"version": "1.9.4",
+	"version": "1.9.5",
 	"private": true,
 	"scripts": {
 		"build": "wrangler deploy --dry-run --outdir=dist --minify",
@@ -39,6 +39,6 @@
 		"@types/node": "^20.17.24",
 		"typescript": "^5.8.3",
 		"vitest": "^4.0.18",
-		"wrangler": "^4.25.0"
+		"wrangler": "4.164.0"
 	}
 }

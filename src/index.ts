@@ -25,13 +25,25 @@ import {
 } from "./tools";
 import { type Env, type Props, type State, VaultResponse } from "./types";
 import { ResponseProcessor } from "./utils";
-import { ensureUserAccount } from "./utils/vaultManager";
+import { checkSubjectBinding, ensureUserAccount } from "./utils/vaultManager";
+
+// The Durable Object class behind PENDING_LOGINS must be exported from the main module
+export { PendingLogins } from "./pending-logins";
+
+/**
+ * Grants created before this time are refused at refresh and deleted (H1 in
+ * .claude/notes/doauth-protocol-fixes.md). Until the coordinated cutoff (decision D3: one second
+ * after this server's login fix is live, the same value on all three dOAuth servers), it is
+ * doauth's current cutoff. Not exported: named exports of the main module must be classes or
+ * handlers.
+ */
+const GRANTS_ISSUED_BEFORE = Math.floor(Date.parse("2026-11-07T21:22:16Z") / 1000);
 
 // Define our MCP agent with tools
 export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 	server = new McpServer({
 		name: "Algorand Remote MCP",
-		version: "1.9.4",
+		version: "1.9.5",
 		description:
 			"Algorand Remote MCP for interacting with the Algorand blockchain. Use algorand_mcp_skill tool at start of each session to learn how to interact and operate Algorand Remote MCP.",
 		websiteUrl: "https://goplausible.com",
@@ -54,12 +66,12 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 		// Configure ResponseProcessor with pagination settings
 		console.log("Initializing Algorand Remote MCP...");
 		console.log("Current state:", this.state);
-		console.log("Props name:", this.props?.name);
-		console.log("Props email:", this.props?.email);
-		// Set provider in state if available in props
-
-		console.log("Props User ID:", this.props?.id);
-		console.log("Props clientId:", this.props?.clientId);
+		console.log("Props:", {
+			provider: this.props?.provider,
+			userId: this.props?.id,
+			clientId: this.props?.clientId,
+			hasEmail: !!this.props?.email,
+		});
 		// Set default page size or use from state if available
 		const itemsPerPage = this.state?.items_per_page || 10;
 		ResponseProcessor.setItemsPerPage(itemsPerPage);
@@ -68,16 +80,26 @@ export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
 			if (!this.props.email || !this.props.provider) {
 				throw new Error("Email and provider must be provided in props");
 			}
-			console.log(
-				`Ensuring user account for ${this.props.email} with provider ${this.props.provider}`,
+			// Every tool uses the account named by these props, and none is registered until this
+			// check passes: the account must belong to this provider user (a recycled email or X
+			// handle must not inherit someone else's wallet)
+			const subjectProblem = await checkSubjectBinding(
+				this.env,
+				this.props.provider,
+				this.props.email,
+				this.props.id,
 			);
+			if (subjectProblem) {
+				throw new Error(subjectProblem);
+			}
 			const accType = await ensureUserAccount(
 				this.env,
 				this.props.email,
 				this.props.provider,
+				this.props.id,
 			);
 			console.log(
-				`User ${this.props.email} has a ${accType}-based account on ${this.props.provider} provider`,
+				`User ${this.props.id} has a ${accType}-based account on ${this.props.provider} provider`,
 			);
 		} catch (error: any) {
 			throw new Error(`Failed to ensure user account: ${error.message || "Unknown error"}`);
@@ -274,4 +296,5 @@ export default new OAuthProvider({
 	clientRegistrationEndpoint: "/register",
 	defaultHandler: OauthHandler as any,
 	tokenEndpoint: "/token",
+	grantsIssuedBefore: GRANTS_ISSUED_BEFORE,
 });

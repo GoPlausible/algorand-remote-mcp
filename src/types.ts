@@ -1,4 +1,5 @@
 import type { Buffer } from "node:buffer";
+import type { PendingLogins } from "./pending-logins";
 export interface EncodedAssetParams {
 	/**
 	 * assetTotal
@@ -412,6 +413,17 @@ export interface Env {
 	 * Durable Object namespace for the AlgorandRemoteMCP class
 	 */
 	AlgorandRemoteMCP: DurableObjectNamespace;
+
+	/**
+	 * Pending login steps (picker request, login on its way to the provider): one PendingLogins
+	 * object per random value, so each is strictly single-use
+	 */
+	PENDING_LOGINS: DurableObjectNamespace<PendingLogins>;
+
+	/**
+	 * /register: at most 10 client registrations per minute from one address (counted per location)
+	 */
+	REGISTER_RATE_LIMITER?: RateLimit;
 
 	/**
 	 * R2 bucket binding for knowledge resources

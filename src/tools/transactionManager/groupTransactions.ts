@@ -333,7 +333,7 @@ export function registerGroupTransactionTools(server: McpServer, env: Env, props
 					throw new Error("Email and provider must be provided in props");
 				}
 				console.log(
-					`Signing atomic transaction group for ${props.email} with provider ${props.provider}`,
+					`Signing atomic transaction group for user ${props.id} with provider ${props.provider}`,
 				);
 				// // Ensure user has an account
 				// try {

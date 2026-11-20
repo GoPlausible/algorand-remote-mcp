@@ -1,22 +1,30 @@
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { getLogo } from "./logoUrl.js";
-import type { AuthRequest, OAuthHelpers } from "./oauth-provider";
+import { type AuthRequest, AuthRequestError, type OAuthHelpers } from "./oauth-provider";
 
-import { auth } from "@modelcontextprotocol/sdk/client/auth.js";
 import type { Env, Props } from "./types";
 import {
-	clientIdAlreadyApproved,
+	AUTHORIZE_COOKIE,
+	AUTHORIZE_KEY_PREFIX,
+	LEGACY_COOKIES,
+	LOGIN_COOKIE,
+	LOGIN_KEY_PREFIX,
+	type PendingLogin,
+	clearPendingCookie,
 	fetchUpstreamAuthToken,
-	parseRedirectApproval,
+	generatePendingValue,
+	isProvider,
+	pendingCookie,
 	redirectToProvider,
 	renderApprovalDialog,
-	revokeUpstreamToken,
+	revokeOwnSession,
+	storePendingRecord,
+	takePendingRecord,
 } from "./workers-oauth-utils";
 
 // Extend the Env type to include our OAuth configuration
 interface OAuthEnv {
 	OAUTH_PROVIDER: OAuthHelpers;
-	CODE_VERIFIER_KV: KVNamespace; // KV namespace for PKCE code verifiers
 	OAUTH_KV: KVNamespace; // KV namespace for OAuth client data
 	COOKIE_ENCRYPTION_KEY: string;
 	GOOGLE_CLIENT_ID: string;
@@ -31,51 +39,56 @@ interface OAuthEnv {
 }
 
 const app = new Hono<{ Bindings: Env & OAuthEnv }>();
+type HandlerContext = Context<{ Bindings: Env & OAuthEnv }>;
 
-// Middleware to check if the request is authenticated
+const EXPIRED_LOGIN =
+	"This login is invalid or has expired. Please start again from the application.";
+
+/** Clears the cookies of the removed remembered-approval shortcut, if the browser still sends them */
+function clearLegacyCookies(request: Request, headers: Headers): void {
+	const cookieHeader = request.headers.get("Cookie") || "";
+	for (const name of LEGACY_COOKIES) {
+		if (cookieHeader.includes(`${name}=`)) {
+			headers.append("Set-Cookie", `${name}=; Secure; Path=/; SameSite=Lax; Max-Age=0`);
+		}
+	}
+}
+
+/**
+ * OAuth Authorization Endpoint (GET)
+ *
+ * Validates the request against the client's registration, keeps it on the server under a random
+ * value, and renders the provider picker. The form carries only that value; a matching cookie
+ * ties it to this browser.
+ */
 app.get("/authorize", async (c) => {
 	console.log("[OAUTH_HANDLER] Received OAuth authorization request");
-	const clonedRequest = c.req.raw.clone();
-	const url = new URL(clonedRequest.url);
-	const responseType = url.searchParams.get("response_type") || "";
-	const clientId = url.searchParams.get("client_id") || "";
-	const redirectUri = url.searchParams.get("redirect_uri") || "";
-	const scope = (url.searchParams.get("scope") || "").split(" ").filter(Boolean);
-	const state = url.searchParams.get("state") || "";
-	const codeChallenge = url.searchParams.get("code_challenge") || undefined;
-	const codeChallengeMethod = url.searchParams.get("code_challenge_method") || "S256";
-	if (!clientId) {
-		console.error("[OAUTH_HANDLER] Invalid OAuth request: missing clientId");
-		return c.text("Invalid request", 400);
-	}
-	console.log("[OAUTH_HANDLER] Parsed OAuth request info for Client ID:", clientId);
 
-	const { approved, provider } = await clientIdAlreadyApproved(
-		c.req.raw,
-		clientId,
-		c.env.COOKIE_ENCRYPTION_KEY || "",
-	);
-	const authReqInfo: AuthRequest = {
-		responseType,
-		clientId,
-		redirectUri,
-		scope,
-		state,
-		codeChallenge,
-		codeChallengeMethod,
-	};
-	if (approved && provider && provider !== "" && authReqInfo) {
-		console.log(
-			`[OAUTH_HANDLER] Client ID ${clientId} already approved, redirecting to ${provider}`,
+	let authReqInfo: AuthRequest;
+	try {
+		authReqInfo = await c.env.OAUTH_PROVIDER.parseAuthRequest(c.req.raw);
+	} catch (error) {
+		if (!(error instanceof AuthRequestError)) throw error;
+		console.warn("[OAUTH_HANDLER] Rejected authorization request:", { error: error.error });
+		// Shown here and never redirected: before login, a redirect would make this an open redirector
+		return c.text(
+			`Invalid authorization request: ${error.message} Please return to the application and try again.`,
+			400,
 		);
-		return redirectToProvider(c, provider, clientId, authReqInfo);
 	}
-	console.log(
-		`[OAUTH_HANDLER] Client ID ${clientId} not approved yet, rendering approval dialog`,
-	);
+	const clientId = authReqInfo.clientId;
+	console.log("[OAUTH_HANDLER] Validated OAuth request for Client ID:", clientId);
 
-	return renderApprovalDialog(c.req.raw, {
-		client: await c.env.OAUTH_PROVIDER.lookupClient(clientId),
+	// Always show the provider picker: it is the only client-specific consent step. There is no
+	// "remembered consent" shortcut; users always choose their provider (decision of 2026-11-07).
+	const client = await c.env.OAUTH_PROVIDER.lookupClient(clientId);
+
+	const requestId = generatePendingValue();
+	await storePendingRecord(c.env.PENDING_LOGINS, AUTHORIZE_KEY_PREFIX, requestId, authReqInfo);
+
+	const response = renderApprovalDialog(c.req.raw, {
+		client,
+		redirectUri: authReqInfo.redirectUri,
 		server: {
 			description:
 				"Algorand MCP Remote Server Authentication using OAuth 2 protocol. Supports Google, GitHub, Twitter, and LinkedIn.",
@@ -85,60 +98,148 @@ app.get("/authorize", async (c) => {
 			//    `base64 -w 0 src/assets/goPlausible-logo-type-h.png | xclip -selection clipboard` (on Linux)
 			logo: getLogo(),
 		},
-
-		state: { provider: provider, clientId: clientId, authReqInfo: authReqInfo as AuthRequest },
+		state: requestId,
 	});
+	response.headers.append("Set-Cookie", pendingCookie(AUTHORIZE_COOKIE, requestId));
+	clearLegacyCookies(c.req.raw, response.headers);
+	return response;
 });
 
 /**
- * OAuth Authorization Endpoint
+ * OAuth Authorization Endpoint (POST): the user picked a provider in the dialog.
  *
- * This route handles the initial authorization request from the client.
- * It checks if the client ID is already approved and redirects to the
- * appropriate provider or renders the approval dialog.
+ * Accepts only a form value that matches this browser's cookie and names a stored request, so a
+ * form submitted from another site can't skip the dialog. Then sends the user to the provider.
  */
 app.post("/authorize", async (c) => {
-	const clonedReq = c.req.raw.clone();
 	const formData = await c.req.formData();
 	const provider = formData.get("provider");
 	console.log(`[OAUTH_HANDLER] Selected provider: ${provider}`);
+	if (!isProvider(provider)) {
+		return c.text("Invalid request: unknown provider", 400);
+	}
 
-	const { state, headers } = await parseRedirectApproval(
-		clonedReq,
-		c.env.COOKIE_ENCRYPTION_KEY || "",
+	const authReqInfo = await takePendingRecord<AuthRequest>(
+		c.env.PENDING_LOGINS,
+		c.req.raw,
+		AUTHORIZE_COOKIE,
+		AUTHORIZE_KEY_PREFIX,
+		formData.get("state"),
+	);
+	if (!authReqInfo) {
+		console.warn(
+			"[OAUTH_HANDLER] Rejected provider choice: no matching authorization request for this browser",
+		);
+		return c.text(EXPIRED_LOGIN, 400);
+	}
+	console.log(
+		"[OAUTH_HANDLER] Processing OAuth approval request for Client ID:",
+		authReqInfo.clientId,
 	);
 
-	const authReqInfo: AuthRequest = state.authReqInfo as AuthRequest;
-	if (!state.clientId) {
-		console.error("[OAUTH_HANDLER] Invalid state in OAuth approval request! No Client Id");
-		return c.text("Invalid request", 400);
-	}
-	console.log("[OAUTH_HANDLER] Processing OAuth approval request with state:", state.clientId);
-
-	return redirectToProvider(c, provider as string, state.clientId, authReqInfo, headers);
+	const headers = new Headers();
+	headers.append("Set-Cookie", clearPendingCookie(AUTHORIZE_COOKIE));
+	return redirectToProvider(c, provider, authReqInfo, headers);
 });
 
 /**
  * OAuth Callback Endpoint
  *
  * This route handles the callback from OAuth providers after user authentication.
- * It exchanges the temporary code for an access token, then stores some
+ * The `state` must name a login this server started, in this browser (matching cookie), within
+ * the last 10 minutes; the record is deleted on use. Then completeLogin exchanges the code and
+ * finishes the authorization.
+ */
+app.get("/callback", async (c) => {
+	console.log("[OAUTH_HANDLER] Received OAuth callback request");
+	const login = await takePendingRecord<PendingLogin>(
+		c.env.PENDING_LOGINS,
+		c.req.raw,
+		LOGIN_COOKIE,
+		LOGIN_KEY_PREFIX,
+		c.req.query("state"),
+	);
+	if (!login || !isProvider(login.provider)) {
+		console.warn(
+			"[OAUTH_HANDLER] Rejected callback: state unknown, expired, already used, or not from this browser",
+		);
+		return c.text(EXPIRED_LOGIN, 400);
+	}
+
+	// The login record is used up: whatever happens next, clear its cookie
+	let response: Response;
+	try {
+		response = await completeLogin(c, login);
+	} catch (error) {
+		console.error("[OAUTH_HANDLER] Error completing login:", error);
+		response = c.text("Login failed", 500);
+	}
+	const withCleared = new Response(response.body, response);
+	withCleared.headers.append("Set-Cookie", clearPendingCookie(LOGIN_COOKIE));
+	return withCleared;
+});
+
+// Type the user data based on the provider
+interface GitHubUser {
+	id: number;
+	login: string;
+	name?: string;
+	email?: string | null;
+}
+
+interface GitHubEmail {
+	email: string;
+	primary: boolean;
+	verified: boolean;
+}
+
+interface TwitterUser {
+	id: string;
+	name: string;
+	username: string;
+}
+
+interface LinkedInUser {
+	sub: string;
+	name: string;
+	email?: string;
+	email_verified?: boolean;
+}
+
+interface GoogleUser {
+	id: string;
+	name: string;
+	email: string;
+	verified_email?: boolean;
+}
+
+/**
+ * Picks the GitHub address that may name an account: only addresses GitHub marks verified count.
+ * The public address if it is verified, else the verified primary, else any verified address
+ * (the same rule as doauth's gh-oidc-worker).
+ * @returns The address, or "" when the account has no verified address
+ */
+export function pickVerifiedGitHubEmail(emails: unknown, publicEmail?: string | null): string {
+	const verified = Array.isArray(emails)
+		? (emails as GitHubEmail[]).filter((e) => e?.verified === true && !!e.email)
+		: [];
+	const pick =
+		verified.find((e) => !!publicEmail && e.email === publicEmail) ??
+		verified.find((e) => e.primary) ??
+		verified[0];
+	return pick?.email || "";
+}
+
+/**
+ * Exchanges the provider's code for an access token, then stores some
  * user metadata & the auth token as part of the 'props' on the token passed
  * down to the client. It ends by redirecting the client back to _its_ callback URL
  */
-app.get("/callback", async (c) => {
-	// Get the oathReqInfo out of KV
-	console.log("[OAUTH_HANDLER] Received OAuth callback request");
-	const stateData = JSON.parse(atob(c.req.query("state") as string));
-
-	const provider = stateData.provider;
-
-	if (!provider || provider === "") {
-		return c.text("Invalid state", 400);
-	}
+async function completeLogin(c: HandlerContext, login: PendingLogin): Promise<Response> {
+	const { provider, authReqInfo } = login;
 	console.log(
-		`[OAUTH_HANDLER] OAuth callback received from ${provider} with provider:`,
-		provider,
+		`[OAUTH_HANDLER] OAuth callback received from ${provider} for Client ID:`,
+		authReqInfo.clientId,
 	);
 
 	// Exchange the code for an access token
@@ -153,9 +254,6 @@ app.get("/callback", async (c) => {
 	let tokenUrl = "";
 	let userInfoUrl = "";
 	let redirectUri = "";
-	const pkce: any = await c.env.CODE_VERIFIER_KV.get(`pkce:${stateData.clientId}`, {
-		type: "json",
-	});
 	switch (provider) {
 		case "github":
 			clientId = c.env.GITHUB_CLIENT_ID || "";
@@ -170,13 +268,13 @@ app.get("/callback", async (c) => {
 			clientSecret = c.env.TWITTER_CLIENT_SECRET || "";
 			tokenUrl = "https://api.x.com/2/oauth2/token";
 			userInfoUrl = "https://api.x.com/2/users/me";
-			// redirectUri = new URL("/callback", c.req.url).href;
-
-			if (!pkce?.codeVerifier || !pkce?.upstreamRedirectUri) {
-				console.error("[OAUTH_HANDLER] Missing PKCE data for Twitter callback");
+			// The verifier was stored with this login, so concurrent logins can't overwrite each other's
+			if (!login.codeVerifier) {
+				console.error("[OAUTH_HANDLER] Missing PKCE verifier in the X login record:", {
+					clientId: authReqInfo.clientId,
+				});
 				return c.text("Twitter session expired or PKCE missing", 400);
 			}
-			//redirectUri = pkce.upstreamRedirectUri;
 			redirectUri = new URL("/callback", c.req.url).href;
 			break;
 		case "linkedin":
@@ -202,14 +300,11 @@ app.get("/callback", async (c) => {
 		grantType: "authorization_code",
 		redirectUri,
 		upstreamUrl: tokenUrl,
-		codeVerifier: provider === "twitter" ? pkce.codeVerifier : undefined,
+		codeVerifier: provider === "twitter" ? login.codeVerifier : undefined,
 	});
 
 	if (errorResponse) {
-		console.error(
-			`[OAUTH_HANDLER] Failed to fetch access token from ${provider}:`,
-			errorResponse,
-		);
+		console.error(`[OAUTH_HANDLER] Failed to fetch access token from ${provider}`);
 		return errorResponse;
 	}
 	console.log(`[OAUTH_HANDLER] Successfully fetched access token from ${provider}`);
@@ -224,10 +319,7 @@ app.get("/callback", async (c) => {
 		headers.Accept = "application/vnd.github.v3+json";
 		headers["User-Agent"] = "goplausible-remote-mcp";
 	} else if (provider === "twitter") {
-		headers.Authorization = `Bearer ${accessToken}`;
 		headers["Content-Type"] = "application/json";
-	} else if (provider === "linkedin") {
-		headers.Authorization = `Bearer ${accessToken}`;
 	}
 
 	const userResponse = await fetch(userInfoUrl, { headers });
@@ -238,105 +330,73 @@ app.get("/callback", async (c) => {
 		return c.text(`Failed to fetch user info: ${resText}`, 500);
 	}
 
-	// Type the user data based on the provider
-	interface GitHubUser {
-		id: number;
-		login: string;
-		name?: string;
-		email?: string;
-	}
-
-	interface GitHubEmail {
-		email: string;
-		primary: boolean;
-		verified: boolean;
-	}
-	interface TwitterUser {
-		id: string;
-		name: string;
-		username: string;
-	}
-	interface LinkedInUser {
-		sub: string;
-		name: string;
-		email?: string;
-	}
-
-	interface GoogleUser {
-		id: string;
-		name: string;
-		email: string;
-	}
 	const res = await userResponse.json();
-	// Parse the user data with the appropriate type
-	const userData =
-		provider === "github"
-			? (res as GitHubUser)
-			: provider === "twitter"
-				? res && typeof res === "object" && "data" in res
-					? (res.data as TwitterUser)
-					: ({} as TwitterUser)
-				: provider === "linkedin"
-					? (res as LinkedInUser)
-					: (res as GoogleUser);
 
 	// Normalize user data based on provider
 	let id: string;
 	let name: string;
 	let email: string;
-	console.log(`[OAUTH_HANDLER] User data received: ${userData}`);
 
 	if (provider === "github") {
-		const githubUser = userData as GitHubUser;
-		id = githubUser.id.toString();
+		const githubUser = res as GitHubUser;
+		id = githubUser.id != null ? String(githubUser.id) : "";
 		name = githubUser.name || githubUser.login;
 
-		// If email is null or not present, we need to make an additional request
-		if (!githubUser.email) {
-			const emailsResponse = await fetch("https://api.github.com/user/emails", {
-				headers: {
-					...headers,
-					"User-Agent": "goplausible-remote-mcp", // Ensure User-Agent is set for this request too
-				},
-			});
-			if (emailsResponse.ok) {
-				const emails = (await emailsResponse.json()) as GitHubEmail[];
-				const primaryEmail = emails.find((e) => e.primary);
-				email = primaryEmail ? primaryEmail.email : emails[0]?.email || "";
-			} else {
-				email = "";
-			}
-		} else {
-			email = githubUser.email;
+		// Only an address GitHub marks verified may name an account, so /user/emails is always read,
+		// even when /user has a public email. None leaves email empty, which the identity check
+		// below rejects.
+		email = "";
+		const emailsResponse = await fetch("https://api.github.com/user/emails", {
+			headers: {
+				...headers,
+				"User-Agent": "goplausible-remote-mcp", // Ensure User-Agent is set for this request too
+			},
+		});
+		if (emailsResponse.ok) {
+			email = pickVerifiedGitHubEmail(await emailsResponse.json(), githubUser.email);
 		}
 	} else if (provider === "twitter") {
-		const twitterUser = userData as TwitterUser;
-		id = twitterUser.id;
+		const twitterUser =
+			res && typeof res === "object" && "data" in res
+				? (res.data as TwitterUser)
+				: ({} as TwitterUser);
+		id = twitterUser.id || "";
 		name = twitterUser.username;
-		// Twitter API does not return email by default, so we generate a synthetic email
-		// using the Twitter username to ensure compatibility with the vault-based account system
-		email = `${twitterUser.username}`;
+		// Twitter API does not return email by default, so the X username names the account
+		// in the vault-based account system
+		email = twitterUser.username || "";
 	} else if (provider === "linkedin") {
-		const linkedInUser = userData as LinkedInUser;
-		id = linkedInUser.sub;
+		const linkedInUser = res as LinkedInUser;
+		id = linkedInUser.sub || "";
 		name = linkedInUser.name;
-		email = `${linkedInUser.email}`;
+		// A missing email used to become the literal string "undefined", shared by every such user
+		email = linkedInUser.email_verified === false ? "" : linkedInUser.email || "";
 	} else {
 		// Google format
-		const googleUser = userData as GoogleUser;
-		id = googleUser.id;
+		const googleUser = res as GoogleUser;
+		id = googleUser.id || "";
 		name = googleUser.name;
-		email = googleUser.email;
+		email = googleUser.verified_email === false ? "" : googleUser.email || "";
 	}
 
-	console.log(`[OAUTH_HANDLER] Successfully fetched user info from ${provider}: `, {
+	// The email (or X username) names the user's Vault account and the ID binds it, so both must be real
+	if (!id || !email) {
+		console.error(`[OAUTH_HANDLER] Rejected ${provider} login without a usable identity:`, {
+			hasId: !!id,
+			hasEmail: !!email,
+		});
+		return c.text(
+			`Your ${provider} account has no verified email${provider === "twitter" ? " or username" : ""} that this server can use to identify you.`,
+			400,
+		);
+	}
+
+	console.log(`[OAUTH_HANDLER] Successfully fetched user info from ${provider}:`, {
 		id,
-		name,
-		clientId: stateData.clientId,
-		email,
+		clientId: authReqInfo.clientId,
 	});
-	const scope = stateData.authReqInfo.scope;
-	console.log(`[OAUTH_HANDLER] OAuth scope requested: ${scope}`);
+	const scope = authReqInfo.scope;
+
 	// Return back to the MCP client a new token
 	const { redirectTo } = await c.env.OAUTH_PROVIDER.completeAuthorization({
 		metadata: {
@@ -349,96 +409,73 @@ app.get("/callback", async (c) => {
 			name,
 			provider, // Store the provider in props
 			id, // User ID
-			clientId: stateData.clientId, // Client ID for OAuth
+			clientId: authReqInfo.clientId, // Client ID for OAuth
 		} as Props,
-		request: stateData.authReqInfo as AuthRequest,
-		scope: scope,
+		request: authReqInfo,
+		scope,
 		userId: id,
 	});
 
-	return Response.redirect(redirectTo);
-});
+	return Response.redirect(redirectTo, 302);
+}
 
 /**
- * Logout endpoint to clear cookies and revoke tokens
- * This endpoint is used to log out the user from the OAuth provider
+ * Logout endpoint: revokes the caller's own session.
+ *
+ * Requires `Authorization: Bearer <access token>`. Who is logging out (user, client, provider)
+ * comes from that validated token, never from query parameters. Then revokeOwnSession revokes
+ * the upstream provider token and this user's grants for that client; client registrations are
+ * never deleted.
  */
 app.all("/logout", async (c) => {
-	const url = new URL(c.req.raw.url);
-	const provider = url.searchParams.get("provider") || undefined;
-	const clientId = url.searchParams.get("clientId") || undefined;
-	const userId = url.searchParams.get("userId") || undefined;
-	const email = url.searchParams.get("email") || undefined;
+	const invalidToken = (description: string) =>
+		c.json({ error: "invalid_token", error_description: description }, 401, {
+			"WWW-Authenticate": `Bearer realm="OAuth", error="invalid_token", error_description="${description}"`,
+		});
 
-	if (!provider || !clientId || !email) {
-		return c.text("Missing provider, clientId or userId", 400);
-	}
-	console.log("[OAUTH_HANDLER] Received logout request:", {
-		provider,
-		clientId,
-		userId,
-		email,
-	});
-	await c.env.OAUTH_KV.delete(`client:${clientId}`);
-	console.log("[OAUTH_HANDLER] Deleted client from OAUTH_KV:", clientId);
-	if (userId) {
-		const grantsList = await c.env.OAUTH_KV.list({ prefix: `grant:${userId}` });
-		if (grantsList.keys && grantsList.keys.length > 0) {
-			for (const key of grantsList.keys) {
-				await c.env.OAUTH_KV.delete(key.name);
-			}
-			console.log("[OAUTH_HANDLER] All grants deleted for user:", userId);
-		}
-		// Delete all tokens for this user and client
-		const tokenList = await c.env.OAUTH_KV.list({ prefix: `token:${userId}` });
-		if (tokenList.keys && tokenList.keys.length > 0) {
-			for (const key of tokenList.keys) {
-				await c.env.OAUTH_KV.delete(key.name);
-			}
-			console.log(
-				"[OAUTH_HANDLER] Deleted all tokens for user:",
-				userId,
-				"and client:",
-				clientId,
-			);
-		}
+	const authHeader = c.req.header("authorization") || "";
+	const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+	if (!token) {
+		return invalidToken("Missing bearer access token");
 	}
 
-	// Try to get access token from Authorization header or query param for convenience.
-	const auth = c.req.header("authorization") || "";
-	const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : undefined;
-	const token = url.searchParams.get("token") || bearer || undefined;
-
-	// Only attempt token revocation if we have both provider and token
-	if (provider && token) {
-		try {
-			const ok = await revokeUpstreamToken(provider, token, c.env);
-			console.log("[OAUTH_HANDLER] Upstream revocation result:", ok ? "ok" : "failed");
-		} catch (error) {
-			console.error("[OAUTH_HANDLER] Token revocation error:", error);
-		}
-	} else {
-		return c.text("No provider or no token specified", 400);
+	const session = await c.env.OAUTH_PROVIDER.unwrapToken(token);
+	if (!session) {
+		console.log("[OAUTH_HANDLER] Logout rejected: invalid or expired access token");
+		return invalidToken("Invalid or expired access token");
 	}
 
-	// Return a success response with all cookies cleared
+	const { userId, clientId } = session;
+	const provider: string | undefined = session.props?.provider;
+	console.log("[OAUTH_HANDLER] Logout request:", { userId, clientId, provider });
+
+	let revoked: number;
+	try {
+		revoked = await revokeOwnSession(c.env.OAUTH_PROVIDER, c.env, {
+			userId,
+			clientId,
+			provider,
+			upstreamToken: session.props?.accessToken,
+		});
+	} catch (error) {
+		console.error("[OAUTH_HANDLER] Error revoking grants during logout:", error);
+		return c.text("Logout failed", 500);
+	}
+	console.log("[OAUTH_HANDLER] Revoked grants:", { userId, clientId, revoked });
+
+	const headers = new Headers({ "Content-Type": "application/json" });
+	// Each cookie needs its own Set-Cookie header
+	for (const name of LEGACY_COOKIES) {
+		headers.append("Set-Cookie", `${name}=; Secure; Path=/; SameSite=Lax; Max-Age=0`);
+	}
+
 	return new Response(
 		JSON.stringify({
 			success: true,
 			message: "Successfully logged out",
 			forceReauthentication: true,
 		}),
-		{
-			status: 200,
-			headers: {
-				"Content-Type": "application/json",
-				// Clear OAuth-related cookies
-				"Set-Cookie": [
-					"mcp-approved-clients=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0",
-					"mcp-provider-preference=; Secure; Path=/; SameSite=Lax; Max-Age=0",
-				].join(", "),
-			},
-		},
+		{ status: 200, headers },
 	);
 });
 

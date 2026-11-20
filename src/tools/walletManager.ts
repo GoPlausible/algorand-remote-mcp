@@ -6,6 +6,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as algosdk from "algosdk";
 import { z } from "zod";
+import { grantHelpers } from "../oauth-provider";
 import { type Env, type Props, VaultResponse } from "../types";
 import { ResponseProcessor } from "../utils";
 import {
@@ -16,7 +17,9 @@ import {
 	deleteKeypair,
 	getPublicKey,
 	getUserAddress,
+	subjectBindingKey,
 } from "../utils/vaultManager";
+import { revokeOwnSession } from "../workers-oauth-utils";
 
 /**
  * Create and validate an Algorand client
@@ -101,7 +104,7 @@ export async function registerWalletTools(
 				let providerEmail = providerKey(props.provider, props.email);
 				let entityId: string | null = await env.VAULT_ENTITIES.get(providerEmail);
 				let providerEntity: string | null = providerKey(props.provider, entityId);
-				console.log(`Entity ID for ${providerEmail} from KV store:`, providerEntity);
+				console.log("Wallet reset: current entity", { provider: props.provider, entityId });
 				let roleId = null;
 				if (entityId) {
 					console.log(`Fetching role ID from KV for entity ${entityId}`);
@@ -109,15 +112,19 @@ export async function registerWalletTools(
 					roleId = await env.VAULT_ENTITIES.get(providerEntity);
 				}
 				if (!roleId || !entityId) {
-					console.log(
-						`provider: ${props.provider}, email: ${props.email}, clientId: ${props.clientId}, userId: ${props.id}`,
-					);
+					console.log("Wallet reset: no role or entity ID in KV", {
+						provider: props.provider,
+						clientId: props.clientId,
+						userId: props.id,
+						hasEntityId: !!entityId,
+						hasRoleId: !!roleId,
+					});
 					throw new Error("Role or entity ID not found in KV store");
 				}
 
 				if (publicKeyResult.success && !publicKeyResult.error) {
 					// For vault-based accounts, create a new keypair in the vault
-					console.log("Creating new vault-based keypair for user:", props.email);
+					console.log("Creating new vault-based keypair for user:", props.id);
 
 					// Delete existing keypair if it exists
 					// Note: This would require a delete endpoint in the vault worker
@@ -126,28 +133,37 @@ export async function registerWalletTools(
 					await deleteKeypair(env, props.email, props.provider);
 
 					await deleteEntity(env, props.email, entityId, roleId, props.provider);
-					console.log(`Deleted entity and role for ${props.email} with ID ${entityId}`);
+					console.log("Deleted entity and role:", { provider: props.provider, entityId });
 
 					providerEmail = providerKey(props.provider, props.email);
 					providerEntity = providerKey(props.provider, entityId);
 					await env.VAULT_ENTITIES.delete(providerEmail);
-					console.log(`Deleted entity ID for ${providerEmail} from KV store`);
 					await env.VAULT_ENTITIES.delete(providerEntity);
-					console.log(`Deleted entity ID ${providerEntity} from KV store`);
-					console.log(`Cleared public key cache for user: ${props.email}`);
+					// The Vault worker deletes this binding itself from its fix #7 on; deleting it here too is harmless
+					await env.VAULT_ENTITIES.delete(subjectBindingKey(props.provider, entityId));
+					console.log("Deleted the account's KV keys:", {
+						provider: props.provider,
+						entityId,
+					});
 					const entityResult = await createNewEntity(env, props.email, props.provider);
-					console.log(`New entity created: ${entityResult}`);
+					console.log("New entity created:", {
+						success: entityResult.success,
+						entityId: entityResult.entityId,
+					});
+					if (entityResult.success && entityResult.entityId) {
+						// The new account belongs to the same provider user (see checkSubjectBinding)
+						await env.VAULT_ENTITIES.put(
+							subjectBindingKey(props.provider, entityResult.entityId),
+							String(props.id),
+						);
+					}
 					await new Promise((resolve) => setTimeout(resolve, 500));
 					const keypairResult = await createKeypair(env, props.email, props.provider);
 
 					if (!keypairResult.success) {
 						throw new Error(keypairResult.error || "Failed to create keypair in vault");
 					}
-					console.log(`New keypair created: ${keypairResult}`);
-					// Get the address from the public key
-					console.log(
-						`Getting public key for ${props.email} with provider ${props.provider}`,
-					);
+					console.log("New keypair created");
 
 					const newPublicKeyResult = await getPublicKey(env, props.email, props.provider);
 
@@ -156,15 +172,13 @@ export async function registerWalletTools(
 							newPublicKeyResult.error || "Failed to get public key from vault",
 						);
 					}
-					console.log(`Public key for ${props.email}: ${newPublicKeyResult.publicKey}`);
 
 					// Convert the public key to an Algorand address
 					const address = addressFromBase64PublicKey(newPublicKeyResult.publicKey);
 					providerEmail = providerKey(props.provider, props.email);
 					entityId = await env.VAULT_ENTITIES?.get(providerEmail);
 					providerEntity = providerKey(props.provider, entityId);
-					console.log(`Entity ID for ${providerEmail} from KV store:`, entityId);
-					// let roleId = null;
+					console.log("Wallet reset: new entity", { provider: props.provider, entityId });
 					if (!entityId) {
 						throw new Error(`No entity ID found for ${providerEmail}`);
 					}
@@ -297,7 +311,7 @@ export async function registerWalletTools(
 				const providerEmail = providerKey(props.provider, props.email);
 				const entityId = await env.VAULT_ENTITIES?.get(providerEmail);
 				const providerEntity = providerKey(props.provider, entityId);
-				console.log(`Entity ID for ${providerEmail} from KV store:`, providerEntity);
+				console.log("Entity ID from KV store:", { provider: props.provider, entityId });
 				let roleId = null;
 				if (entityId) {
 					console.log(`Fetching role ID from KV for entity ${providerEntity}`);
@@ -351,7 +365,7 @@ export async function registerWalletTools(
 			const providerEmail = providerKey(props.provider, props.email);
 			const entityId = await env.VAULT_ENTITIES?.get(providerEmail);
 			const providerEntity = providerKey(props.provider, entityId);
-			console.log(`Entity ID for ${providerEmail} from KV store:`, providerEntity);
+			console.log("Entity ID from KV store:", { provider: props.provider, entityId });
 			// let roleId = null;
 			// if (!!entityId) {
 			//   console.log(`Fetching role ID from KV for entity ${providerEntity}`);
@@ -470,41 +484,22 @@ export async function registerWalletTools(
 		{},
 		async () => {
 			try {
-				// Build the logout URL with the base URL from the environment or a default
-				const baseUrl = new URL("https://algorandmcp.goplausible.xyz");
-				const logoutUrl = new URL("/logout", baseUrl.origin);
-				console.log(`Calling Logout URL: ${logoutUrl.toString()}`);
-
-				// Add query parameters - always revoke token if available
-				if (props?.accessToken && props?.provider) {
-					logoutUrl.searchParams.set("token", props.accessToken);
-					logoutUrl.searchParams.set("email", props.email || "");
-					logoutUrl.searchParams.set("clientId", props.clientId || "");
-					logoutUrl.searchParams.set("userId", props.id || "");
-					logoutUrl.searchParams.set("provider", props.provider);
-					console.log(
-						`Including token and provider in logout request: provider=${props.provider}, token length=${props.accessToken.length}`,
-					);
-				} else {
-					console.log("No token or provider available for logout request");
+				// The same revocation as /logout, done here: the session's props come from a validated
+				// access token, and /logout now requires that token, which a tool never sees
+				if (!props.id || !props.clientId) {
+					throw new Error("The session does not carry a user and client ID");
 				}
-
-				// Call the logout endpoint
-				const response = await fetch(logoutUrl.toString(), {
-					method: "GET",
+				const revoked = await revokeOwnSession(grantHelpers(env), env, {
+					userId: props.id,
+					clientId: props.clientId,
+					provider: props.provider,
+					upstreamToken: props.accessToken,
 				});
-
-				if (!response.ok) {
-					const errorText = await response.text();
-					console.error(
-						`Logout failed with status: ${response.status}, response: ${errorText}`,
-					);
-					throw new Error(`Logout failed with status: ${response.status}`);
-				}
-
-				// Parse the response to get any additional information
-				const responseData = await response.json();
-				console.log("Logout response:", responseData);
+				console.log("Logout: revoked grants", {
+					userId: props.id,
+					clientId: props.clientId,
+					revoked,
+				});
 
 				// Return response with clear instructions for the client
 				return ResponseProcessor.processResponse({

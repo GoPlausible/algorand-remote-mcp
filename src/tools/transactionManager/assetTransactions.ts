@@ -286,7 +286,7 @@ export function registerAssetTransactionTools(server: McpServer, env: Env, props
 				});
 				console.log("Public key from vault:", publicKeyResult.publicKey);
 				console.log(
-					`Signing transaction for ${props.email} with provider ${props.provider}`,
+					`Signing transaction for user ${props.id} with provider ${props.provider}`,
 				);
 				const TAG: Buffer = Buffer.from("TX");
 				console.log("TAG:", Buffer.from("TX"));

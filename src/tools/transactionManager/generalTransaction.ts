@@ -101,7 +101,7 @@ export async function registerGeneralTransactionTools(
 	if (!props.email || !props.provider) {
 		throw new Error("Email and provider must be provided in props");
 	}
-	// console.log(`Ensuring user account for ${props.email} with provider ${props.provider}`);
+	// console.log(`Ensuring user account for user ${props.id} with provider ${props.provider}`);
 	// try {
 	//   const accType = await ensureUserAccount(env, props.email, props.provider);
 	//   console.log(`User has a ${accType}-based account`);
@@ -203,7 +203,7 @@ export async function registerGeneralTransactionTools(
 				if (!props.email || !props.provider) {
 					throw new Error("Email and provider must be provided in props");
 				}
-				// console.log(`Ensuring account for ${props.email} with provider ${props.provider}`);
+				// console.log(`Ensuring account for user ${props.id} with provider ${props.provider}`);
 
 				// // Ensure user has an account
 				// await ensureUserAccount(env, props.email || '', props.provider);
@@ -218,7 +218,7 @@ export async function registerGeneralTransactionTools(
 				}
 				console.log("Public key from vault:", publicKeyResult.publicKey);
 				console.log(
-					`Signing transaction for ${props.email} with provider ${props.provider}`,
+					`Signing transaction for user ${props.id} with provider ${props.provider}`,
 				);
 				// Get the raw signature from the vault
 				const TAG: Buffer = Buffer.from("TX");

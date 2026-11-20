@@ -1,43 +1,117 @@
 // workers-oauth-utils.ts
 
 import type { Context } from "hono";
-import type { AuthRequest, ClientInfo } from "./oauth-provider"; // Adjust path if necessary
-const COOKIE_NAME = "mcp-approved-clients";
-const ONE_YEAR_IN_SECONDS = 31536000;
+import type { AuthRequest, ClientInfo, OAuthHelpers } from "./oauth-provider";
+import type { PendingLogins } from "./pending-logins";
+
+// --- Pending logins ---
+//
+// A login request never travels through the browser. Each step stores it in a PendingLogins
+// Durable Object named by a random value, sends only that value onward, and sets a cookie
+// holding the same value:
+//   GET /authorize   stores `authorize:<value>`; the dialog form posts the value back.
+//   POST /authorize  takes that record and stores `login:<value>` (with the X PKCE verifier);
+//                    the value is the `state` sent to the provider.
+//   GET /callback    takes the `login:` record.
+// Taking a record requires the matching cookie and deletes the record, so each value works
+// once, only in the browser that started the login, and only for 10 minutes
+// (RFC 6749 §10.12, RFC 9700 §4.7.1). Ported from doauth's client-worker.
+
+export const PROVIDERS = ["google", "github", "twitter", "linkedin"] as const;
+export type Provider = (typeof PROVIDERS)[number];
+
+export function isProvider(value: unknown): value is Provider {
+	return typeof value === "string" && (PROVIDERS as readonly string[]).includes(value);
+}
+
+/** A login on its way to the provider and back, stored under `login:<state>` */
+export interface PendingLogin {
+	provider: Provider;
+	authReqInfo: AuthRequest;
+	/** X only: the PKCE verifier this server uses toward X */
+	codeVerifier?: string;
+}
+
+export const LOGIN_TTL_SECONDS = 600;
+export const AUTHORIZE_KEY_PREFIX = "authorize:";
+export const LOGIN_KEY_PREFIX = "login:";
+// __Host-: Secure, Path=/ and no Domain, so no other host can set or overwrite it (RFC 6265bis §4.1.3.2)
+export const AUTHORIZE_COOKIE = "__Host-mcp-authorize";
+export const LOGIN_COOKIE = "__Host-mcp-login";
+
+/** Cookies of the remembered-approval shortcut, removed on 2026-11-20; cleared wherever we can */
+export const LEGACY_COOKIES = ["mcp-approved-clients", "mcp-provider-preference"] as const;
+
+/** 32 random bytes, base64url: always 43 characters */
+const PENDING_VALUE = /^[A-Za-z0-9_-]{43}$/;
+
+export function generatePendingValue(): string {
+	const bytes = new Uint8Array(32);
+	crypto.getRandomValues(bytes);
+	return _b64url(bytes);
+}
+
+/** HttpOnly, Secure, SameSite=Lax: sent on the provider's top-level redirect back, never readable by scripts */
+export function pendingCookie(name: string, value: string): string {
+	return `${name}=${value}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${LOGIN_TTL_SECONDS}`;
+}
+
+export function clearPendingCookie(name: string): string {
+	return `${name}=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0`;
+}
+
+function readCookie(cookieHeader: string | null, name: string): string | null {
+	if (!cookieHeader) return null;
+	for (const part of cookieHeader.split(";")) {
+		const cookie = part.trim();
+		if (cookie.startsWith(`${name}=`)) return cookie.slice(name.length + 1);
+	}
+	return null;
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+	if (a.length !== b.length) return false;
+	let diff = 0;
+	for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+	return diff === 0;
+}
+
+function pendingObject(namespace: DurableObjectNamespace<PendingLogins>, name: string) {
+	return namespace.get(namespace.idFromName(name));
+}
+
+/** Stores a pending record under `<keyPrefix><value>` for LOGIN_TTL_SECONDS */
+export async function storePendingRecord(
+	namespace: DurableObjectNamespace<PendingLogins>,
+	keyPrefix: string,
+	value: string,
+	record: unknown,
+): Promise<void> {
+	await pendingObject(namespace, `${keyPrefix}${value}`).put(record, LOGIN_TTL_SECONDS);
+}
+
+/**
+ * Takes the pending record that `value` names, if this browser holds the matching cookie,
+ * and deletes it so the value can't be used again.
+ * @returns The record, or null if the value is malformed, the cookie is missing or different,
+ *   or the record has expired or was already used.
+ */
+export async function takePendingRecord<T>(
+	namespace: DurableObjectNamespace<PendingLogins>,
+	request: Request,
+	cookieName: string,
+	keyPrefix: string,
+	value: unknown,
+): Promise<T | null> {
+	if (typeof value !== "string" || !PENDING_VALUE.test(value)) return null;
+	const cookie = readCookie(request.headers.get("Cookie"), cookieName);
+	if (!cookie || !timingSafeEqual(cookie, value)) return null;
+
+	return ((await pendingObject(namespace, `${keyPrefix}${value}`).take()) as T | null) ?? null;
+}
 
 // --- Helper Functions ---
 
-/**
- * Encodes arbitrary data to a URL-safe base64 string.
- * @param data - The data to encode (will be stringified).
- * @returns A URL-safe base64 encoded string.
- */
-function _encodeState(data: any): string {
-	try {
-		const jsonString = JSON.stringify(data);
-		// Use btoa for simplicity, assuming Worker environment supports it well enough
-		// For complex binary data, a Buffer/Uint8Array approach might be better
-		return btoa(jsonString);
-	} catch (e) {
-		console.error("[WORKER_OAUTH_UTILS] Error encoding state:", e);
-		throw new Error("Could not encode state");
-	}
-}
-
-/**
- * Decodes a URL-safe base64 string back to its original data.
- * @param encoded - The URL-safe base64 encoded string.
- * @returns The original data.
- */
-function decodeState<T = any>(encoded: string): T {
-	try {
-		const jsonString = atob(encoded);
-		return JSON.parse(jsonString);
-	} catch (e) {
-		console.error("[WORKER_OAUTH_UTILS] Error decoding state:", e);
-		throw new Error("Could not decode state");
-	}
-}
 function _b64url(u8: Uint8Array) {
 	return btoa(String.fromCharCode(...u8))
 		.replace(/\+/g, "-")
@@ -55,172 +129,6 @@ export async function computeS256CodeChallenge(verifier: string): Promise<string
 	const hash = await crypto.subtle.digest("SHA-256", enc);
 	return _b64url(new Uint8Array(hash));
 }
-/**
- * Imports a secret key string for HMAC-SHA256 signing.
- * @param secret - The raw secret key string.
- * @returns A promise resolving to the CryptoKey object.
- */
-async function importKey(secret: string): Promise<CryptoKey> {
-	if (!secret) {
-		throw new Error(
-			"COOKIE_SECRET is not defined. A secret key is required for signing cookies.",
-		);
-	}
-	const enc = new TextEncoder();
-	return crypto.subtle.importKey(
-		"raw",
-		enc.encode(secret),
-		{ hash: "SHA-256", name: "HMAC" },
-		false, // not extractable
-		["sign", "verify"], // key usages
-	);
-}
-
-/**
- * Signs data using HMAC-SHA256.
- * @param key - The CryptoKey for signing.
- * @param data - The string data to sign.
- * @returns A promise resolving to the signature as a hex string.
- */
-async function signWithHmacSha256(key: CryptoKey, data: string): Promise<string> {
-	const enc = new TextEncoder();
-	const signatureBuffer = await crypto.subtle.sign("HMAC", key, enc.encode(data));
-	// Convert ArrayBuffer to hex string
-	return Array.from(new Uint8Array(signatureBuffer))
-		.map((b) => b.toString(16).padStart(2, "0"))
-		.join("");
-}
-
-/**
- * Verifies an HMAC-SHA256 signature.
- * @param key - The CryptoKey for verification.
- * @param signatureHex - The signature to verify (hex string).
- * @param data - The original data that was signed.
- * @returns A promise resolving to true if the signature is valid, false otherwise.
- */
-async function verifyHmacSha256Signature(
-	key: CryptoKey,
-	signatureHex: string,
-	data: string,
-): Promise<boolean> {
-	const enc = new TextEncoder();
-	try {
-		// Convert hex signature back to ArrayBuffer
-		const signatureBytes = new Uint8Array(
-			signatureHex.match(/.{1,2}/g)!.map((byte) => Number.parseInt(byte, 16)),
-		);
-		return await crypto.subtle.verify("HMAC", key, signatureBytes.buffer, enc.encode(data));
-	} catch (e) {
-		// Handle errors during hex parsing or verification
-		console.error("[WORKER_OAUTH_UTILS] Error verifying signature:", e);
-		return false;
-	}
-}
-
-/**
- * Parses the signed cookie and verifies its integrity.
- * @param cookieHeader - The value of the Cookie header from the request.
- * @param secret - The secret key used for signing.
- * @returns A promise resolving to the list of approved client IDs if the cookie is valid, otherwise null.
- */
-async function getApprovedClientsFromCookie(
-	cookieHeader: string | null,
-	secret: string,
-): Promise<string[] | null> {
-	if (!cookieHeader) return null;
-
-	const cookies = cookieHeader.split(";").map((c) => c.trim());
-	const targetCookie = cookies.find((c) => c.startsWith(`${COOKIE_NAME}=`));
-
-	if (!targetCookie) return null;
-
-	const cookieValue = targetCookie.substring(COOKIE_NAME.length + 1);
-	const parts = cookieValue.split(".");
-
-	if (parts.length !== 2) {
-		console.warn("[WORKER_OAUTH_UTILS] Invalid cookie format received.");
-		return null; // Invalid format
-	}
-
-	const [signatureHex, base64Payload] = parts;
-	const payload = atob(base64Payload); // Assuming payload is base64 encoded JSON string
-
-	const key = await importKey(secret);
-	const isValid = await verifyHmacSha256Signature(key, signatureHex, payload);
-
-	if (!isValid) {
-		console.warn("[WORKER_OAUTH_UTILS] Cookie signature verification failed.");
-		return null; // Signature invalid
-	}
-
-	try {
-		const approvedClients = JSON.parse(payload);
-		if (!Array.isArray(approvedClients)) {
-			console.warn("[WORKER_OAUTH_UTILS] Cookie payload is not an array.");
-			return null; // Payload isn't an array
-		}
-		// Ensure all elements are strings
-		if (!approvedClients.every((item) => typeof item === "string")) {
-			console.warn("[WORKER_OAUTH_UTILS] Cookie payload contains non-string elements.");
-			return null;
-		}
-		return approvedClients as string[];
-	} catch (e) {
-		console.error("[WORKER_OAUTH_UTILS] Error parsing cookie payload:", e);
-		return null; // JSON parsing failed
-	}
-}
-
-// --- Exported Functions ---
-
-/**
- * Result of checking if a client ID has already been approved
- */
-export interface ApprovalCheckResult {
-	/** Whether the client ID has been approved */
-	approved: boolean;
-	/** The preferred provider for this client, if available */
-	provider: string;
-}
-
-/**
- * Checks if a given client ID has already been approved by the user,
- * based on a signed cookie.
- *
- * @param request - The incoming Request object to read cookies from.
- * @param clientId - The OAuth client ID to check approval for.
- * @param cookieSecret - The secret key used to sign/verify the approval cookie.
- * @returns A promise resolving to an object containing approval status and provider preference.
- */
-export async function clientIdAlreadyApproved(
-	request: Request,
-	clientId: string,
-	cookieSecret: string,
-): Promise<ApprovalCheckResult> {
-	console.log("[WORKER_OAUTH_UTILS] Checking if client ID is already approved:", clientId);
-	if (!clientId) return { approved: false, provider: "" };
-
-	const cookieHeader = request.headers.get("Cookie");
-	const approvedClients = await getApprovedClientsFromCookie(cookieHeader, cookieSecret);
-	console.log("[WORKER_OAUTH_UTILS] Approved clients from cookie:", approvedClients);
-
-	// Check for provider preference cookie
-	let provider = null; // Default provider
-	try {
-		const cookies = cookieHeader ? cookieHeader.split(";").map((c) => c.trim()) : [];
-		const providerCookie = cookies.find((c) => c.startsWith("mcp-provider-preference="));
-		if (providerCookie) {
-			provider = providerCookie.split("=")[1];
-		}
-	} catch (error) {
-		console.error("[WORKER_OAUTH_UTILS] Error reading provider preference cookie:", error);
-	}
-
-	return {
-		approved: approvedClients?.includes(clientId) ?? false,
-		provider: provider || "",
-	};
-}
 
 /**
  * Configuration for the approval dialog
@@ -231,6 +139,11 @@ export interface ApprovalDialogOptions {
 	 */
 	client: ClientInfo | null;
 	/**
+	 * The redirect URI this request will return to, already validated against the client's
+	 * registration. Shown prominently: it is the one fact about the client this server can vouch for.
+	 */
+	redirectUri: string;
+	/**
 	 * Server information to display in the approval dialog
 	 */
 	server: {
@@ -239,36 +152,10 @@ export interface ApprovalDialogOptions {
 		description?: string;
 	};
 	/**
-	 * Arbitrary state data to pass through the approval flow
-	 * Will be encoded in the form and returned when approval is complete
+	 * Opaque value naming the pending authorization request on the server.
+	 * The form posts it back; the request itself never goes to the browser.
 	 */
-	state: Record<string, any>;
-	/**
-	 * Name of the cookie to use for storing approvals
-	 * @default "mcp_approved_clients"
-	 */
-	cookieName?: string;
-	/**
-	 * Secret used to sign cookies for verification
-	 * Can be a string or Uint8Array
-	 * @default Built-in Uint8Array key
-	 */
-	cookieSecret?: string | Uint8Array;
-	/**
-	 * Cookie domain
-	 * @default current domain
-	 */
-	cookieDomain?: string;
-	/**
-	 * Cookie path
-	 * @default "/"
-	 */
-	cookiePath?: string;
-	/**
-	 * Cookie max age in seconds
-	 * @default 30 days
-	 */
-	cookieMaxAge?: number;
+	state: string;
 }
 
 /**
@@ -281,45 +168,40 @@ export interface ApprovalDialogOptions {
  * @returns A Response containing the HTML approval dialog
  */
 export function renderApprovalDialog(request: Request, options: ApprovalDialogOptions): Response {
-	const { client, server, state } = options;
+	const { client, server, state, redirectUri } = options;
+	console.log("[WORKER_OAUTH_UTILS] Rendering approval dialog for client:", client?.clientId);
 
-	// Encode state for form submission
-	const encodedState = btoa(JSON.stringify(state));
+	const encodedState = sanitizeHtml(state);
 
 	// Sanitize any untrusted content
 	const serverName = sanitizeHtml(server.name);
-	console.log("[WORKER_OAUTH_UTILS] Sanitized server name:", serverName);
-	const clientName = client?.clientName ? sanitizeHtml(client.clientName) : "Unknown MCP Client";
-	console.log("[WORKER_OAUTH_UTILS] Sanitized client name:", clientName);
+	const clientName = client?.clientName
+		? sanitizeHtml(client.clientName)
+		: "An unnamed application";
 	const serverDescription = server.description ? sanitizeHtml(server.description) : "";
+
+	// Where the user will be sent: the origin for web addresses, the whole URI for app schemes
+	const returnTo = sanitizeHtml(displayDestination(redirectUri));
 
 	// Safe URLs
 	const logoUrl = server.logo ? sanitizeHtml(server.logo) : "";
-	console.log("[WORKER_OAUTH_UTILS] Sanitized logo URL:", logoUrl.substring(0, 100)); // Log first 100 chars for brevity
-	// const clientUri = client?.clientUri ? sanitizeHtml(client.clientUri) : "";
-	const clientUri = "https://algorandmcp.goplausible.xyz"; // Default to GoPlausible MCP URL
-	console.log("[WORKER_OAUTH_UTILS] Sanitized client URI:", clientUri.substring(0, 100)); // Log first 100 chars for brevity
-	// const policyUri = client?.policyUri ? sanitizeHtml(client.policyUri) : "http://goplausible.com/policy";
-	const policyUri = "http://goplausible.com/policy";
-	console.log("[WORKER_OAUTH_UTILS] Sanitized policy URI:", policyUri.substring(0, 100)); // Log first 100 chars for brevity
-	const tosUri = client?.tosUri ? sanitizeHtml(client.tosUri) : "";
-	console.log("[WORKER_OAUTH_UTILS] Sanitized TOS URI:", tosUri.substring(0, 100)); // Log first 100 chars for brevity
+	// The client's own pages, as it registered them, and only as http(s) links: a registered
+	// `javascript:` URL would otherwise run script on this origin when clicked
+	const clientUri = webUrl(client?.clientUri);
+	const policyUri = webUrl(client?.policyUri);
+	const tosUri = webUrl(client?.tosUri);
 
 	// Client contacts
-	console.log("[WORKER_OAUTH_UTILS] Sanitizing client contacts");
 	const contacts =
 		client?.contacts && client.contacts.length > 0
 			? sanitizeHtml(client.contacts.join(", "))
 			: "";
-	console.log("[WORKER_OAUTH_UTILS] Sanitized contacts:", contacts.substring(0, 100)); // Log first 100 chars for brevity
 
 	// Get redirect URIs
-	console.log("[WORKER_OAUTH_UTILS] Sanitizing redirect URIs");
 	const redirectUris =
 		client?.redirectUris && client.redirectUris.length > 0
 			? client.redirectUris.map((uri) => sanitizeHtml(uri))
 			: [];
-	console.log("Sanitized redirect URIs:", redirectUris.slice(0, 3)); // Log first 3 for brevity
 
 	// Generate HTML for the approval dialog
 	const htmlContent = `
@@ -415,6 +297,22 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
           
           .server-links a:hover {
             text-decoration: underline;
+          }
+
+          .notice {
+            margin: -0.5rem 0 1rem;
+            font-size: 0.9rem;
+            color: #6b7280;
+            text-align: center;
+          }
+
+          .destination {
+            margin: 0 0 1.25rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            background-color: #eff6ff;
+            border: 1px solid #bfdbfe;
+            word-break: break-all;
           }
           
           .client-info {
@@ -639,7 +537,9 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
             
           <div class="card">
             
-            <h2 class="alert"><strong>${clientName || "A new MCP Client"}</strong> is requesting access</h1>
+            <h2 class="alert"><strong>${clientName}</strong> is requesting access</h2>
+            <p class="notice">The application chose this name itself; ${serverName} has not verified it.</p>
+            <p class="destination">After you log in, you will be sent to <strong>${returnTo}</strong></p>
             
             <div class="client-info">
               <div class="client-detail">
@@ -719,32 +619,30 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
 				}
             </div>
             
-            <p>This MCP Client is requesting to be authorized on ${serverName}. Choose a provider to continue authentication:</p>
-            
+            <p>Continue only if you trust ${returnTo}. Choose a provider to log in:</p>
+
             <form method="post" action="${new URL(request.url).pathname}">
               <input type="hidden" name="state" value="${encodedState}">
-              <!-- Add a hidden field to store the provider preference in the approval form -->
-              <input type="hidden" name="provider_preference" id="provider_preference" value="google">
               
               <div class="auth-providers">
-                <button type="submit" class="provider-button" style="background-color: #ffffff; border-color: #e1e4e8; color: #24292e; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);" name="provider" value="google" onclick="document.getElementById('provider_preference').value='google';">
+                <button type="submit" class="provider-button" style="background-color: #ffffff; border-color: #e1e4e8; color: #24292e; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);" name="provider" value="google">
                   <img src="https://www.gstatic.com/marketing-cms/assets/images/d5/dc/cfe9ce8b4425b410b49b7f2dd3f3/g.webp" alt="Google Logo" class="provider-logo">
                   <span>Continue with Google</span>
                 </button>
                 
-                <button type="submit" class="provider-button" style="background-color: #ffffff; border-color: #e1e4e8; color: #24292e; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);" name="provider" value="github" onclick="document.getElementById('provider_preference').value='github';">
+                <button type="submit" class="provider-button" style="background-color: #ffffff; border-color: #e1e4e8; color: #24292e; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);" name="provider" value="github">
                   <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub Logo" class="provider-logo">
                   <span>Continue with GitHub</span>
                 </button>
                 
            
                 
-                <button type="submit" class="provider-button" style="background-color: #ffffff; border-color: #e1e4e8; color: #24292e; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);" name="provider" value="linkedin" onclick="document.getElementById('provider_preference').value='linkedin';">
+                <button type="submit" class="provider-button" style="background-color: #ffffff; border-color: #e1e4e8; color: #24292e; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);" name="provider" value="linkedin">
                   <img src="https://content.linkedin.com/content/dam/me/business/en-us/amp/brand-site/v2/bg/LI-Bug.svg.original.svg" alt="LinkedIn Logo" class="provider-logo">
                   <span>Continue with LinkedIn</span>
                 </button>
 
-                <button type="submit" class="provider-button" style="background-color: #ffffff; border-color: #e1e4e8; color: #24292e; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);" name="provider" value="twitter" onclick="document.getElementById('provider_preference').value='twitter';">
+                <button type="submit" class="provider-button" style="background-color: #ffffff; border-color: #e1e4e8; color: #24292e; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);" name="provider" value="twitter">
                   <img src="https://about.x.com/content/dam/about-twitter/x/brand-toolkit/logo-black.png.twimg.1920.png" alt="X Logo" class="provider-logo">
                   <span>Continue with X</span>
                 </button>
@@ -768,23 +666,18 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
 
 
   */
-	console.log("[WORKER_OAUTH_UTILS] Generated HTML content for approval dialog");
 	return new Response(htmlContent, {
 		headers: {
 			"Content-Type": "text/html; charset=utf-8",
+			// The page names one pending login: never cache it
+			"Cache-Control": "no-store",
+			// No framing, so the provider buttons can't be clickjacked (RFC 9700 §4.16)
+			"Content-Security-Policy": "frame-ancestors 'none'",
+			"X-Frame-Options": "DENY",
 		},
 	});
 }
 
-/**
- * Result of parsing the approval form submission.
- */
-export interface ParsedApprovalResult {
-	/** The original state object passed through the form. */
-	state: any;
-	/** Headers to set on the redirect response, including the Set-Cookie header. */
-	headers: Record<string, string>;
-}
 export async function revokeUpstreamToken(
 	provider: string,
 	token: string,
@@ -933,177 +826,180 @@ export async function revokeUpstreamToken(
 		return false;
 	}
 }
+/** The session to end: whose it is and which client it was issued to, from a validated token */
+export interface OwnSession {
+	userId: string;
+	clientId: string;
+	provider?: string;
+	/** The upstream provider's access token, kept in the grant's props */
+	upstreamToken?: string;
+}
+
+/**
+ * Ends one user's session with one client, for /logout and the wallet_logout tool: a best-effort
+ * revocation of the upstream provider token, then every grant (with its tokens) this user holds
+ * for this client. Client registrations are never touched: all users of a client share them, on
+ * every dOAuth server.
+ * @param helpers - Grant listing and revocation (env.OAUTH_PROVIDER, or grantHelpers(env))
+ * @returns How many grants were revoked
+ */
+export async function revokeOwnSession(
+	helpers: Pick<OAuthHelpers, "listUserGrants" | "revokeGrant">,
+	env: any,
+	session: OwnSession,
+): Promise<number> {
+	const { userId, clientId, provider, upstreamToken } = session;
+
+	// Upstream first: the provider token lives in the grant's props, which are gone once the grant is revoked
+	if (provider && upstreamToken) {
+		try {
+			const ok = await revokeUpstreamToken(provider, upstreamToken, env);
+			console.log("[WORKER_OAUTH_UTILS] Upstream revocation result:", ok ? "ok" : "failed");
+		} catch (error) {
+			console.error("[WORKER_OAUTH_UTILS] Upstream token revocation error:", error);
+		}
+	}
+
+	// listUserGrants lists `grant:<userId>:`, with the colon, so a shorter ID matches no other user
+	let revoked = 0;
+	let cursor: string | undefined;
+	do {
+		const page = await helpers.listUserGrants(userId, { cursor });
+		for (const grant of page.items) {
+			// The grant key's userId is the bare provider ID, so a GitHub user and an X user with the
+			// same numeric ID share the prefix. Revoke only grants from the caller's own provider
+			// (a grant with no recorded provider is revoked).
+			const grantProvider: string | undefined = grant.metadata?.provider;
+			const sameProvider = !grantProvider || !provider || grantProvider === provider;
+			if (grant.clientId === clientId && sameProvider) {
+				await helpers.revokeGrant(grant.id, userId);
+				revoked++;
+			}
+		}
+		cursor = page.cursor;
+	} while (cursor);
+	return revoked;
+}
+
+/**
+ * Sends the user to the chosen provider.
+ *
+ * Stores the validated request under a fresh random value (`login:<value>`, 10 minutes, in a
+ * PendingLogins Durable Object), sends only that value to the provider as `state`, and sets the
+ * matching browser-binding cookie.
+ *
+ * @param provider - The provider the user picked
+ * @param authReqInfo - The authorization request, already validated by parseAuthRequest
+ * @param headers - Extra response headers, such as a cookie to clear
+ */
 export async function redirectToProvider(
 	c: Context,
-	provider: string,
-	_clientId: string,
+	provider: Provider,
 	authReqInfo: AuthRequest,
-	headers: Record<string, string> = {},
+	headers: Headers = new Headers(),
 ) {
 	// Configure provider-specific OAuth parameters
-	let resolvedClientId = _clientId;
+	let upstreamClientId = "";
 	let scope = "";
 	let upstreamUrl = "";
 	let hostedDomain = undefined;
 	let redirectUri = "";
+	let codeVerifier: string | undefined;
 	let codeChallengeParam: string | undefined;
 	let codeChallengeMethod: string | undefined;
 	let redirectUriOverride: string | undefined;
 	switch (provider) {
 		case "github":
 			console.log("[WORKER_OAUTH_UTILS] Redirecting to GitHub for OAuth authorization");
-			resolvedClientId = c.env.GITHUB_CLIENT_ID || "";
+			upstreamClientId = c.env.GITHUB_CLIENT_ID || "";
 			scope = "read:user user:email";
 			upstreamUrl = "https://github.com/login/oauth/authorize";
-			// Use a fixed redirect URI for GitHub that matches what's registered in the GitHub OAuth application settings
 			redirectUri = new URL("/callback", c.req.raw.url).href;
 			break;
-		case "twitter": {
+		case "twitter":
 			console.log("[WORKER_OAUTH_UTILS] Redirecting to Twitter for OAuth authorization");
-			resolvedClientId = c.env.TWITTER_CLIENT_ID || "";
+			upstreamClientId = c.env.TWITTER_CLIENT_ID || "";
 			scope = "tweet.read users.read";
 			upstreamUrl = "https://x.com/i/oauth2/authorize";
 			redirectUri = new URL("/callback", c.req.raw.url).href;
 			redirectUriOverride = c.env.BASE_URL
 				? new URL("/callback", c.env.BASE_URL).href
 				: undefined;
-			const cv = generateCodeVerifier();
-			const cc = await computeS256CodeChallenge(cv);
-			codeChallengeParam = cc;
+			// One verifier per login, kept in that login's record
+			codeVerifier = generateCodeVerifier();
+			codeChallengeParam = await computeS256CodeChallenge(codeVerifier);
 			codeChallengeMethod = "S256";
-			await c.env.CODE_VERIFIER_KV.put(
-				`pkce:${authReqInfo.clientId}`,
-				JSON.stringify({
-					codeVerifier: cv,
-					upstreamRedirectUri:
-						redirectUriOverride || new URL("/callback", c.req.raw.url).href,
-				}),
-				{ expirationTtl: 600 },
-			);
 			break;
-		}
 		case "linkedin":
 			console.log("[WORKER_OAUTH_UTILS] Redirecting to LinkedIn for OAuth authorization");
-			resolvedClientId = c.env.LINKEDIN_CLIENT_ID || "";
+			upstreamClientId = c.env.LINKEDIN_CLIENT_ID || "";
 			scope = "openid profile email";
 			upstreamUrl = "https://www.linkedin.com/oauth/v2/authorization";
 			redirectUri = new URL("/callback", c.req.raw.url).href;
 			break;
-		default:
+		case "google":
 			console.log("[WORKER_OAUTH_UTILS] Redirecting to Google for OAuth authorization");
-			resolvedClientId = c.env.GOOGLE_CLIENT_ID || "";
+			upstreamClientId = c.env.GOOGLE_CLIENT_ID || "";
 			scope = "email profile";
 			upstreamUrl = "https://accounts.google.com/o/oauth2/v2/auth";
 			hostedDomain = c.env.HOSTED_DOMAIN;
 			redirectUri = new URL("/callback", c.req.raw.url).href;
 			break;
+		default:
+			throw new Error(`Unknown provider: ${provider}`);
 	}
-	console.log(
-		`[WORKER_OAUTH_UTILS] Redirecting to ${provider} with clientId: ${resolvedClientId}, scope: ${scope}, redirectUri: ${redirectUri}`,
-	);
-	// Store the provider in the state for use in the callback
-	const stateWithProvider = {
-		clientId: authReqInfo.clientId,
+
+	// The request stays on the server; the provider only sees a random value
+	const state = generatePendingValue();
+	const login: PendingLogin = {
 		provider,
 		authReqInfo,
+		...(codeVerifier ? { codeVerifier } : {}),
 	};
+	await storePendingRecord(c.env.PENDING_LOGINS, LOGIN_KEY_PREFIX, state, login);
 
-	return new Response(null, {
-		headers: {
-			...headers,
-			location: getUpstreamAuthorizeUrl({
-				provider,
-				codeChallenge:
-					provider === "twitter" ? codeChallengeParam : authReqInfo.codeChallenge,
-				codeChallengeMethod:
-					provider === "twitter" ? codeChallengeMethod : authReqInfo.codeChallengeMethod,
-				clientId: resolvedClientId,
-				hostedDomain,
-				redirectUri: redirectUriOverride || redirectUri,
-				scope,
-				grantType: "authorization_code",
-				state: btoa(JSON.stringify(stateWithProvider)),
-				upstreamUrl,
-			}),
-		},
-		status: 302,
-	});
+	// Copy into a Headers object, which keeps each Set-Cookie header separate
+	const responseHeaders = new Headers(headers);
+	responseHeaders.append("Set-Cookie", pendingCookie(LOGIN_COOKIE, state));
+	responseHeaders.set(
+		"location",
+		getUpstreamAuthorizeUrl({
+			provider,
+			codeChallenge: provider === "twitter" ? codeChallengeParam : authReqInfo.codeChallenge,
+			codeChallengeMethod:
+				provider === "twitter" ? codeChallengeMethod : authReqInfo.codeChallengeMethod,
+			clientId: upstreamClientId,
+			hostedDomain,
+			redirectUri: redirectUriOverride || redirectUri,
+			scope,
+			grantType: "authorization_code",
+			state,
+			upstreamUrl,
+		}),
+	);
+
+	return new Response(null, { headers: responseHeaders, status: 302 });
 }
 
-/**
- * Parses the form submission from the approval dialog, extracts the state,
- * and generates Set-Cookie headers to mark the client as approved.
- *
- * @param request - The incoming POST Request object containing the form data.
- * @param cookieSecret - The secret key used to sign the approval cookie.
- * @returns A promise resolving to an object containing the parsed state and necessary headers.
- * @throws If the request method is not POST, form data is invalid, or state is missing.
- */
-export async function parseRedirectApproval(
-	request: Request,
-	cookieSecret: string,
-): Promise<ParsedApprovalResult> {
-	if (request.method !== "POST") {
-		throw new Error("Invalid request method. Expected POST.");
-	}
-
-	let state: any;
-	let clientId: string | undefined;
-
+/** An http(s) URL, HTML-escaped for an attribute or text; anything else (javascript:, data:, ...) gives "" */
+function webUrl(value: string | undefined): string {
+	if (!value) return "";
 	try {
-		const formData = await request.formData();
-		const encodedState = formData.get("state");
-		const providerPreference = formData.get("provider_preference");
-
-		if (typeof encodedState !== "string" || !encodedState) {
-			throw new Error("Missing or invalid 'state' in form data.");
-		}
-
-		state = decodeState<{ clientId?: string; provider?: string }>(encodedState); // Decode the state
-		clientId = state?.clientId; // Extract clientId from within the state
-
-		if (!clientId) {
-			throw new Error("Could not extract clientId from state object.");
-		}
-
-		// Add the provider preference to the state for use in the GET handler
-		state.providerPreference = providerPreference;
-	} catch (e) {
-		console.error("[WORKER_OAUTH_UTILS] Error processing form submission:", e);
-		// Rethrow or handle as appropriate, maybe return a specific error response
-		throw new Error(
-			`Failed to parse approval form: ${e instanceof Error ? e.message : String(e)}`,
-		);
+		const { protocol } = new URL(value);
+		return protocol === "https:" || protocol === "http:" ? sanitizeHtml(value) : "";
+	} catch {
+		return "";
 	}
+}
 
-	// Get existing approved clients
-	const cookieHeader = request.headers.get("Cookie");
-	const existingApprovedClients =
-		(await getApprovedClientsFromCookie(cookieHeader, cookieSecret)) || [];
-
-	// Add the newly approved client ID (avoid duplicates)
-	const updatedApprovedClients = Array.from(new Set([...existingApprovedClients, clientId]));
-
-	// Sign the updated list
-	const payload = JSON.stringify(updatedApprovedClients);
-	const key = await importKey(cookieSecret);
-	const signature = await signWithHmacSha256(key, payload);
-	const newCookieValue = `${signature}.${btoa(payload)}`; // signature.base64(payload)
-
-	// Generate Set-Cookie headers
-	const headers: Record<string, string> = {
-		"Set-Cookie": `${COOKIE_NAME}=${newCookieValue}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${ONE_YEAR_IN_SECONDS}`,
-	};
-
-	// Add provider preference cookie
-	if (state.providerPreference) {
-		headers["Set-Cookie"] = [
-			headers["Set-Cookie"],
-			`mcp-provider-preference=${state.providerPreference}; Secure; Path=/; SameSite=Lax; Max-Age=${ONE_YEAR_IN_SECONDS}`,
-		].join(", ");
+/** What to show as the destination: a web address's origin, or the whole URI for an app scheme */
+function displayDestination(redirectUri: string): string {
+	try {
+		const url = new URL(redirectUri);
+		return url.protocol === "https:" || url.protocol === "http:" ? url.origin : redirectUri;
+	} catch {
+		return redirectUri;
 	}
-
-	return { headers, state };
 }
 
 /**

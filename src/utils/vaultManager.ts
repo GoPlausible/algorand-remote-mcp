@@ -160,7 +160,7 @@ export async function getPublicKey(
 		return { success: false, error: "Hashicorp Vault worker not configured" };
 	}
 	// Check if the public key is cached
-	console.log(`Fetching public key for ${keyName} from vault`);
+	console.log(`Fetching public key from vault (provider: ${provider})`);
 
 	try {
 		const response = await env.HCV_WORKER.fetch(
@@ -308,17 +308,67 @@ export async function getUserAddress(
 }
 
 /**
+ * VAULT_ENTITIES key that binds an account (a Vault entity) to the provider's permanent user ID.
+ * A protocol store: doauth's client-worker and the Vault worker use the same key.
+ */
+export function subjectBindingKey(provider: string, entityId: string): string {
+	return `sub:${provider}:${entityId}`;
+}
+
+/**
+ * Ties each Vault account to the provider's permanent user ID, so that a recycled email or X handle
+ * cannot inherit another person's account (the same check, on the same keys, as doauth's
+ * checkSubjectBinding). An account with no binding yet is bound to this caller on first use; new
+ * accounts are bound by ensureUserAccount when it creates them.
+ * @param keyName The account name: the email, or the X username
+ * @param subjectId The provider's permanent user ID (`props.id`)
+ * @returns null when the caller may use the account, otherwise why not
+ */
+export async function checkSubjectBinding(
+	env: Env,
+	provider: string,
+	keyName: string,
+	subjectId: string | undefined,
+): Promise<string | null> {
+	if (!env.VAULT_ENTITIES) {
+		return "The account store is not configured";
+	}
+	if (!subjectId) {
+		return "The access token does not carry the provider's user ID";
+	}
+	const entityId: string | null = await env.VAULT_ENTITIES.get(`${provider}--${keyName}`);
+	if (!entityId) {
+		// No account yet: ensureUserAccount creates it and binds it
+		return null;
+	}
+	const bindingKey = subjectBindingKey(provider, entityId);
+	const boundSubject: string | null = await env.VAULT_ENTITIES.get(bindingKey);
+	if (!boundSubject) {
+		await env.VAULT_ENTITIES.put(bindingKey, String(subjectId));
+		console.log("Bound an existing account to its provider user:", { provider, entityId });
+		return null;
+	}
+	if (boundSubject !== String(subjectId)) {
+		console.warn("Account is bound to a different provider user:", { provider, entityId });
+		return `This account belongs to a different ${provider} user`;
+	}
+	return null;
+}
+
+/**
  * Ensure user has an account, creating one if necessary
  * @param env Environment with necessary bindings
  * @param email User email
+ * @param provider The login provider
+ * @param subjectId The provider's permanent user ID; a newly created account is bound to it
  * @returns Promise resolving to account type
  */
 export async function ensureUserAccount(
 	env: Env,
 	email: string | undefined,
 	provider: string | undefined,
+	subjectId?: string,
 ): Promise<any> {
-	console.log("Ensuring user account for email:", email);
 	if (!email || email === "" || !env.VAULT_ENTITIES || !provider) {
 		console.error("No email or no provider provided for account ensurance");
 		return null;
@@ -328,9 +378,7 @@ export async function ensureUserAccount(
 		console.error("Environment not provided for account ensurance");
 		return null;
 	}
-	console.log(
-		`Checking for existing entity in VAULT_ENTITIES for email: ${email} provider: ${provider}`,
-	);
+	console.log(`Checking for an existing entity in VAULT_ENTITIES (provider: ${provider})`);
 
 	let entityId: string | null = null;
 	let providerEmail: string | null = null;
@@ -346,7 +394,7 @@ export async function ensureUserAccount(
 
 	// If no entity exists, create one
 	if (!entityId) {
-		console.log(`Creating new entity for ${email}`);
+		console.log(`Creating new entity (provider: ${provider})`);
 		const entityResult = await createNewEntity(env, email, provider);
 
 		if (!entityResult.success) {
@@ -355,6 +403,13 @@ export async function ensureUserAccount(
 			entityId = entityResult.entityId || null;
 			providerEntity = `${provider}--${entityId}`;
 			console.log(`Created new entity with ID: ${entityId}`);
+			if (entityId && subjectId) {
+				// Bind the new account to the provider's permanent user ID (see checkSubjectBinding)
+				await env.VAULT_ENTITIES.put(
+					subjectBindingKey(provider, entityId),
+					String(subjectId),
+				);
+			}
 			await new Promise((resolve) => setTimeout(resolve, 500));
 		}
 	}
@@ -365,14 +420,14 @@ export async function ensureUserAccount(
 	if (!publicKeyResult.success || publicKeyResult.error) {
 		console.error("Failed to get public key from vault:", publicKeyResult.error);
 		// Create a new vault-based account
-		console.log(`Creating new keypair for ${email}`);
+		console.log(`Creating new keypair (provider: ${provider})`);
 
 		const keypairResult = await createKeypair(env, email, provider);
 		if (!keypairResult.success) {
 			throw new Error(keypairResult.error || "Failed to create keypair in vault");
 		}
 	}
-	console.log(`Entity ID for ${email} from KV store:`, providerEntity);
+	console.log("Account ensured:", { provider, entityId });
 	if (entityId) roleId = await env.VAULT_ENTITIES.get(providerEntity);
 	return "vault";
 }
@@ -403,10 +458,7 @@ export async function createNewEntity(
 	}
 
 	try {
-		console.log(
-			`[VAULT_MANAGER] Creating new entity in vault for email: ${email} with provider: ${provider}`,
-		);
-		console.log(`Creating new entity in vault for email: ${email}`);
+		console.log(`[VAULT_MANAGER] Creating new entity in vault (provider: ${provider})`);
 		// Step 1: Create the Entity
 		const createEntityResponse = await env.HCV_WORKER.fetch(
 			`${env.HCV_WORKER_URL}/${provider}/v1/identity/entity`,
@@ -564,10 +616,9 @@ export async function retrieveSecret(
 
 	try {
 		const secretPath = `${keyName}`;
-		console.log("Retrieving secret from vault for email:", keyName);
 		// Fetch the secret from the vault
 		// Note: Adjust the endpoint as per your vault worker's API
-		console.log("Fetching secret from vault at path:", secretPath);
+		console.log(`Fetching secret from vault (provider: ${provider})`);
 		const response = await env.HCV_WORKER.fetch(
 			`${env.HCV_WORKER_URL}/${provider}/secret/${secretPath}`,
 			{

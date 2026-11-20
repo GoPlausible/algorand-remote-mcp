@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
@@ -10,6 +11,10 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			algosdk: "algosdk",
+			// The Workers runtime module, which Node lacks (src/oauth-provider.ts, src/pending-logins.ts)
+			"cloudflare:workers": fileURLToPath(
+				new URL("./tests/stubs/cloudflare-workers.ts", import.meta.url),
+			),
 		},
 	},
 });

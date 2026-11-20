@@ -195,6 +195,13 @@ export interface OAuthProviderOptions {
 	disallowPublicClientRegistration?: boolean;
 
 	/**
+	 * Local modification (dOAuth): grants created before this Unix time (seconds) are refused at
+	 * refresh and deleted, so the user must log in again. Retires grants issued under superseded
+	 * login rules. Unset means no cutoff.
+	 */
+	grantsIssuedBefore?: number;
+
+	/**
 	 * Optional callback function that is called during token exchange.
 	 * This allows updating the props stored in both the access token and the grant.
 	 * For example, if the application itself is also a client to some other OAuth API,
@@ -230,9 +237,12 @@ export interface OAuthProviderOptions {
  */
 export interface OAuthHelpers {
 	/**
-	 * Parses an OAuth authorization request from the HTTP request
+	 * Parses and validates an OAuth authorization request from the HTTP request:
+	 * the client must exist, the redirect URI must be one it registered, the response
+	 * type must be supported and allowed for the client, and PKCE with S256 is required.
 	 * @param request - The HTTP request containing OAuth parameters
 	 * @returns The parsed authorization request parameters
+	 * @throws AuthRequestError when the request is invalid
 	 */
 	parseAuthRequest(request: Request): Promise<AuthRequest>;
 
@@ -295,6 +305,41 @@ export interface OAuthHelpers {
 	 * @returns A Promise resolving when the revocation is confirmed.
 	 */
 	revokeGrant(grantId: string, userId: string): Promise<void>;
+
+	/**
+	 * Validates an access token issued by this provider and decrypts its props.
+	 * Performs the same checks as API-route authentication: format, existence in KV, expiry.
+	 * @param token - The bearer access token (`userId:grantId:secret`)
+	 * @returns The token's owner, grant, client and decrypted props, or null if the token is not valid
+	 */
+	unwrapToken(token: string): Promise<UnwrappedToken | null>;
+}
+
+/**
+ * An invalid authorization request. It is shown to the user and never redirected: registration
+ * is open, so no redirect URI is trusted, and RFC 9700 §4.11.2 forbids redirecting before the
+ * user has authenticated (anything else makes /authorize an open redirector).
+ */
+export class AuthRequestError extends Error {
+	readonly error: string;
+
+	constructor(error: string, description: string) {
+		super(description);
+		this.name = "AuthRequestError";
+		this.error = error;
+	}
+}
+
+/**
+ * Result of a successful access token validation
+ */
+export interface UnwrappedToken {
+	userId: string;
+	grantId: string;
+	clientId: string;
+	scope: string[];
+	expiresAt: number;
+	props: any;
 }
 
 /**
@@ -1239,7 +1284,8 @@ class OAuthProviderImpl {
 			// not implemented: introspection_endpoint
 			// not implemented: introspection_endpoint_auth_methods_supported
 			// not implemented: introspection_endpoint_auth_signing_alg_values_supported
-			code_challenge_methods_supported: ["plain", "S256"], // PKCE support
+			// PKCE is required, S256 only (decision D1, 2026-11-20; RFC 9700 §2.1.1)
+			code_challenge_methods_supported: ["S256"],
 		};
 
 		return new Response(JSON.stringify(metadata), {
@@ -1328,14 +1374,19 @@ class OAuthProviderImpl {
 			return this.createErrorResponse("invalid_grant", "Client ID mismatch");
 		}
 
-		// Check if PKCE is being used
-		const isPkceEnabled = !!grantData.codeChallenge;
-
-		// OAuth 2.1 requires redirect_uri parameter unless PKCE is used
-		if (!redirectUri && !isPkceEnabled) {
+		// PKCE with S256 is required (decision D1, 2026-11-20). The grant store is shared with other
+		// dOAuth servers, so a code issued elsewhere without PKCE, or with plain, is refused here
+		// (RFC 6749 §5.2: the grant is not valid under this server's rules, invalid_grant).
+		if (!grantData.codeChallenge) {
 			return this.createErrorResponse(
-				"invalid_request",
-				"redirect_uri is required when not using PKCE",
+				"invalid_grant",
+				"Authorization code was issued without PKCE",
+			);
+		}
+		if (grantData.codeChallengeMethod !== "S256") {
+			return this.createErrorResponse(
+				"invalid_grant",
+				"Unsupported PKCE code_challenge_method",
 			);
 		}
 
@@ -1344,43 +1395,22 @@ class OAuthProviderImpl {
 			return this.createErrorResponse("invalid_grant", "Invalid redirect URI");
 		}
 
-		// Reject if code_verifier is provided but PKCE wasn't used in authorization
-		if (!isPkceEnabled && codeVerifier) {
+		// Verify the PKCE code_verifier against the stored code_challenge (RFC 7636 §4.6)
+		if (!codeVerifier) {
 			return this.createErrorResponse(
 				"invalid_request",
-				"code_verifier provided for a flow that did not use PKCE",
+				"code_verifier is required for PKCE",
 			);
 		}
-
-		// Verify PKCE code_verifier if code_challenge was provided during authorization
-		if (isPkceEnabled) {
-			if (!codeVerifier) {
-				return this.createErrorResponse(
-					"invalid_request",
-					"code_verifier is required for PKCE",
-				);
-			}
-
-			// Verify the code verifier against the stored code challenge
-			let calculatedChallenge: string;
-
-			if (grantData.codeChallengeMethod === "S256") {
-				console.log("[OAUTH_PROVIDER] Verifying PKCE code_verifier using S256 method");
-				// SHA-256 transformation for S256 method
-				const encoder = new TextEncoder();
-				const data = encoder.encode(codeVerifier);
-				const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-				const hashArray = Array.from(new Uint8Array(hashBuffer));
-				calculatedChallenge = base64UrlEncode(String.fromCharCode(...hashArray));
-			} else {
-				console.log("[OAUTH_PROVIDER] Verifying PKCE code_verifier using plain method");
-				// Plain method, direct comparison
-				calculatedChallenge = codeVerifier;
-			}
-
-			if (calculatedChallenge !== grantData.codeChallenge) {
-				return this.createErrorResponse("invalid_grant", "Invalid PKCE code_verifier");
-			}
+		const verifierHash = await crypto.subtle.digest(
+			"SHA-256",
+			new TextEncoder().encode(codeVerifier),
+		);
+		const calculatedChallenge = base64UrlEncode(
+			String.fromCharCode(...new Uint8Array(verifierHash)),
+		);
+		if (calculatedChallenge !== grantData.codeChallenge) {
+			return this.createErrorResponse("invalid_grant", "Invalid PKCE code_verifier");
 		}
 
 		// Code is valid - generate tokens
@@ -1580,6 +1610,21 @@ class OAuthProviderImpl {
 		// Verify client ID matches
 		if (grantData.clientId !== clientInfo.clientId) {
 			return this.createErrorResponse("invalid_grant", "Client ID mismatch");
+		}
+
+		// Local modification (dOAuth): refuse, and delete, grants issued before the cutoff. A grant
+		// without a numeric createdAt counts as older than any cutoff.
+		const cutoff = this.options.grantsIssuedBefore;
+		if (cutoff && !(typeof grantData.createdAt === "number" && grantData.createdAt >= cutoff)) {
+			await env.OAUTH_KV.delete(grantKey);
+			console.warn("[OAUTH_PROVIDER] Refused refresh of a grant issued before the cutoff:", {
+				userId,
+				grantId,
+			});
+			return this.createErrorResponse(
+				"invalid_grant",
+				"This grant predates the current login rules; log in again",
+			);
 		}
 
 		// Generate new access token with embedded user and grant IDs
@@ -1890,6 +1935,28 @@ class OAuthProviderImpl {
 			return this.createErrorResponse("invalid_request", "Method not allowed", 405);
 		}
 
+		// Local modification (dOAuth): registration is open (RFC 7591) and every client is stored for
+		// good, in a store shared by every dOAuth server, so limit how often one address may register.
+		// The Workers rate limiter counts per location.
+		if (env.REGISTER_RATE_LIMITER) {
+			const key = request.headers.get("CF-Connecting-IP") || "unknown";
+			const { success } = await env.REGISTER_RATE_LIMITER.limit({ key });
+			if (!success) {
+				console.warn("[OAUTH_PROVIDER] Client registration rate limit reached");
+				// RFC 6585 §4
+				return new Response(
+					"Too many client registrations from this address. Try again later.",
+					{
+						status: 429,
+						headers: {
+							"Content-Type": "text/plain; charset=utf-8",
+							"Retry-After": "60",
+						},
+					},
+				);
+			}
+		}
+
 		// Check content length to ensure it's not too large (1 MiB limit)
 		const contentLength = Number.parseInt(request.headers.get("Content-Length") || "0", 10);
 		if (contentLength > 1048576) {
@@ -1972,6 +2039,17 @@ class OAuthProviderImpl {
 			hashedSecret = await hashSecret(clientSecret);
 		}
 
+		// Local modification (dOAuth): the URLs a client registers are checked, since they decide where
+		// codes go and they are shown as links in the approval dialog. Clients stored earlier keep
+		// their values.
+		const webPageUrl = (field: string) => {
+			const value = validateStringField(clientMetadata[field]);
+			if (value !== undefined && !isWebUrl(value)) {
+				throw new Error(`${field} must be an http or https URL`);
+			}
+			return value;
+		};
+
 		let clientInfo: ClientInfo;
 		try {
 			// Validate redirect URIs - must exist and have at least one entry
@@ -1979,16 +2057,24 @@ class OAuthProviderImpl {
 			if (!redirectUris || redirectUris.length === 0) {
 				throw new Error("At least one redirect URI is required");
 			}
+			for (const uri of redirectUris) {
+				const problem = redirectUriProblem(uri);
+				if (problem) {
+					// RFC 7591 §3.2.2
+					return this.createErrorResponse("invalid_redirect_uri", `${problem}: ${uri}`);
+				}
+			}
 
 			clientInfo = {
 				clientId,
 				redirectUris,
 				clientName: validateStringField(clientMetadata.client_name),
-				logoUri: validateStringField(clientMetadata.logo_uri),
-				clientUri: validateStringField(clientMetadata.client_uri),
-				policyUri: validateStringField(clientMetadata.policy_uri),
-				tosUri: validateStringField(clientMetadata.tos_uri),
-				jwksUri: validateStringField(clientMetadata.jwks_uri),
+				// RFC 7591 §2: URLs of web pages, logos and key sets
+				logoUri: webPageUrl("logo_uri"),
+				clientUri: webPageUrl("client_uri"),
+				policyUri: webPageUrl("policy_uri"),
+				tosUri: webPageUrl("tos_uri"),
+				jwksUri: webPageUrl("jwks_uri"),
 				contacts: validateStringArray(clientMetadata.contacts),
 				grantTypes: validateStringArray(clientMetadata.grant_types) || [
 					"authorization_code",
@@ -2109,8 +2195,9 @@ class OAuthProviderImpl {
 		// Decrypt the props
 		const decryptedProps = await decryptProps(encryptionKey, tokenData.grant.encryptedProps);
 
-		// Set the decrypted props on the context object
-		ctx.props = decryptedProps;
+		// Set the decrypted props on the context object (current Workers types declare `props`
+		// read-only; the runtime lets the provider set it, which the API handlers rely on)
+		(ctx as { props: unknown }).props = decryptedProps;
 
 		// Inject OAuth helpers into env if not already present
 		if (!env.OAUTH_PROVIDER) {
@@ -2214,6 +2301,52 @@ const DEFAULT_ACCESS_TOKEN_TTL = 60 * 60;
 const TOKEN_LENGTH = 32;
 
 // Helper Functions
+
+/** Whether a string is an absolute http or https URL */
+function isWebUrl(value: string): boolean {
+	try {
+		const { protocol } = new URL(value);
+		return protocol === "https:" || protocol === "http:";
+	} catch {
+		return false;
+	}
+}
+
+/** Loopback hosts a native app may use with plain http (RFC 8252 §7.3, §8.3) */
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * Schemes a browser handles itself. None of them is "a non-HTTP application-specific URL that is
+ * available only to the client application" (RFC 7591 §5), and javascript:, data: and vbscript:
+ * run or render content chosen by whoever registered the client.
+ */
+const BROWSER_SCHEMES = new Set(["javascript:", "data:", "vbscript:", "file:", "blob:", "about:"]);
+
+/**
+ * Checks a redirect URI offered at registration.
+ * @returns Why it is refused, or null if it is acceptable
+ */
+export function redirectUriProblem(uri: string): string | null {
+	// RFC 6749 §3.1.2: an absolute URI without a fragment component
+	if (uri.includes("#")) return "A redirect URI must not contain a fragment";
+	let url: URL;
+	try {
+		url = new URL(uri);
+	} catch {
+		return "A redirect URI must be an absolute URI";
+	}
+	if (url.protocol === "https:") return null;
+	// RFC 9700 §2.6: no plain http, except loopback redirects of native apps
+	if (url.protocol === "http:") {
+		return LOOPBACK_HOSTS.has(url.hostname)
+			? null
+			: "A redirect URI must use https, except on a loopback address";
+	}
+	if (BROWSER_SCHEMES.has(url.protocol)) return "This redirect URI scheme is not allowed";
+	// A private-use scheme of a native app (RFC 7591 §5, RFC 8252 §7.1)
+	return null;
+}
+
 /**
  * Hashes a secret value using SHA-256
  * @param secret - The secret value to hash
@@ -2466,43 +2599,80 @@ class OAuthHelpersImpl implements OAuthHelpers {
 	}
 
 	/**
-	 * Parses an OAuth authorization request from the HTTP request
+	 * Parses and validates an OAuth authorization request from the HTTP request
 	 * @param request - The HTTP request containing OAuth parameters
 	 * @returns The parsed authorization request parameters
+	 * @throws AuthRequestError when the request is invalid
 	 */
 	async parseAuthRequest(request: Request): Promise<AuthRequest> {
 		const url = new URL(request.url);
 		const responseType = url.searchParams.get("response_type") || "";
 		const clientId = url.searchParams.get("client_id") || "";
 		console.log("[OAUTH_PROVIDER] Parsed clientId:", clientId);
-		const redirectUri = url.searchParams.get("redirect_uri") || "";
+		let redirectUri = url.searchParams.get("redirect_uri") || "";
 		const scope = (url.searchParams.get("scope") || "").split(" ").filter(Boolean);
 		const state = url.searchParams.get("state") || "";
 		const codeChallenge = url.searchParams.get("code_challenge") || undefined;
+		// RFC 7636 §4.3: the method defaults to "plain" when absent
 		const codeChallengeMethod = url.searchParams.get("code_challenge_method") || "plain";
 
-		// Check if implicit flow is requested but not allowed
-		if (responseType === "token" && !this.provider.options.allowImplicitFlow) {
-			throw new Error("The implicit grant flow is not enabled for this provider");
+		// Every error is shown to the user and never redirected (see AuthRequestError)
+		if (!clientId) {
+			throw new AuthRequestError("invalid_request", "Missing client_id.");
 		}
-
-		// Validate the client ID and redirect URI
-		if (clientId) {
-			const clientInfo = await this.lookupClient(clientId);
-
-			if (!clientInfo) {
-				throw new Error(
-					"Invalid client. The clientId provided does not match to this client.",
+		const clientInfo = await this.lookupClient(clientId);
+		if (!clientInfo) {
+			throw new AuthRequestError("invalid_request", "Unknown client.");
+		}
+		if (redirectUri) {
+			// Exact string match against the registered URIs (RFC 6749 §3.1.2.3, RFC 9700 §4.1.3)
+			if (!clientInfo.redirectUris.includes(redirectUri)) {
+				throw new AuthRequestError(
+					"invalid_request",
+					"The redirect_uri is not registered for this client.",
 				);
 			}
-			// If client exists, validate the redirect URI against registered URIs
-			if (clientInfo && redirectUri) {
-				if (!clientInfo.redirectUris.includes(redirectUri)) {
-					throw new Error(
-						"Invalid redirect URI. The redirect URI provided does not match any registered URI for this client.",
-					);
-				}
-			}
+		} else if (clientInfo.redirectUris.length === 1) {
+			// RFC 6749 §3.1.2.3: redirect_uri may be omitted only when exactly one is registered
+			redirectUri = clientInfo.redirectUris[0];
+		} else {
+			throw new AuthRequestError("invalid_request", "Missing redirect_uri.");
+		}
+
+		// RFC 6749 §4.1.2.1 would send the errors below back to the redirect URI. Matching the
+		// registration proves only that someone registered that URI, and anyone can register one, so
+		// they are shown here instead, before any login (RFC 9700 §4.11.2, which updates RFC 6749).
+		const implicit = responseType === "token" && !!this.provider.options.allowImplicitFlow;
+		if (!responseType) {
+			throw new AuthRequestError("invalid_request", "Missing response_type.");
+		}
+		if (responseType !== "code" && !implicit) {
+			throw new AuthRequestError(
+				"unsupported_response_type",
+				"Only the authorization code flow is supported.",
+			);
+		}
+		// RFC 7591 §2: a client registered without response_types uses only "code"
+		if (!(clientInfo.responseTypes ?? ["code"]).includes(responseType)) {
+			throw new AuthRequestError(
+				"unauthorized_client",
+				"This client is not registered for this response_type.",
+			);
+		}
+		// PKCE with S256 is required (decision D1, 2026-11-20; RFC 9700 §2.1.1). RFC 7636 §4.4.1: a
+		// server that requires PKCE answers a request without code_challenge, or with a transformation
+		// it does not support, with invalid_request.
+		if (!codeChallenge) {
+			throw new AuthRequestError(
+				"invalid_request",
+				"PKCE is required: send a code_challenge with code_challenge_method=S256.",
+			);
+		}
+		if (codeChallengeMethod !== "S256") {
+			throw new AuthRequestError(
+				"invalid_request",
+				"Unsupported code_challenge_method: only S256 is accepted.",
+			);
 		}
 
 		return {
@@ -2535,6 +2705,29 @@ class OAuthHelpersImpl implements OAuthHelpers {
 	async completeAuthorization(
 		options: CompleteAuthorizationOptions,
 	): Promise<{ redirectTo: string }> {
+		// Second line of defense: re-check the request against the client's registration, so that no
+		// caller can send a code or token to an unregistered address or through a disabled flow,
+		// even if the request never went through parseAuthRequest
+		const { clientId, redirectUri, responseType } = options.request;
+		const clientInfo = clientId ? await this.lookupClient(clientId) : null;
+		if (!clientInfo) {
+			throw new Error("completeAuthorization: unknown client");
+		}
+		if (!redirectUri || !clientInfo.redirectUris.includes(redirectUri)) {
+			throw new Error(
+				"completeAuthorization: redirect URI is not registered for this client",
+			);
+		}
+		if (
+			responseType !== "code" &&
+			!(responseType === "token" && this.provider.options.allowImplicitFlow)
+		) {
+			throw new Error("completeAuthorization: unsupported response type");
+		}
+		if (!(clientInfo.responseTypes ?? ["code"]).includes(responseType)) {
+			throw new Error("completeAuthorization: response type not registered for this client");
+		}
+
 		// Generate a unique grant ID
 		const grantId = generateRandomString(16);
 
@@ -2930,6 +3123,61 @@ class OAuthHelpersImpl implements OAuthHelpers {
 		// After all tokens are deleted, delete the grant itself
 		await this.env.OAUTH_KV.delete(grantKey);
 	}
+
+	/**
+	 * Validates an access token and decrypts its props (same checks as handleApiRequest)
+	 * @param token - The bearer access token (`userId:grantId:secret`)
+	 * @returns The validated token details, or null if the token is malformed, unknown or expired
+	 */
+	async unwrapToken(token: string): Promise<UnwrappedToken | null> {
+		const tokenParts = token.split(":");
+		if (tokenParts.length !== 3 || !tokenParts[0] || !tokenParts[1] || !tokenParts[2]) {
+			return null;
+		}
+		const [userId, grantId] = tokenParts;
+
+		// The KV key embeds the SHA-256 of the full token, so only the exact token finds its record
+		const tokenId = await generateTokenId(token);
+		const tokenData: Token | null = await this.env.OAUTH_KV.get(
+			`token:${userId}:${grantId}:${tokenId}`,
+			{ type: "json" },
+		);
+		if (!tokenData) {
+			return null;
+		}
+
+		const now = Math.floor(Date.now() / 1000);
+		if (tokenData.expiresAt < now) {
+			return null;
+		}
+
+		const encryptionKey = await unwrapKeyWithToken(token, tokenData.wrappedEncryptionKey);
+		const props = await decryptProps(encryptionKey, tokenData.grant.encryptedProps);
+
+		return {
+			userId,
+			grantId,
+			clientId: tokenData.grant.clientId,
+			scope: tokenData.grant.scope,
+			expiresAt: tokenData.expiresAt,
+			props,
+		};
+	}
+}
+
+/**
+ * Local modification: grant listing and revocation for code that runs outside the provider's
+ * request handling, such as an MCP tool in a Durable Object, where env.OAUTH_PROVIDER is not
+ * injected. Both methods use only env.OAUTH_KV.
+ * @param env - An environment with the OAUTH_KV binding
+ */
+export function grantHelpers(env: any): Pick<OAuthHelpers, "listUserGrants" | "revokeGrant"> {
+	// listUserGrants and revokeGrant never read the provider, so none is needed here
+	const helpers = new OAuthHelpersImpl(env, undefined as unknown as OAuthProviderImpl);
+	return {
+		listUserGrants: (userId, options) => helpers.listUserGrants(userId, options),
+		revokeGrant: (grantId, userId) => helpers.revokeGrant(grantId, userId),
+	};
 }
 
 /**
