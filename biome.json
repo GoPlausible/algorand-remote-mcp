@@ -4,7 +4,7 @@
 		"enabled": true
 	},
 	"files": {
-		"ignore": ["worker-configuration.d.ts", ".notes/**"]
+		"ignore": ["worker-configuration.d.ts", ".notes/**", "src/oauth-provider.ts"]
 	},
 	"vcs": {
 		"enabled": true,

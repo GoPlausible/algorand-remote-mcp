@@ -32,12 +32,12 @@ export { PendingLogins } from "./pending-logins";
 
 /**
  * Grants created before this time are refused at refresh and deleted (H1 in
- * .claude/notes/doauth-protocol-fixes.md). Until the coordinated cutoff (decision D3: one second
- * after this server's login fix is live, the same value on all three dOAuth servers), it is
- * doauth's current cutoff. Not exported: named exports of the main module must be classes or
- * handlers.
+ * .claude/notes/doauth-protocol-fixes.md). One cutoff for the whole protocol (decision D3): the same
+ * date in all three servers that share the token store, just after this server's login fix went
+ * live (ae36536, deployed 2026-11-20 16:34:26 UTC), with half a minute for the rollout. Not
+ * exported: named exports of the main module must be classes or handlers.
  */
-const GRANTS_ISSUED_BEFORE = Math.floor(Date.parse("2026-11-07T21:22:16Z") / 1000);
+const GRANTS_ISSUED_BEFORE = Math.floor(Date.parse("2026-11-20T16:35:00Z") / 1000);
 
 // Define our MCP agent with tools
 export class AlgorandRemoteMCP extends McpAgent<Env, State, Props> {
@@ -297,4 +297,8 @@ export default new OAuthProvider({
 	defaultHandler: OauthHandler as any,
 	tokenEndpoint: "/token",
 	grantsIssuedBefore: GRANTS_ISSUED_BEFORE,
+	// This server has always added the client ID to the client redirect when a state is present
+	clientRedirectParams: (_props, request) => ({
+		client: request.state ? request.clientId : undefined,
+	}),
 });
