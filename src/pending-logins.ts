@@ -1,3 +1,5 @@
+// Part of the dOAuth login layer: master in doauth/client-worker/src, synced unchanged into
+// algorand-remote-mcp and algorand-remote-mcp-lite by doauth's scripts/sync-oauth-provider.mjs.
 import { DurableObject } from "cloudflare:workers";
 
 /**

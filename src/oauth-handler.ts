@@ -1,9 +1,11 @@
-// Shared login layer of the dOAuth MCP servers: algorand-remote-mcp is the master, and doauth's
-// scripts/sync-oauth-provider.mjs copies this file unchanged into algorand-remote-mcp-lite. Keep it
-// free of anything specific to one server; per-server values live in oauth-server-info.ts.
+// The dOAuth login layer, shared by every server on the protocol's token store: doauth.org
+// (client-worker, the master: doauth/client-worker/src), algorand-remote-mcp and
+// algorand-remote-mcp-lite (synced copies, by doauth's scripts/sync-oauth-provider.mjs). Keep it free
+// of anything specific to one server; per-server values live in oauth-server-info.ts.
 import { type Context, Hono } from "hono";
 import { type AuthRequest, AuthRequestError, type OAuthHelpers } from "./oauth-provider";
 import { oauthServerInfo } from "./oauth-server-info";
+import type { PendingLogins } from "./pending-logins";
 
 import type { Env, Props } from "./types";
 import {
@@ -27,6 +29,7 @@ import {
 
 // Extend the Env type to include our OAuth configuration
 interface OAuthEnv {
+	PENDING_LOGINS: DurableObjectNamespace<PendingLogins>; // Pending login steps, one object each
 	OAUTH_PROVIDER: OAuthHelpers;
 	OAUTH_KV: KVNamespace; // KV namespace for OAuth client data
 	COOKIE_ENCRYPTION_KEY: string;
