@@ -41,13 +41,14 @@ afterEach(() => {
 describe("M3: client registration", () => {
 	const error = async (res: Response) => ((await res.json()) as { error: string }).error;
 
-	it("accepts https, loopback http and private-use app schemes", async () => {
+	// The protocol's rule, the same on all three servers: https, or http on a loopback host (the MCP
+	// authorization spec: "All redirect URIs MUST be either localhost or use HTTPS")
+	it("accepts https and loopback http", async () => {
 		for (const uri of [
 			"https://client.example/cb",
 			"http://localhost:3000/cb",
 			"http://127.0.0.1:8080/cb",
 			"http://[::1]/cb",
-			"com.example.app:/oauth/cb",
 		]) {
 			expect((await register(provider, env, [uri])).status, uri).toBe(201);
 		}
@@ -64,6 +65,20 @@ describe("M3: client registration", () => {
 			"http://client.example/cb",
 			"https://client.example/cb#frag",
 			"/relative/cb",
+		]) {
+			const res = await register(provider, env, [REDIRECT, uri]);
+			expect(res.status, uri).toBe(400);
+			expect(await error(res), uri).toBe("invalid_redirect_uri");
+		}
+		expect([...env.OAUTH_KV.m.keys()].filter((k) => k.startsWith("client:"))).toHaveLength(0);
+	});
+
+	it("refuses app schemes and user information with invalid_redirect_uri", async () => {
+		for (const uri of [
+			"com.example.app:/oauth/cb",
+			"cursor://anysphere.cursor-mcp/oauth/callback",
+			"exp://192.168.1.20:8081/--/oauth",
+			"https://claude.ai@evil.example/cb",
 		]) {
 			const res = await register(provider, env, [REDIRECT, uri]);
 			expect(res.status, uri).toBe(400);
@@ -101,7 +116,9 @@ describe("M3: client registration", () => {
 		expect(redirectUriProblem("https://client.example/cb")).toBeNull();
 		expect(redirectUriProblem("http://evil.example/cb")).toMatch(/https/);
 		expect(redirectUriProblem("https://client.example/cb#x")).toMatch(/fragment/);
-		expect(redirectUriProblem("javascript:alert(1)")).toMatch(/scheme/);
+		expect(redirectUriProblem("javascript:alert(1)")).toMatch(/https/);
+		expect(redirectUriProblem("com.example.app:/cb")).toMatch(/https/);
+		expect(redirectUriProblem("https://u@client.example/cb")).toMatch(/user information/);
 	});
 });
 

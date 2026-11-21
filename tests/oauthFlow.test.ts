@@ -364,6 +364,70 @@ describe("H2: the provider picker", () => {
 		expect(html).toContain("has not verified it");
 		expect(html).not.toContain("provider_preference");
 	});
+
+	it("shows the requested scopes, that the client can sign with the wallet, and what each provider shares", async () => {
+		const res = await call(
+			provider,
+			env,
+			`/authorize?${await authorizeQuery(clientId, { scope: "wallet:read <b>x</b>" })}`,
+		);
+		const html = await res.text();
+		expect(html).toContain("Requested scopes:");
+		expect(html).toContain("<div>wallet:read</div>");
+		expect(html).toContain("&lt;b&gt;x&lt;/b&gt;");
+		expect(html).not.toContain("<b>x</b>");
+		expect(html).toContain("including signing Algorand transactions with your wallet");
+		expect(html).toContain("Google: email profile");
+		expect(html).toContain("GitHub: read:user user:email");
+		expect(html).toContain("LinkedIn: openid profile email");
+	});
+
+	it("refuses a client registered before the protocol's redirect URI rule, with a 400 page", async () => {
+		for (const [id, uri] of [
+			["old-http", "http://client.example/cb"],
+			["old-app", "exp://192.168.1.20:8081/--/oauth"],
+		]) {
+			env.OAUTH_KV.m.set(
+				`client:${id}`,
+				JSON.stringify({
+					clientId: id,
+					redirectUris: [uri],
+					tokenEndpointAuthMethod: "none",
+				}),
+			);
+			const res = await call(
+				provider,
+				env,
+				`/authorize?${await authorizeQuery(id, { redirect_uri: uri })}`,
+			);
+			expect(res.status, uri).toBe(400);
+			expect(res.headers.get("location"), uri).toBeNull();
+			expect(await res.text(), uri).toContain("no longer accepted");
+		}
+	});
+
+	it("lets a native app use any port on its registered loopback redirect", async () => {
+		env.OAUTH_KV.m.set(
+			"client:native",
+			JSON.stringify({
+				clientId: "native",
+				redirectUris: ["http://127.0.0.1/callback"],
+				tokenEndpointAuthMethod: "none",
+			}),
+		);
+		const ok = await call(
+			provider,
+			env,
+			`/authorize?${await authorizeQuery("native", { redirect_uri: "http://127.0.0.1:53682/callback" })}`,
+		);
+		expect(ok.status).toBe(200);
+		const otherPath = await call(
+			provider,
+			env,
+			`/authorize?${await authorizeQuery("native", { redirect_uri: "http://127.0.0.1:53682/other" })}`,
+		);
+		expect(otherPath.status).toBe(400);
+	});
 });
 
 describe("M1: who the user is", () => {

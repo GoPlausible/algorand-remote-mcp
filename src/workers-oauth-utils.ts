@@ -4,6 +4,21 @@ import type { Context } from "hono";
 import type { AuthRequest, ClientInfo, OAuthHelpers } from "./oauth-provider";
 import type { PendingLogins } from "./pending-logins";
 
+/** What each sign-in provider is asked to share (the upstream scopes), shown on the picker too */
+export const UPSTREAM_SCOPES: Record<Provider, string> = {
+	google: "email profile",
+	github: "read:user user:email",
+	twitter: "tweet.read users.read",
+	linkedin: "openid profile email",
+};
+
+const PROVIDER_LABELS: Record<Provider, string> = {
+	google: "Google",
+	github: "GitHub",
+	twitter: "X",
+	linkedin: "LinkedIn",
+};
+
 // --- Pending logins ---
 //
 // A login request never travels through the browser. Each step stores it in a PendingLogins
@@ -144,6 +159,10 @@ export interface ApprovalDialogOptions {
 	 */
 	redirectUri: string;
 	/**
+	 * The scopes the client asked for, shown to the user
+	 */
+	scope?: string[];
+	/**
 	 * Server information to display in the approval dialog
 	 */
 	server: {
@@ -168,7 +187,7 @@ export interface ApprovalDialogOptions {
  * @returns A Response containing the HTML approval dialog
  */
 export function renderApprovalDialog(request: Request, options: ApprovalDialogOptions): Response {
-	const { client, server, state, redirectUri } = options;
+	const { client, server, state, redirectUri, scope = [] } = options;
 	console.log("[WORKER_OAUTH_UTILS] Rendering approval dialog for client:", client?.clientId);
 
 	const encodedState = sanitizeHtml(state);
@@ -617,6 +636,24 @@ export function renderApprovalDialog(request: Request, options: ApprovalDialogOp
               `
 						: ""
 				}
+
+              <div class="client-detail">
+                <div class="detail-label">Requested scopes:</div>
+                <div class="detail-value small">
+                  ${scope.length > 0 ? scope.map((s) => `<div>${sanitizeHtml(s)}</div>`).join("") : "None specified"}
+                </div>
+              </div>
+            </div>
+
+            <p>If you continue, this client can use every tool on ${serverName}, including signing Algorand transactions with your wallet.</p>
+
+            <div class="client-info">
+              <div class="client-detail">
+                <div class="detail-label">Your sign-in provider shares:</div>
+                <div class="detail-value small">
+                  ${PROVIDERS.map((p) => `<div>${PROVIDER_LABELS[p]}: ${sanitizeHtml(UPSTREAM_SCOPES[p])}</div>`).join("")}
+                </div>
+              </div>
             </div>
             
             <p>Continue only if you trust ${returnTo}. Choose a provider to log in:</p>
@@ -912,14 +949,14 @@ export async function redirectToProvider(
 		case "github":
 			console.log("[WORKER_OAUTH_UTILS] Redirecting to GitHub for OAuth authorization");
 			upstreamClientId = c.env.GITHUB_CLIENT_ID || "";
-			scope = "read:user user:email";
+			scope = UPSTREAM_SCOPES.github;
 			upstreamUrl = "https://github.com/login/oauth/authorize";
 			redirectUri = new URL("/callback", c.req.raw.url).href;
 			break;
 		case "twitter":
 			console.log("[WORKER_OAUTH_UTILS] Redirecting to Twitter for OAuth authorization");
 			upstreamClientId = c.env.TWITTER_CLIENT_ID || "";
-			scope = "tweet.read users.read";
+			scope = UPSTREAM_SCOPES.twitter;
 			upstreamUrl = "https://x.com/i/oauth2/authorize";
 			redirectUri = new URL("/callback", c.req.raw.url).href;
 			redirectUriOverride = c.env.BASE_URL
@@ -933,14 +970,14 @@ export async function redirectToProvider(
 		case "linkedin":
 			console.log("[WORKER_OAUTH_UTILS] Redirecting to LinkedIn for OAuth authorization");
 			upstreamClientId = c.env.LINKEDIN_CLIENT_ID || "";
-			scope = "openid profile email";
+			scope = UPSTREAM_SCOPES.linkedin;
 			upstreamUrl = "https://www.linkedin.com/oauth/v2/authorization";
 			redirectUri = new URL("/callback", c.req.raw.url).href;
 			break;
 		case "google":
 			console.log("[WORKER_OAUTH_UTILS] Redirecting to Google for OAuth authorization");
 			upstreamClientId = c.env.GOOGLE_CLIENT_ID || "";
-			scope = "email profile";
+			scope = UPSTREAM_SCOPES.google;
 			upstreamUrl = "https://accounts.google.com/o/oauth2/v2/auth";
 			hostedDomain = c.env.HOSTED_DOMAIN;
 			redirectUri = new URL("/callback", c.req.raw.url).href;

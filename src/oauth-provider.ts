@@ -1354,7 +1354,7 @@ class OAuthProviderImpl {
     }
 
     // Verify redirect URI if provided
-    if (redirectUri && !clientInfo.redirectUris.includes(redirectUri)) {
+    if (redirectUri && !isRegisteredRedirectUri(clientInfo, redirectUri)) {
       return this.createErrorResponse('invalid_grant', 'Invalid redirect URI');
     }
 
@@ -2227,14 +2227,16 @@ function isWebUrl(value: string): boolean {
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 
 /**
- * Schemes a browser handles itself. None of them is "a non-HTTP application-specific URL that is
- * available only to the client application" (RFC 7591 §5), and javascript:, data: and vbscript:
- * run or render content chosen by whoever registered the client.
- */
-const BROWSER_SCHEMES = new Set(['javascript:', 'data:', 'vbscript:', 'file:', 'blob:', 'about:']);
-
-/**
- * Checks a redirect URI offered at registration.
+ * The dOAuth protocol's rule for redirect URIs, the same on every server and applied both at
+ * registration and whenever a redirect URI is used, so clients registered under older rules are
+ * held to it too (owner's decision 2026-11-21: all servers work the same).
+ * - RFC 6749 §3.1.2: an absolute URI without a fragment component.
+ * - MCP authorization spec (2025-11-25, Security Considerations, Communication Security): "All
+ *   redirect URIs MUST be either localhost or use HTTPS"; RFC 9700 §2.6: no plain http except
+ *   loopback. So only https:, or http: on a loopback host, pass. Private-use app schemes
+ *   (cursor:, exp:, com.example.app:) are refused.
+ * - No user information: "https://claude.ai@evil.example/cb" reads as claude.ai but sends the code
+ *   to evil.example (RFC 3986 §3.2.1 deprecates passwords there).
  * @returns Why it is refused, or null if it is acceptable
  */
 export function redirectUriProblem(uri: string): string | null {
@@ -2250,13 +2252,31 @@ export function redirectUriProblem(uri: string): string | null {
   // to evil.example (RFC 3986 §3.2.1 deprecates passwords there; from lite, decision 2026-11-09)
   if (url.username || url.password) return 'A redirect URI must not contain user information';
   if (url.protocol === 'https:') return null;
-  // RFC 9700 §2.6: no plain http, except loopback redirects of native apps
-  if (url.protocol === 'http:') {
-    return LOOPBACK_HOSTS.has(url.hostname) ? null : 'A redirect URI must use https, except on a loopback address';
-  }
-  if (BROWSER_SCHEMES.has(url.protocol)) return 'This redirect URI scheme is not allowed';
-  // A private-use scheme of a native app (RFC 7591 §5, RFC 8252 §7.1)
-  return null;
+  if (url.protocol === 'http:' && LOOPBACK_HOSTS.has(url.hostname)) return null;
+  return 'A redirect URI must use https, or http on localhost, 127.0.0.1 or [::1]';
+}
+
+/** A loopback http redirect URI split around its port: scheme and host, then everything after */
+const LOOPBACK_URI = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?([/?].*)?$/i;
+
+/**
+ * Whether `requested` is the registered redirect URI `registered`. Exact string matching, except that
+ * a loopback http URI may use any port: RFC 8252 §7.3 and OAuth 2.1 (draft 13) §8.4.2, "The
+ * authorization server MUST allow any port to be specified at the time of the request for loopback
+ * IP redirect URIs"; RFC 9700 §2.1 makes the same exception. Everything else, the path and query
+ * included, must match exactly, as written (no normalization).
+ */
+export function redirectUriMatches(registered: string, requested: string): boolean {
+  if (registered === requested) return true;
+  const a = LOOPBACK_URI.exec(registered);
+  const b = LOOPBACK_URI.exec(requested);
+  if (!a || !b) return false;
+  return a[1].toLowerCase() === b[1].toLowerCase() && (a[2] ?? '') === (b[2] ?? '');
+}
+
+/** Whether `uri` matches one of the client's registered redirect URIs (see redirectUriMatches) */
+function isRegisteredRedirectUri(clientInfo: ClientInfo, uri: string): boolean {
+  return clientInfo.redirectUris.some((registered) => redirectUriMatches(registered, uri));
 }
 
 /**
@@ -2535,8 +2555,9 @@ class OAuthHelpersImpl implements OAuthHelpers {
       throw new AuthRequestError('invalid_request', 'Unknown client.');
     }
     if (redirectUri) {
-      // Exact string match against the registered URIs (RFC 6749 §3.1.2.3, RFC 9700 §4.1.3)
-      if (!clientInfo.redirectUris.includes(redirectUri)) {
+      // Exact string match against the registered URIs (RFC 6749 §3.1.2.3, RFC 9700 §4.1.3), except
+      // for the port of a loopback redirect (see redirectUriMatches)
+      if (!isRegisteredRedirectUri(clientInfo, redirectUri)) {
         throw new AuthRequestError('invalid_request', 'The redirect_uri is not registered for this client.');
       }
     } else if (clientInfo.redirectUris.length === 1) {
@@ -2544,6 +2565,14 @@ class OAuthHelpersImpl implements OAuthHelpers {
       redirectUri = clientInfo.redirectUris[0];
     } else {
       throw new AuthRequestError('invalid_request', 'Missing redirect_uri.');
+    }
+    // The protocol's redirect URI rule applies to clients registered before it, too
+    const uriProblem = redirectUriProblem(redirectUri);
+    if (uriProblem) {
+      throw new AuthRequestError(
+        'invalid_request',
+        `This client's redirect_uri is no longer accepted (${uriProblem}). Register the client again.`
+      );
     }
 
     // RFC 6749 §4.1.2.1 would send the errors below back to the redirect URI. Matching the
@@ -2610,8 +2639,11 @@ class OAuthHelpersImpl implements OAuthHelpers {
     if (!clientInfo) {
       throw new Error('completeAuthorization: unknown client');
     }
-    if (!redirectUri || !clientInfo.redirectUris.includes(redirectUri)) {
+    if (!redirectUri || !isRegisteredRedirectUri(clientInfo, redirectUri)) {
       throw new Error('completeAuthorization: redirect URI is not registered for this client');
+    }
+    if (redirectUriProblem(redirectUri)) {
+      throw new Error('completeAuthorization: redirect URI is not accepted by the protocol rule');
     }
     if (responseType !== 'code' && !(responseType === 'token' && this.provider.options.allowImplicitFlow)) {
       throw new Error('completeAuthorization: unsupported response type');

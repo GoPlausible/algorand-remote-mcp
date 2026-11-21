@@ -1,6 +1,9 @@
+// Shared login layer of the dOAuth MCP servers: algorand-remote-mcp is the master, and doauth's
+// scripts/sync-oauth-provider.mjs copies this file unchanged into algorand-remote-mcp-lite. Keep it
+// free of anything specific to one server; per-server values live in oauth-server-info.ts.
 import { type Context, Hono } from "hono";
-import { getLogo } from "./logoUrl.js";
 import { type AuthRequest, AuthRequestError, type OAuthHelpers } from "./oauth-provider";
+import { oauthServerInfo } from "./oauth-server-info";
 
 import type { Env, Props } from "./types";
 import {
@@ -89,15 +92,8 @@ app.get("/authorize", async (c) => {
 	const response = renderApprovalDialog(c.req.raw, {
 		client,
 		redirectUri: authReqInfo.redirectUri,
-		server: {
-			description:
-				"Algorand MCP Remote Server Authentication using OAuth 2 protocol. Supports Google, GitHub, Twitter, and LinkedIn.",
-			name: "Algorand Remote MCP OAuth",
-			// Using the GoPlausible logo as a base64 data URL
-			//    `base64 -i src/assets/goPlausible-logo-type-h.png | pbcopy` (on macOS)
-			//    `base64 -w 0 src/assets/goPlausible-logo-type-h.png | xclip -selection clipboard` (on Linux)
-			logo: getLogo(),
-		},
+		scope: authReqInfo.scope,
+		server: oauthServerInfo(),
 		state: requestId,
 	});
 	response.headers.append("Set-Cookie", pendingCookie(AUTHORIZE_COOKIE, requestId));
@@ -260,8 +256,9 @@ async function completeLogin(c: HandlerContext, login: PendingLogin): Promise<Re
 			clientSecret = c.env.GITHUB_CLIENT_SECRET || "";
 			tokenUrl = "https://github.com/login/oauth/access_token";
 			userInfoUrl = "https://api.github.com/user";
-			// Use a fixed redirect URI for GitHub that matches what's registered in the GitHub OAuth application settings
-			redirectUri = "https://algorandmcp.goplausible.xyz/callback";
+			// The same callback the authorization request used: this server's own /callback, which
+			// must be registered in the GitHub OAuth app of this server
+			redirectUri = new URL("/callback", c.req.url).href;
 			break;
 		case "twitter":
 			clientId = c.env.TWITTER_CLIENT_ID || "";
