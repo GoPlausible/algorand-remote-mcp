@@ -54,7 +54,7 @@ describe("M3: client registration", () => {
 		}
 	});
 
-	it("refuses redirect URIs with invalid_redirect_uri", async () => {
+	it("refuses a registration whose only redirect URI breaks the rule, with invalid_redirect_uri", async () => {
 		for (const uri of [
 			"javascript:alert(1)",
 			"data:text/html,hi",
@@ -66,7 +66,7 @@ describe("M3: client registration", () => {
 			"https://client.example/cb#frag",
 			"/relative/cb",
 		]) {
-			const res = await register(provider, env, [REDIRECT, uri]);
+			const res = await register(provider, env, [uri]);
 			expect(res.status, uri).toBe(400);
 			expect(await error(res), uri).toBe("invalid_redirect_uri");
 		}
@@ -80,11 +80,32 @@ describe("M3: client registration", () => {
 			"exp://192.168.1.20:8081/--/oauth",
 			"https://claude.ai@evil.example/cb",
 		]) {
-			const res = await register(provider, env, [REDIRECT, uri]);
+			const res = await register(provider, env, [uri]);
 			expect(res.status, uri).toBe(400);
 			expect(await error(res), uri).toBe("invalid_redirect_uri");
 		}
 		expect([...env.OAUTH_KV.m.keys()].filter((k) => k.startsWith("client:"))).toHaveLength(0);
+	});
+
+	// RFC 7591 §3.2.1: the server may replace requested metadata. The protocol drops a refused URI,
+	// registers the rest, and returns only what it kept (the owner's decision, 2026-11-21).
+	it("drops refused redirect URIs next to accepted ones, and returns only what it kept", async () => {
+		const res = await register(provider, env, [
+			"cursor://anysphere.cursor-mcp/oauth/callback",
+			"https://www.cursor.com/agents/mcp/oauth/callback",
+			"http://localhost:8787/callback",
+			"javascript:alert(1)",
+		]);
+		expect(res.status).toBe(201);
+		const body = (await res.json()) as { client_id: string; redirect_uris: string[] };
+		const kept = [
+			"https://www.cursor.com/agents/mcp/oauth/callback",
+			"http://localhost:8787/callback",
+		];
+		expect(body.redirect_uris).toEqual(kept);
+		expect(JSON.parse(env.OAUTH_KV.m.get(`client:${body.client_id}`)).redirectUris).toEqual(
+			kept,
+		);
 	});
 
 	it("refuses page, logo and key-set URLs that are not http(s), with invalid_client_metadata", async () => {

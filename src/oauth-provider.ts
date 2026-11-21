@@ -1971,23 +1971,27 @@ class OAuthProviderImpl {
     };
 
     let clientInfo: ClientInfo;
+    let droppedRedirectUris = 0;
     try {
       // Validate redirect URIs - must exist and have at least one entry
       const redirectUris = validateStringArray(clientMetadata.redirect_uris);
       if (!redirectUris || redirectUris.length === 0) {
         throw new Error('At least one redirect URI is required');
       }
-      for (const uri of redirectUris) {
-        const problem = redirectUriProblem(uri);
-        if (problem) {
-          // RFC 7591 §3.2.2
-          return this.createErrorResponse('invalid_redirect_uri', `${problem}: ${uri}`);
-        }
+      // RFC 7591 §3.2.1 lets the server replace requested metadata: a redirect URI the protocol's
+      // rule refuses is dropped, the rest are registered, and the response lists only what was kept
+      // (the owner's decision, 2026-11-21; Cursor, for one, registers an app scheme next to https
+      // and loopback URIs). Only when none is left is the registration refused (§3.2.2).
+      const acceptedRedirectUris = redirectUris.filter((uri) => !redirectUriProblem(uri));
+      if (acceptedRedirectUris.length === 0) {
+        const uri = redirectUris[0];
+        return this.createErrorResponse('invalid_redirect_uri', `${redirectUriProblem(uri)}: ${uri}`);
       }
+      droppedRedirectUris = redirectUris.length - acceptedRedirectUris.length;
 
       clientInfo = {
         clientId,
-        redirectUris,
+        redirectUris: acceptedRedirectUris,
         clientName: validateStringField(clientMetadata.client_name),
         // RFC 7591 §2: URLs of web pages, logos and key sets
         logoUri: webPageUrl('logo_uri'),
@@ -2015,7 +2019,7 @@ class OAuthProviderImpl {
 
     // Store client info
     await env.OAUTH_KV.put(`client:${clientId}`, JSON.stringify(clientInfo));
-    console.log('[OAUTH_PROVIDER] [OAUTH_KV]  Registered new client:', { clientId: clientInfo.clientId, tokenEndpointAuthMethod: clientInfo.tokenEndpointAuthMethod });
+    console.log('[OAUTH_PROVIDER] [OAUTH_KV]  Registered new client:', { clientId: clientInfo.clientId, tokenEndpointAuthMethod: clientInfo.tokenEndpointAuthMethod, droppedRedirectUris });
 
     // Return client information with the original unhashed secret
     const response: Record<string, any> = {
@@ -2558,7 +2562,15 @@ class OAuthHelpersImpl implements OAuthHelpers {
       // Exact string match against the registered URIs (RFC 6749 §3.1.2.3, RFC 9700 §4.1.3), except
       // for the port of a loopback redirect (see redirectUriMatches)
       if (!isRegisteredRedirectUri(clientInfo, redirectUri)) {
-        throw new AuthRequestError('invalid_request', 'The redirect_uri is not registered for this client.');
+        // Registration drops a URI the protocol's rule refuses, so say why, rather than leave the
+        // client to register it again
+        const problem = redirectUriProblem(redirectUri);
+        throw new AuthRequestError(
+          'invalid_request',
+          problem
+            ? `The redirect_uri is not registered for this client, and this server does not accept it (${problem}).`
+            : 'The redirect_uri is not registered for this client.'
+        );
       }
     } else if (clientInfo.redirectUris.length === 1) {
       // RFC 6749 §3.1.2.3: redirect_uri may be omitted only when exactly one is registered
