@@ -99,7 +99,8 @@ app.get("/authorize", async (c) => {
 		server: oauthServerInfo(),
 		state: requestId,
 	});
-	response.headers.append("Set-Cookie", pendingCookie(AUTHORIZE_COOKIE, requestId));
+	// A cookie of this dialog's own: dialogs open in other tabs or apps keep theirs
+	response.headers.append("Set-Cookie", await pendingCookie(AUTHORIZE_COOKIE, requestId));
 	clearLegacyCookies(c.req.raw, response.headers);
 	return response;
 });
@@ -118,12 +119,13 @@ app.post("/authorize", async (c) => {
 		return c.text("Invalid request: unknown provider", 400);
 	}
 
+	const requestId = formData.get("state");
 	const authReqInfo = await takePendingRecord<AuthRequest>(
 		c.env.PENDING_LOGINS,
 		c.req.raw,
 		AUTHORIZE_COOKIE,
 		AUTHORIZE_KEY_PREFIX,
-		formData.get("state"),
+		requestId,
 	);
 	if (!authReqInfo) {
 		console.warn(
@@ -136,8 +138,9 @@ app.post("/authorize", async (c) => {
 		authReqInfo.clientId,
 	);
 
+	// takePendingRecord accepted requestId, so it is a well-formed value; only its cookie is cleared
 	const headers = new Headers();
-	headers.append("Set-Cookie", clearPendingCookie(AUTHORIZE_COOKIE));
+	headers.append("Set-Cookie", await clearPendingCookie(AUTHORIZE_COOKIE, requestId as string));
 	return redirectToProvider(c, provider, authReqInfo, headers);
 });
 
@@ -151,12 +154,13 @@ app.post("/authorize", async (c) => {
  */
 app.get("/callback", async (c) => {
 	console.log("[OAUTH_HANDLER] Received OAuth callback request");
+	const state = c.req.query("state");
 	const login = await takePendingRecord<PendingLogin>(
 		c.env.PENDING_LOGINS,
 		c.req.raw,
 		LOGIN_COOKIE,
 		LOGIN_KEY_PREFIX,
-		c.req.query("state"),
+		state,
 	);
 	if (!login || !isProvider(login.provider)) {
 		console.warn(
@@ -165,7 +169,8 @@ app.get("/callback", async (c) => {
 		return c.text(EXPIRED_LOGIN, 400);
 	}
 
-	// The login record is used up: whatever happens next, clear its cookie
+	// The login record is used up: whatever happens next, clear its cookie (only this login's;
+	// takePendingRecord accepted state, so it is a well-formed value)
 	let response: Response;
 	try {
 		response = await completeLogin(c, login);
@@ -174,7 +179,7 @@ app.get("/callback", async (c) => {
 		response = c.text("Login failed", 500);
 	}
 	const withCleared = new Response(response.body, response);
-	withCleared.headers.append("Set-Cookie", clearPendingCookie(LOGIN_COOKIE));
+	withCleared.headers.append("Set-Cookie", await clearPendingCookie(LOGIN_COOKIE, state as string));
 	return withCleared;
 });
 

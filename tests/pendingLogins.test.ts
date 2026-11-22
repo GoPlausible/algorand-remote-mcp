@@ -6,6 +6,7 @@ import {
 	clearPendingCookie,
 	generatePendingValue,
 	pendingCookie,
+	pendingCookieName,
 	storePendingRecord,
 	takePendingRecord,
 } from "../src/workers-oauth-utils";
@@ -62,19 +63,23 @@ describe("takePendingRecord", () => {
 		const value = generatePendingValue();
 		await storePendingRecord(ns, AUTHORIZE_KEY_PREFIX, value, { clientId: "c1" });
 
-		const cookie = `${AUTHORIZE_COOKIE}=${value}`;
+		const name = await pendingCookieName(AUTHORIZE_COOKIE, value);
+		const cookie = `${name}=${value}`;
 		expect(
 			await takePendingRecord(ns, request(), AUTHORIZE_COOKIE, AUTHORIZE_KEY_PREFIX, value),
 		).toBeNull();
-		expect(
-			await takePendingRecord(
-				ns,
-				request(`${AUTHORIZE_COOKIE}=${generatePendingValue()}`),
-				AUTHORIZE_COOKIE,
-				AUTHORIZE_KEY_PREFIX,
-				value,
-			),
-		).toBeNull();
+		// Another value under this value's cookie name, and the single cookie name used before
+		for (const wrong of [`${name}=${generatePendingValue()}`, `${AUTHORIZE_COOKIE}=${value}`]) {
+			expect(
+				await takePendingRecord(
+					ns,
+					request(wrong),
+					AUTHORIZE_COOKIE,
+					AUTHORIZE_KEY_PREFIX,
+					value,
+				),
+			).toBeNull();
+		}
 		expect(
 			await takePendingRecord(
 				ns,
@@ -112,6 +117,23 @@ describe("takePendingRecord", () => {
 		}
 		expect(ns.objects.size).toBe(0);
 	});
+
+	it("keeps each record's cookie apart: taking one leaves the others usable", async () => {
+		const ns = pendingLoginsNamespace() as any;
+		const a = generatePendingValue();
+		const b = generatePendingValue();
+		await storePendingRecord(ns, AUTHORIZE_KEY_PREFIX, a, { clientId: "a" });
+		await storePendingRecord(ns, AUTHORIZE_KEY_PREFIX, b, { clientId: "b" });
+		const both = request(
+			`${await pendingCookieName(AUTHORIZE_COOKIE, a)}=${a}; ${await pendingCookieName(AUTHORIZE_COOKIE, b)}=${b}`,
+		);
+		expect(
+			await takePendingRecord(ns, both, AUTHORIZE_COOKIE, AUTHORIZE_KEY_PREFIX, b),
+		).toEqual({ clientId: "b" });
+		expect(
+			await takePendingRecord(ns, both, AUTHORIZE_COOKIE, AUTHORIZE_KEY_PREFIX, a),
+		).toEqual({ clientId: "a" });
+	});
 });
 
 describe("pending values and cookies", () => {
@@ -121,13 +143,36 @@ describe("pending values and cookies", () => {
 		expect(generatePendingValue()).not.toBe(a);
 	});
 
-	it("are __Host- cookies: HttpOnly, Secure, Path=/, SameSite=Lax, 10 minutes", () => {
+	it("are __Host- cookies: HttpOnly, Secure, Path=/, SameSite=Lax, 10 minutes", async () => {
 		expect(AUTHORIZE_COOKIE.startsWith("__Host-")).toBe(true);
-		const cookie = pendingCookie(AUTHORIZE_COOKIE, "v");
+		const value = generatePendingValue();
+		const cookie = await pendingCookie(AUTHORIZE_COOKIE, value);
+		expect(
+			cookie.startsWith(`${await pendingCookieName(AUTHORIZE_COOKIE, value)}=${value};`),
+		).toBe(true);
 		for (const part of ["HttpOnly", "Secure", "Path=/", "SameSite=Lax", "Max-Age=600"]) {
 			expect(cookie).toContain(part);
 		}
 		expect(cookie).not.toContain("Domain");
-		expect(clearPendingCookie(AUTHORIZE_COOKIE)).toContain("Max-Age=0");
+		const cleared = await clearPendingCookie(AUTHORIZE_COOKIE, value);
+		expect(cleared.startsWith(`${await pendingCookieName(AUTHORIZE_COOKIE, value)}=;`)).toBe(
+			true,
+		);
+		expect(cleared).toContain("Max-Age=0");
+	});
+
+	it("are named per value: the base, then 16 characters of the value's SHA-256, base64url", async () => {
+		const value = generatePendingValue();
+		const digest = new Uint8Array(
+			await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)),
+		);
+		const tag = btoa(String.fromCharCode(...digest))
+			.replace(/\+/g, "-")
+			.replace(/\//g, "_")
+			.slice(0, 16);
+		const name = await pendingCookieName(AUTHORIZE_COOKIE, value);
+		expect(name).toBe(`${AUTHORIZE_COOKIE}-${tag}`);
+		expect(name).not.toContain(value.slice(0, 8));
+		expect(await pendingCookieName(AUTHORIZE_COOKIE, generatePendingValue())).not.toBe(name);
 	});
 });

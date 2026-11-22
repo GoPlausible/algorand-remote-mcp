@@ -6,7 +6,10 @@ import { getLogo } from "./logoUrl.js";
  * doauth/client-worker/src, synced copies here) reads these from each repo's own oauth-server-info.ts.
  */
 
-/** Cookie names: __Host-mcp-authorize, __Host-mcp-login; old mcp-approved-clients etc. */
+/**
+ * Cookie names: __Host-mcp-authorize-<tag>, __Host-mcp-login-<tag> (one per pending login);
+ * old mcp-approved-clients etc.
+ */
 export const COOKIE_PREFIX = "mcp";
 
 const NAME = "Algorand Remote MCP OAuth";

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { pickVerifiedGitHubEmail } from "../src/oauth-handler";
 import OAuthProvider from "../src/oauth-provider";
-import { AUTHORIZE_COOKIE, LOGIN_COOKIE } from "../src/workers-oauth-utils";
+import { AUTHORIZE_COOKIE, LOGIN_COOKIE, pendingCookieName } from "../src/workers-oauth-utils";
 import {
 	BASE,
 	type FetchCall,
@@ -87,11 +87,12 @@ describe("C1: the login state stays on the server", () => {
 	it("accepts a callback once: a replay with the same state and cookie is refused", async () => {
 		const jar: Jar = new Map();
 		const { state } = await startLogin(provider, env, clientId, "google", jar);
-		const cookie = jar.get(LOGIN_COOKIE);
+		const name = await pendingCookieName(LOGIN_COOKIE, state);
+		const cookie = jar.get(name);
 		const first = await call(provider, env, `/callback?code=c&state=${state}`, {}, jar);
 		expect(first.status).toBe(302);
 
-		const replayJar: Jar = new Map([[LOGIN_COOKIE, cookie ?? ""]]);
+		const replayJar: Jar = new Map([[name, cookie ?? ""]]);
 		const replay = await call(provider, env, `/callback?code=c&state=${state}`, {}, replayJar);
 		expect(replay.status).toBe(400);
 	});
@@ -99,9 +100,10 @@ describe("C1: the login state stays on the server", () => {
 	it("clears the login cookie once the callback is used", async () => {
 		const jar: Jar = new Map();
 		const { state } = await startLogin(provider, env, clientId, "google", jar);
-		expect(jar.has(LOGIN_COOKIE)).toBe(true);
+		const name = await pendingCookieName(LOGIN_COOKIE, state);
+		expect(jar.has(name)).toBe(true);
 		await call(provider, env, `/callback?code=c&state=${state}`, {}, jar);
-		expect(jar.has(LOGIN_COOKIE)).toBe(false);
+		expect(jar.has(name)).toBe(false);
 	});
 
 	it("refuses a provider choice posted without the dialog's cookie (another site's form)", async () => {
@@ -131,7 +133,8 @@ describe("C1: the login state stays on the server", () => {
 			jar,
 		);
 		const state = dialogState(await page.text());
-		const cookie = jar.get(AUTHORIZE_COOKIE) ?? "";
+		const name = await pendingCookieName(AUTHORIZE_COOKIE, state);
+		const cookie = jar.get(name) ?? "";
 		const post = (j: Jar) =>
 			call(
 				provider,
@@ -141,7 +144,7 @@ describe("C1: the login state stays on the server", () => {
 				j,
 			);
 		expect((await post(jar)).status).toBe(302);
-		expect((await post(new Map([[AUTHORIZE_COOKIE, cookie]]))).status).toBe(400);
+		expect((await post(new Map([[name, cookie]]))).status).toBe(400);
 	});
 
 	it("refuses an unknown provider", async () => {
@@ -174,6 +177,78 @@ describe("C1: the login state stays on the server", () => {
 		expect(state).toMatch(/^[A-Za-z0-9_-]{43}$/);
 		expect(location.href).not.toContain(encodeURIComponent(REDIRECT));
 		expect(location.href).not.toContain(clientId);
+	});
+});
+
+describe("C1: several logins at once in one browser (tabs, apps)", () => {
+	async function openDialog(jar: Jar, client = clientId) {
+		const page = await call(
+			provider,
+			env,
+			`/authorize?${await authorizeQuery(client)}`,
+			{},
+			jar,
+		);
+		expect(page.status).toBe(200);
+		return dialogState(await page.text());
+	}
+	const pick = (jar: Jar, state: string, upstream: string) =>
+		call(
+			provider,
+			env,
+			"/authorize",
+			{ method: "POST", body: new URLSearchParams({ provider: upstream, state }) },
+			jar,
+		);
+	const stateOf = (res: Response) =>
+		new URL(res.headers.get("location") ?? "").searchParams.get("state") ?? "";
+	const names = async (base: string, values: string[]) =>
+		(await Promise.all(values.map((v) => pendingCookieName(base, v)))).sort();
+
+	it("completes two dialogs opened at once, for two apps, in any order", async () => {
+		const jar: Jar = new Map();
+		const otherApp = await registerClient(provider, env);
+		const a = await openDialog(jar);
+		const b = await openDialog(jar, otherApp);
+		// The second dialog added its own cookie; the first one's is still there
+		expect([...jar.keys()].sort()).toEqual(await names(AUTHORIZE_COOKIE, [a, b]));
+
+		// The dialog opened last is used first
+		const pickB = await pick(jar, b, "github");
+		const pickA = await pick(jar, a, "google");
+		expect([pickA.status, pickB.status]).toEqual([302, 302]);
+		expect([...jar.keys()].sort()).toEqual(
+			await names(LOGIN_COOKIE, [stateOf(pickA), stateOf(pickB)]),
+		);
+
+		const back = (res: Response) =>
+			call(provider, env, `/callback?code=upstream-code&state=${stateOf(res)}`, {}, jar);
+		const backA = await back(pickA);
+		const backB = await back(pickB);
+		expect([backA.status, backB.status]).toEqual([302, 302]);
+		for (const res of [backA, backB]) {
+			const location = new URL(res.headers.get("location") ?? "");
+			expect(location.origin + location.pathname).toBe(REDIRECT);
+			expect(location.searchParams.get("code")).toBeTruthy();
+		}
+		expect(jar.size).toBe(0);
+	});
+
+	it("refuses a value under another login's cookie, or the single cookie name used before", async () => {
+		const jarA: Jar = new Map();
+		const jarB: Jar = new Map();
+		const a = await startLogin(provider, env, clientId, "google", jarA);
+		const b = await startLogin(provider, env, clientId, "google", jarB);
+		const swapped: Jar = new Map([[await pendingCookieName(LOGIN_COOKIE, a.state), b.state]]);
+		const old: Jar = new Map([[LOGIN_COOKIE, a.state]]);
+		for (const jar of [swapped, old]) {
+			const res = await call(provider, env, `/callback?code=c&state=${a.state}`, {}, jar);
+			expect(res.status).toBe(400);
+		}
+		expect(upstreamCalls()).toHaveLength(0);
+		// Neither attempt used the login up
+		const res = await call(provider, env, `/callback?code=c&state=${a.state}`, {}, jarA);
+		expect(res.status).toBe(302);
 	});
 });
 
@@ -224,13 +299,13 @@ describe("L1: the X PKCE verifier belongs to its own login", () => {
 
 describe("L2: one Set-Cookie header per cookie", () => {
 	it("sends the cleared dialog cookie and the login cookie as separate headers", async () => {
-		const { res } = await startLogin(provider, env, clientId, "google", new Map());
+		const { res, state } = await startLogin(provider, env, clientId, "google", new Map());
 		const cookies = res.headers.getSetCookie();
 		expect(cookies).toHaveLength(2);
-		expect(cookies.some((c) => c.startsWith(`${AUTHORIZE_COOKIE}=;`))).toBe(true);
-		expect(
-			cookies.some((c) => c.startsWith(`${LOGIN_COOKIE}=`) && c.includes("Max-Age=600")),
-		).toBe(true);
+		const clearedDialog = new RegExp(`^${AUTHORIZE_COOKIE}-[A-Za-z0-9_-]{16}=;`);
+		expect(cookies.some((c) => clearedDialog.test(c))).toBe(true);
+		const login = `${await pendingCookieName(LOGIN_COOKIE, state)}=${state};`;
+		expect(cookies.some((c) => c.startsWith(login) && c.includes("Max-Age=600"))).toBe(true);
 	});
 });
 
@@ -303,7 +378,8 @@ describe("C2: GET /authorize validates the request and never redirects an error"
 			jar,
 		);
 		expect(res.status).toBe(200);
-		expect(jar.get(AUTHORIZE_COOKIE)).toBe(dialogState(await res.text()));
+		const value = dialogState(await res.text());
+		expect(jar.get(await pendingCookieName(AUTHORIZE_COOKIE, value))).toBe(value);
 	});
 });
 

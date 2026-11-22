@@ -34,6 +34,12 @@ const PROVIDER_LABELS: Record<Provider, string> = {
 // Taking a record requires the matching cookie and deletes the record, so each value works
 // once, only in the browser that started the login, and only for 10 minutes
 // (RFC 6749 §10.12, RFC 9700 §4.7.1). Ported from doauth's client-worker.
+//
+// Each pending record has a cookie of its own, named after its value (pendingCookieName), so
+// logins started at the same time in several tabs or apps of one browser each keep theirs and
+// none replaces another's. Each cookie lasts 10 minutes at most and is cleared when its record is
+// used. A SameSite=Lax cookie can be set only by a same-site request or a top-level navigation to
+// this host (RFC 6265bis §5.7, step 18), so no page elsewhere can fill a browser with them.
 
 export const PROVIDERS = ["google", "github", "twitter", "linkedin"] as const;
 export type Provider = (typeof PROVIDERS)[number];
@@ -53,6 +59,7 @@ export interface PendingLogin {
 export const LOGIN_TTL_SECONDS = 600;
 export const AUTHORIZE_KEY_PREFIX = "authorize:";
 export const LOGIN_KEY_PREFIX = "login:";
+// The bases of the cookie names, one cookie per pending record: `<base>-<tag of its value>`.
 // __Host-: Secure, Path=/ and no Domain, so no other host can set or overwrite it (RFC 6265bis §4.1.3.2)
 export const AUTHORIZE_COOKIE = `__Host-${COOKIE_PREFIX}-authorize`;
 export const LOGIN_COOKIE = `__Host-${COOKIE_PREFIX}-login`;
@@ -72,13 +79,23 @@ export function generatePendingValue(): string {
 	return _b64url(bytes);
 }
 
-/** HttpOnly, Secure, SameSite=Lax: sent on the provider's top-level redirect back, never readable by scripts */
-export function pendingCookie(name: string, value: string): string {
-	return `${name}=${value}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${LOGIN_TTL_SECONDS}`;
+/**
+ * The name of the cookie that ties the pending record `value` to this browser: the base, then the
+ * first 16 characters of the value's SHA-256 (base64url), so the name gives nothing of the value away
+ */
+export async function pendingCookieName(base: string, value: string): Promise<string> {
+	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+	return `${base}-${_b64url(new Uint8Array(digest)).slice(0, 16)}`;
 }
 
-export function clearPendingCookie(name: string): string {
-	return `${name}=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0`;
+/** HttpOnly, Secure, SameSite=Lax: sent on the provider's top-level redirect back, never readable by scripts */
+export async function pendingCookie(base: string, value: string): Promise<string> {
+	return `${await pendingCookieName(base, value)}=${value}; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=${LOGIN_TTL_SECONDS}`;
+}
+
+/** Clears the cookie of the pending record `value` only, leaving the other logins' cookies alone */
+export async function clearPendingCookie(base: string, value: string): Promise<string> {
+	return `${await pendingCookieName(base, value)}=; HttpOnly; Secure; Path=/; SameSite=Lax; Max-Age=0`;
 }
 
 function readCookie(cookieHeader: string | null, name: string): string | null {
@@ -114,18 +131,22 @@ export async function storePendingRecord(
 /**
  * Takes the pending record that `value` names, if this browser holds the matching cookie,
  * and deletes it so the value can't be used again.
+ * @param cookieBase - AUTHORIZE_COOKIE or LOGIN_COOKIE; the cookie's name is derived from `value`
  * @returns The record, or null if the value is malformed, the cookie is missing or different,
  *   or the record has expired or was already used.
  */
 export async function takePendingRecord<T>(
 	namespace: DurableObjectNamespace<PendingLogins>,
 	request: Request,
-	cookieName: string,
+	cookieBase: string,
 	keyPrefix: string,
 	value: unknown,
 ): Promise<T | null> {
 	if (typeof value !== "string" || !PENDING_VALUE.test(value)) return null;
-	const cookie = readCookie(request.headers.get("Cookie"), cookieName);
+	const cookie = readCookie(
+		request.headers.get("Cookie"),
+		await pendingCookieName(cookieBase, value),
+	);
 	if (!cookie || !timingSafeEqual(cookie, value)) return null;
 
 	return ((await pendingObject(namespace, `${keyPrefix}${value}`).take()) as T | null) ?? null;
@@ -1011,7 +1032,7 @@ export async function redirectToProvider(
 
 	// Copy into a Headers object, which keeps each Set-Cookie header separate
 	const responseHeaders = new Headers(headers);
-	responseHeaders.append("Set-Cookie", pendingCookie(LOGIN_COOKIE, state));
+	responseHeaders.append("Set-Cookie", await pendingCookie(LOGIN_COOKIE, state));
 	responseHeaders.set(
 		"location",
 		getUpstreamAuthorizeUrl({
