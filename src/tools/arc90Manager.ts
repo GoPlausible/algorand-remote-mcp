@@ -403,7 +403,6 @@ export function registerArc90Tools(server: McpServer, env: Env, props: Props): v
 				console.log("Generating ARC-90 QR with args:", toolArgs);
 				const { uri, qrCode } = await generateAlgorandQr(toolArgs);
 				console.log("Generated ARC-90 URI:", uri);
-				console.log("Generated ARC-90 QR Code (base64 PNG):", qrCode);
 				// Determine URI type
 				const uriType = determineQrUriType(amount, assetId);
 

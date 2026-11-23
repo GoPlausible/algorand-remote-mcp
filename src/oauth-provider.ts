@@ -5,6 +5,11 @@
 // Server-specific behavior goes into OAuthProviderOptions, never into edits of a copy.
 import { WorkerEntrypoint } from 'cloudflare:workers';
 
+/** For logs only: the first 6 characters of a user ID, enough to correlate lines without naming the user */
+function shortUserId(userId: unknown): string {
+  return `${String(userId ?? '').slice(0, 6)}…`;
+}
+
 // Types
 
 /**
@@ -1482,7 +1487,7 @@ class OAuthProviderImpl {
 
     // Update the grant with the refresh token hash and no TTL
     await env.OAUTH_KV.put(grantKey, JSON.stringify(grantData));
-    console.log('[OAUTH_PROVIDER] [OAUTH_KV] Updated grant after authorization code exchange:', { userId, grantId });
+    console.log('[OAUTH_PROVIDER] [OAUTH_KV] Updated grant after authorization code exchange:', { userId: shortUserId(userId), grantId });
 
     // Store access token with denormalized grant information
     const accessTokenData: Token = {
@@ -1503,7 +1508,7 @@ class OAuthProviderImpl {
     await env.OAUTH_KV.put(`token:${userId}:${grantId}:${accessTokenId}`, JSON.stringify(accessTokenData), {
       expirationTtl: accessTokenTTL,
     });
-    console.log('[OAUTH_PROVIDER]  [OAUTH_KV] Stored new access token:', { userId, grantId, tokenId: accessTokenId, expiresAt: accessTokenExpiresAt });
+    console.log('[OAUTH_PROVIDER]  [OAUTH_KV] Stored new access token:', { userId: shortUserId(userId), grantId, tokenId: accessTokenId, expiresAt: accessTokenExpiresAt });
 
     // Return the tokens
     return new Response(
@@ -1573,7 +1578,7 @@ class OAuthProviderImpl {
     const cutoff = this.options.grantsIssuedBefore;
     if (cutoff && !(typeof grantData.createdAt === 'number' && grantData.createdAt >= cutoff)) {
       await env.OAUTH_KV.delete(grantKey);
-      console.warn('[OAUTH_PROVIDER] Refused refresh of a grant issued before the cutoff:', { userId, grantId });
+      console.warn('[OAUTH_PROVIDER] Refused refresh of a grant issued before the cutoff:', { userId: shortUserId(userId), grantId });
       return this.createErrorResponse('invalid_grant', 'This grant predates the current login rules; log in again');
     }
 
@@ -1706,7 +1711,7 @@ class OAuthProviderImpl {
 
     // Save the updated grant
     await env.OAUTH_KV.put(grantKey, JSON.stringify(grantData));
-    console.log('[OAUTH_PROVIDER] [OAUTH_KV]  Updated grant after refresh token exchange:', { userId, grantId });
+    console.log('[OAUTH_PROVIDER] [OAUTH_KV]  Updated grant after refresh token exchange:', { userId: shortUserId(userId), grantId });
 
     // Store new access token with denormalized grant information
     const accessTokenData: Token = {
@@ -1727,7 +1732,7 @@ class OAuthProviderImpl {
     await env.OAUTH_KV.put(`token:${userId}:${grantId}:${accessTokenId}`, JSON.stringify(accessTokenData), {
       expirationTtl: accessTokenTTL,
     });
-    console.log('[OAUTH_PROVIDER] [OAUTH_KV]  Stored new access token:', { userId, grantId, tokenId: accessTokenId, expiresAt: accessTokenExpiresAt });
+    console.log('[OAUTH_PROVIDER] [OAUTH_KV]  Stored new access token:', { userId: shortUserId(userId), grantId, tokenId: accessTokenId, expiresAt: accessTokenExpiresAt });
 
     // Return the new access token and refresh token
     return new Response(
@@ -2084,7 +2089,7 @@ class OAuthProviderImpl {
 
     // Generate token ID from the full token
     const accessTokenId = await generateTokenId(accessToken);
-    console.log('[OAUTH_PROVIDER] Extracted userId:', userId, 'grantId:', grantId, 'tokenId:', accessTokenId);
+    console.log('[OAUTH_PROVIDER] Extracted userId:', shortUserId(userId), 'grantId:', grantId, 'tokenId:', accessTokenId);
 
     // Look up the token record, which now contains the denormalized grant information
     const tokenKey = `token:${userId}:${grantId}:${accessTokenId}`;
@@ -2097,7 +2102,7 @@ class OAuthProviderImpl {
         'WWW-Authenticate': 'Bearer realm="OAuth", error="invalid_token"',
       });
     }
-    console.log('[OAUTH_PROVIDER] Access token data found:', { userId, grantId, expiresAt: tokenData.expiresAt });
+    console.log('[OAUTH_PROVIDER] Access token data found:', { userId: shortUserId(userId), grantId, expiresAt: tokenData.expiresAt });
 
     // Check if token is expired (should be auto-deleted by KV TTL, but double-check)
     const now = Math.floor(Date.now() / 1000);
@@ -2704,7 +2709,7 @@ class OAuthHelpersImpl implements OAuthHelpers {
       // Store the grant with a key that includes the user ID
       const grantKey = `grant:${options.userId}:${grantId}`;
       await this.env.OAUTH_KV.put(grantKey, JSON.stringify(grant));
-      console.log('[OAUTH_PROVIDER] [OAUTH_KV]  Stored grant for implicit flow:', { userId: options.userId, grantId });
+      console.log('[OAUTH_PROVIDER] [OAUTH_KV]  Stored grant for implicit flow:', { userId: shortUserId(options.userId), grantId });
 
       // Store access token with denormalized grant information
       const accessTokenData: Token = {
@@ -2727,7 +2732,7 @@ class OAuthHelpersImpl implements OAuthHelpers {
         JSON.stringify(accessTokenData),
         { expirationTtl: accessTokenTTL }
       );
-      console.log('[OAUTH_PROVIDER] [OAUTH_KV]  Stored access token for implicit flow:', { userId: options.userId, grantId, tokenId: accessTokenId });
+      console.log('[OAUTH_PROVIDER] [OAUTH_KV]  Stored access token for implicit flow:', { userId: shortUserId(options.userId), grantId, tokenId: accessTokenId });
 
       // Build the redirect URL for implicit flow (token in fragment, not query params)
       const redirectUrl = new URL(options.request.redirectUri);
@@ -2782,7 +2787,7 @@ class OAuthHelpersImpl implements OAuthHelpers {
       // Set 10-minute TTL for the grant (will be extended when code is exchanged)
       const codeExpiresIn = 600; // 10 minutes
       await this.env.OAUTH_KV.put(grantKey, JSON.stringify(grant), { expirationTtl: codeExpiresIn });
-      console.log('[OAUTH_PROVIDER] [OAUTH_KV]  Stored grant with auth code:', { userId: options.userId, grantId });
+      console.log('[OAUTH_PROVIDER] [OAUTH_KV]  Stored grant with auth code:', { userId: shortUserId(options.userId), grantId });
 
       // Build the redirect URL for authorization code flow
       const redirectUrl = new URL(options.request.redirectUri);

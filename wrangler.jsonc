@@ -82,7 +82,10 @@
 		}
 	],
 	"observability": {
-		"enabled": true
+		"enabled": true,
+		// Remove query strings (the OAuth `code` and `state`, and `sessionId`) from request URLs in logs and traces.
+		// Needs Wrangler 4.134 or later: deploying with an older Wrangler can reset this setting.
+		"redact_query_string": true
 	},
 	/**
 	 * Environment Variables

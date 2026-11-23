@@ -50,7 +50,7 @@ export function encodeSignedTxn(
 	signerAddr: string,
 ): Uint8Array {
 	const txnObj = msgpack.decode(algosdk.encodeUnsignedTransaction(txn));
-	console.log("Transaction object for encoding:", txnObj);
+	console.log("Encoding signed transaction:", txn.txID());
 
 	// Create a Map for the signed transaction
 	const signedTxn: any = {
@@ -216,20 +216,14 @@ export async function registerGeneralTransactionTools(
 				if (!publicKeyResult.success || !publicKeyResult.publicKey) {
 					throw new Error("Failed to get public key from vault");
 				}
-				console.log("Public key from vault:", publicKeyResult.publicKey);
 				console.log(
 					`Signing transaction for user ${props.id} with provider ${props.provider}`,
 				);
 				// Get the raw signature from the vault
 				const TAG: Buffer = Buffer.from("TX");
 				console.log("TAG:", Buffer.from("TX"));
-				console.log(
-					"Encoded transaction buffer signing:",
-					new Uint8Array(Buffer.from(encodedTxn, "base64")),
-				);
 				const finalEncodedTxn = new Uint8Array(Buffer.from(encodedTxn, "base64"));
 				const finalEncodedTxnTagged = ConcatArrays(TAG, finalEncodedTxn);
-				console.log("Final encoded transaction:", finalEncodedTxnTagged);
 				const finalEncodedTxnBase64 = Buffer.from(finalEncodedTxnTagged).toString("base64");
 				const signatureResult = await signWithTransit(
 					env,
@@ -244,7 +238,6 @@ export async function registerGeneralTransactionTools(
 
 				// Decode the transaction
 				const txn = algosdk.decodeUnsignedTransaction(Buffer.from(encodedTxn, "base64"));
-				console.log("Decoded transaction:", txn);
 
 				// Convert the base64 signature to Uint8Array
 				const signature = Buffer.from(signatureResult.signature, "base64");
@@ -296,7 +289,6 @@ export async function registerGeneralTransactionTools(
 
 				// Decode the transaction
 				const txn = algosdk.decodeUnsignedTransaction(Buffer.from(encodedTxn, "base64"));
-				console.log("Decoded transaction:", txn);
 				const account = algosdk.mnemonicToSecretKey(mnemonic);
 				const publicKeyBuffer = algosdk.decodeAddress(account.addr.toString()).publicKey;
 				const signatureResult = algosdk.signTransaction(txn, account.sk);

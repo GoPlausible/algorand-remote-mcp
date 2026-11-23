@@ -776,7 +776,7 @@ export async function revokeUpstreamToken(
 
 					const responseText = await resp.text();
 					console.log(
-						`[WORKER_OAUTH_UTILS] Google revocation response: status=${resp.status}, body=${responseText}`,
+						`[WORKER_OAUTH_UTILS] Google revocation response: status=${resp.status}`,
 					);
 
 					return resp.ok || resp.status === 200;
@@ -809,7 +809,7 @@ export async function revokeUpstreamToken(
 
 					const responseText = await resp.text();
 					console.log(
-						`[WORKER_OAUTH_UTILS] GitHub token revocation response: status=${resp.status}, body=${responseText}`,
+						`[WORKER_OAUTH_UTILS] GitHub token revocation response: status=${resp.status}`,
 					);
 
 					///////////
@@ -826,7 +826,7 @@ export async function revokeUpstreamToken(
 
 					const responseTextGrant = await respGrant.text();
 					console.log(
-						`[WORKER_OAUTH_UTILS] GitHub grant revocation response: status=${respGrant.status}, body=${responseTextGrant}`,
+						`[WORKER_OAUTH_UTILS] GitHub grant revocation response: status=${respGrant.status}`,
 					);
 
 					// GitHub returns 204 No Content for successful revocation
@@ -862,7 +862,7 @@ export async function revokeUpstreamToken(
 
 				const responseText = await resp.text();
 				console.log(
-					`[WORKER_OAUTH_UTILS] Twitter revocation response: status=${resp.status}, body=${responseText}`,
+					`[WORKER_OAUTH_UTILS] Twitter revocation response: status=${resp.status}`,
 				);
 
 				return resp.ok;
@@ -884,7 +884,7 @@ export async function revokeUpstreamToken(
 
 				const responseText = await resp.text();
 				console.log(
-					`[WORKER_OAUTH_UTILS] LinkedIn revocation response: status=${resp.status}, body=${responseText}`,
+					`[WORKER_OAUTH_UTILS] LinkedIn revocation response: status=${resp.status}`,
 				);
 
 				return resp.ok || resp.status === 200;

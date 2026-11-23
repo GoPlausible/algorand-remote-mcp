@@ -50,6 +50,11 @@ type HandlerContext = Context<{ Bindings: Env & OAuthEnv }>;
 const EXPIRED_LOGIN =
 	"This login is invalid or has expired. Please start again from the application.";
 
+/** For logs only: the first 6 characters of a user ID, enough to correlate lines without naming the user */
+function shortId(id: unknown): string {
+	return `${String(id ?? "").slice(0, 6)}…`;
+}
+
 /** Clears the cookies of the removed remembered-approval shortcut, if the browser still sends them */
 function clearLegacyCookies(request: Request, headers: Headers): void {
 	const cookieHeader = request.headers.get("Cookie") || "";
@@ -175,7 +180,7 @@ app.get("/callback", async (c) => {
 	try {
 		response = await completeLogin(c, login);
 	} catch (error) {
-		console.error("[OAUTH_HANDLER] Error completing login:", error);
+		console.error("[OAUTH_HANDLER] Error completing login:", { name: (error as Error)?.name });
 		response = c.text("Login failed", 500);
 	}
 	const withCleared = new Response(response.body, response);
@@ -331,7 +336,7 @@ async function completeLogin(c: HandlerContext, login: PendingLogin): Promise<Re
 
 	if (!userResponse.ok) {
 		const resText = await userResponse.text();
-		console.error(`[OAUTH_HANDLER] Failed to fetch user info from ${provider}: ${resText}`);
+		console.error(`[OAUTH_HANDLER] Failed to fetch user info from ${provider}: status ${userResponse.status}`);
 		return c.text(`Failed to fetch user info: ${resText}`, 500);
 	}
 
@@ -397,7 +402,7 @@ async function completeLogin(c: HandlerContext, login: PendingLogin): Promise<Re
 	}
 
 	console.log(`[OAUTH_HANDLER] Successfully fetched user info from ${provider}:`, {
-		id,
+		id: shortId(id),
 		clientId: authReqInfo.clientId,
 	});
 	const scope = authReqInfo.scope;
@@ -452,7 +457,7 @@ app.all("/logout", async (c) => {
 
 	const { userId, clientId } = session;
 	const provider: string | undefined = session.props?.provider;
-	console.log("[OAUTH_HANDLER] Logout request:", { userId, clientId, provider });
+	console.log("[OAUTH_HANDLER] Logout request:", { userId: shortId(userId), clientId, provider });
 
 	let revoked: number;
 	try {
@@ -466,7 +471,7 @@ app.all("/logout", async (c) => {
 		console.error("[OAUTH_HANDLER] Error revoking grants during logout:", error);
 		return c.text("Logout failed", 500);
 	}
-	console.log("[OAUTH_HANDLER] Revoked grants:", { userId, clientId, revoked });
+	console.log("[OAUTH_HANDLER] Revoked grants:", { userId: shortId(userId), clientId, revoked });
 
 	const headers = new Headers({ "Content-Type": "application/json" });
 	// Each cookie needs its own Set-Cookie header

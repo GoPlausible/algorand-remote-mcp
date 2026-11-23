@@ -342,7 +342,7 @@ export async function registerAp2Tools(server: McpServer, env: Env, props: Props
 				);
 				// Parse and validate the mandate data based on type
 				const mandateData = mandate;
-				console.log("Parsed mandate data:", mandateData);
+				console.log("Parsed mandate data:", { type });
 				convertMerchantPublicKey(mandateData);
 
 				const mandateObj =
@@ -457,7 +457,7 @@ export async function registerAp2Tools(server: McpServer, env: Env, props: Props
 								};
 
 				// Generate the verifiable credential
-				console.log("Generating verifiable credential with mandate object:", mandateObj);
+				console.log("Generating verifiable credential for mandate type:", type);
 				console.log("Using public key:", publicKeyResult.publicKey);
 				const verifiableCredential = await generateVerifiableCredential(
 					env,
